@@ -1,0 +1,37 @@
+services:
+  api:
+    image: golang:1.22
+    working_dir: /app
+    volumes:
+      - ./:/app
+    environment:
+      - HTTP_ADDRESS=0.0.0.0:8082
+      - DB_PATH=/app/data/app.db
+      - CORS_ALLOWED_ORIGINS=http://web:5173,http://localhost:5173
+      - ENV=dev
+      - GOTOOLCHAIN=go1.22.6
+    command: sh -c "go mod download && go run ./cmd/server"
+    ports:
+      - "8082:8082"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8082/healthz >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  web:
+    image: node:18-alpine
+    working_dir: /app/web
+    volumes:
+      - ./web:/app/web
+      - /app/web/node_modules
+    environment:
+      - NODE_ENV=development
+      - VITE_PROXY_TARGET=http://api:8082
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0 --port 5173"
+    ports:
+      - "5173:5173"
+    depends_on:
+      api:
+        condition: service_healthy

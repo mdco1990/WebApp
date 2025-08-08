@@ -43,17 +43,21 @@ func (r *Repository) ListExpenses(ctx context.Context, ym domain.YearMonth) ([]d
 	rows, err := r.db.QueryContext(ctx,
 		`SELECT id, year, month, category, description, amount_cents FROM expense WHERE year=? AND month=? ORDER BY id DESC`,
 		ym.Year, ym.Month)
-	if err != nil { return nil, err }
+	if err != nil { return []domain.Expense{}, err }
 	defer rows.Close()
 	var out []domain.Expense
 	for rows.Next() {
 		var e domain.Expense
 		var category sql.NullString
 		var amount int64
-		if err := rows.Scan(&e.ID, &e.Year, &e.Month, &category, &e.Description, &amount); err != nil { return nil, err }
+		if err := rows.Scan(&e.ID, &e.Year, &e.Month, &category, &e.Description, &amount); err != nil { return []domain.Expense{}, err }
 		e.Category = category.String
 		e.AmountCents = domain.Money(amount)
 		out = append(out, e)
+	}
+	// Ensure we return an empty slice instead of nil
+	if out == nil {
+		out = []domain.Expense{}
 	}
 	return out, rows.Err()
 }

@@ -27,7 +27,7 @@ func Load() Config {
 	_ = godotenv.Load()
 
 	cfg := Config{
-		HTTPAddress: getenv("HTTP_ADDRESS", "127.0.0.1:8080"),
+		HTTPAddress: getenv("HTTP_ADDRESS", "127.0.0.1:8082"),
 		DBPath:      getenv("DB_PATH", "./data/app.db"),
 		APIKey:      os.Getenv("API_KEY"),
 		Env:         getenv("ENV", "dev"),

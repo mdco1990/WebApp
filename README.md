@@ -1,6 +1,9 @@
 # WebApp – Personal Budget Tracker
 
-A modern micro-service-style full-stack web app for tracking monthly budget, salary, and expenses.
+A modern full-stack web app for tracking monthly budget, salary, and expenses. The codebase is split into two components:
+
+- Backend API (Go): `cmd/server`, `internal/*`
+- Frontend UI (React+TS+Vite): `web/`
 
 - Backend: Go (chi HTTP, SQLite via modernc), structured per Go Project Layout
 - Frontend: React + TypeScript + Vite + Bootstrap
@@ -42,7 +45,7 @@ go mod tidy
 go run ./cmd/server
 ```
 
-Server listens on 127.0.0.1:8080 by default and creates a local DB at data/app.db.
+Server listens on 127.0.0.1:8082 by default and creates a local DB at data/app.db.
 
 ### Frontend
 1. Ensure Node.js 18+ and pnpm/npm are installed.
@@ -54,7 +57,7 @@ npm install
 npm run dev
 ```
 
-Frontend runs on http://localhost:5173 and calls the backend at http://127.0.0.1:8080.
+Frontend runs on http://localhost:5173 and calls the backend at http://127.0.0.1:8082.
 
 ## API overview
 - GET /healthz
@@ -67,9 +70,27 @@ Frontend runs on http://localhost:5173 and calls the backend at http://127.0.0.1
 
 If API key is configured, include header: X-API-Key: <key>
 
+## Run both components together
+
+Option A: Makefile (local dev)
+
+1. Start both:
+	- `make dev` (API on 127.0.0.1:8082, Web on http://localhost:5173)
+2. Tail logs:
+	- `make dev-logs` (Ctrl+C to stop tail)
+3. Stop both:
+	- `make dev-stop`
+
+Option B: Docker Compose
+
+```bash
+docker compose up --build
+# API: http://127.0.0.1:8082, Web: http://localhost:5173
+```
+
 ## Configuration
 Environment variables (see configs/.env.example):
-- HTTP_ADDRESS: default 127.0.0.1:8080
+- HTTP_ADDRESS: default 127.0.0.1:8082
 - DB_PATH: default data/app.db
 - CORS_ALLOWED_ORIGINS: default http://localhost:5173
 - API_KEY: optional (if set, required by API)
