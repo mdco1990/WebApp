@@ -87,6 +87,20 @@ interface LoginData {
   user?: User;
 }
 
+// Backend aggregated payload
+interface MonthlyData {
+  year: number;
+  month: number;
+  month_name?: string;
+  income_sources: IncomeSource[];
+  budget_sources: OutcomeSource[]; // naming: backend returns budget sources; UI calls them outcome sources
+  expenses: Expense[];
+  total_income_cents: number;
+  total_budget_cents: number;
+  total_expenses_cents: number;
+  remaining_cents: number;
+}
+
 const App: React.FC = () => {
   // State management
   const [activeSection, setActiveSection] = useState<'overview' | 'planning' | 'analytics' | 'records'>('overview');
@@ -128,6 +142,7 @@ const App: React.FC = () => {
   const [autoUpdate] = useState(true); // Enabled by default
   const [showPasswordForm, setShowPasswordForm] = useState(false);
   const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
+  const [dataLoaded, setDataLoaded] = useState(false);
 
   const { t, i18n } = useTranslation();
   // Security: do not hardcode API keys; read from localStorage if needed (dev only)
@@ -304,30 +319,23 @@ const App: React.FC = () => {
 
     try {
       const { year, month } = getCurrentYearMonth();
-      
-      // Load income sources
-  const incomeSources = await apiCall(`/api/v1/income-sources?year=${year}&month=${month}`);
-      
-      // Load budget sources  
-  const outcomeSources = await apiCall(`/api/v1/budget-sources?year=${year}&month=${month}`);
-      
-      // Load expenses
-  const expensesData = await apiCall(`/api/v1/expenses?year=${year}&month=${month}`);
-      
-      const totalIncome = incomeSources.reduce((sum: number, source: IncomeSource) => sum + source.amount_cents, 0);
-      const totalOutcome = outcomeSources.reduce((sum: number, source: OutcomeSource) => sum + source.amount_cents, 0);
-      
+      // Load consolidated monthly data in one request
+      const data: MonthlyData = await apiCall(`/api/v1/monthly-data?year=${year}&month=${month}`);
+
+      const totalIncome = data?.total_income_cents || 0;
+      const totalOutcome = data?.total_budget_cents || 0;
+
       setPredictedBudget(prev => ({
         ...prev,
-        incomeSources: incomeSources || [],
-        outcomeSources: outcomeSources || [],
+        incomeSources: data?.income_sources || [],
+        outcomeSources: data?.budget_sources || [],
         totalIncome,
         totalOutcome,
-        difference: totalIncome - totalOutcome
+        difference: totalIncome - totalOutcome,
       }));
-      
-      setExpenses(expensesData || []);
-      
+
+      setExpenses(data?.expenses || []);
+      setDataLoaded(true);
     } catch (error) {
       console.error('Failed to load data:', error);
     }
@@ -337,69 +345,11 @@ const App: React.FC = () => {
   const addDefaultData = async () => {
     try {
       const { year, month } = getCurrentYearMonth();
-      let dataAdded = false;
-      
-      // Add default income sources if none exist
-      if (predictedBudget.incomeSources.length === 0) {
-        const defaultIncomeSources = [
-          { name: 'Main Salary', amount_cents: 268187 }, // 2681.87
-          { name: 'Secondary Salary', amount_cents: 141054 }, // 1410.54
-          { name: 'Meal Vouchers', amount_cents: 15000 }, // 150.00
-          { name: 'Other', amount_cents: 0 },
-        ];
-
-        for (const source of defaultIncomeSources) {
-          await apiCall('/api/v1/income-sources', {
-            method: 'POST',
-            body: JSON.stringify({
-              name: source.name,
-              year,
-              month,
-              amount_cents: source.amount_cents
-            })
-          });
-        }
-        dataAdded = true;
-      }
-
-      // Add default outcome sources if none exist
-      if (predictedBudget.outcomeSources.length === 0) {
-        const defaultOutcomeSources = [
-          { name: 'Money Savings', amount_cents: 10000 }, // 100.00
-          { name: 'Gas/Fuel', amount_cents: 8000 }, // 80.00
-          { name: 'Dance School', amount_cents: 4000 }, // 40.00
-          { name: 'Rent', amount_cents: 97686 }, // 976.86
-          { name: 'Car Loan', amount_cents: 28404 }, // 284.04
-          { name: 'Car Maintenance', amount_cents: 20025 }, // 200.25
-          { name: 'Home Insurance', amount_cents: 2315 }, // 23.15
-          { name: 'Car Insurance', amount_cents: 21185 }, // 211.85
-          { name: 'Electricity', amount_cents: 5300 }, // 53.00
-          { name: 'Gas', amount_cents: 11200 }, // 112.00
-          { name: 'Water', amount_cents: 4500 }, // 45.00
-          { name: 'Daycare', amount_cents: 6865 }, // 68.65
-          { name: 'Internet Subscription', amount_cents: 3798 }, // 37.98
-          { name: 'Phone Subscription', amount_cents: 3998 }, // 39.98
-          { name: 'Miscellaneous Courses', amount_cents: 65000 } // 650.00
-        ];
-
-        for (const source of defaultOutcomeSources) {
-          await apiCall('/api/v1/budget-sources', {
-            method: 'POST',
-            body: JSON.stringify({
-              name: source.name,
-              year,
-              month,
-              amount_cents: source.amount_cents
-            })
-          });
-        }
-        dataAdded = true;
-      }
-
-      // Reload data after adding any defaults
-      if (dataAdded) {
-        loadData();
-      }
+      await apiCall('/api/v1/seed-defaults', {
+        method: 'POST',
+        body: JSON.stringify({ year, month })
+      });
+      await loadData();
     } catch (error) {
       console.error('Failed to add default data:', error);
     }
@@ -600,13 +550,13 @@ const App: React.FC = () => {
   }, [predictedBudget.incomeSources, predictedBudget.outcomeSources]);
 
   useEffect(() => {
-    // Add default data after initial load if needed
-    if (sessionId) {
+    // Add default data after an initial load if needed (avoid racing before load completes)
+    if (sessionId && dataLoaded) {
       if (predictedBudget.incomeSources.length === 0 || predictedBudget.outcomeSources.length === 0) {
         addDefaultData();
       }
     }
-  }, [sessionId, predictedBudget.incomeSources.length, predictedBudget.outcomeSources.length]);
+  }, [sessionId, dataLoaded, predictedBudget.incomeSources.length, predictedBudget.outcomeSources.length]);
 
   useEffect(() => {
     let interval: any;

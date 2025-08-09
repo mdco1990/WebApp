@@ -423,6 +423,84 @@ func NewRouter(cfg config.Config, db *sql.DB) http.Handler {
 			respondJSON(w, http.StatusOK, data)
 		})
 
+		// Seed default income/budget sources for the month if they are empty
+		api.Post("/seed-defaults", func(w http.ResponseWriter, r *http.Request) {
+			userID := getUserIDFromContext(r.Context())
+			var req struct {
+				Year  int `json:"year"`
+				Month int `json:"month"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+				respondErr(w, http.StatusBadRequest, invalidBodyMsg)
+				return
+			}
+			if req.Year == 0 || req.Month == 0 {
+				respondErr(w, http.StatusBadRequest, "year and month required")
+				return
+			}
+
+			ym := domain.YearMonth{Year: req.Year, Month: req.Month}
+
+			// Check existing
+			income, err := repo.ListIncomeSources(r.Context(), userID, ym)
+			if err != nil {
+				respondErr(w, http.StatusInternalServerError, "failed to list income sources")
+				return
+			}
+			budget, err := repo.ListBudgetSources(r.Context(), userID, ym)
+			if err != nil {
+				respondErr(w, http.StatusInternalServerError, "failed to list budget sources")
+				return
+			}
+
+			seededIncome := 0
+			seededBudget := 0
+
+			if len(income) == 0 {
+				defaults := []domain.CreateIncomeSourceRequest{
+					{Name: "Main Salary", Year: req.Year, Month: req.Month, AmountCents: 268187},
+					{Name: "Secondary Salary", Year: req.Year, Month: req.Month, AmountCents: 141054},
+					{Name: "Meal Vouchers", Year: req.Year, Month: req.Month, AmountCents: 15000},
+					{Name: "Other", Year: req.Year, Month: req.Month, AmountCents: 0},
+				}
+				for _, d := range defaults {
+					if _, err := repo.CreateIncomeSource(r.Context(), userID, d); err == nil {
+						seededIncome++
+					}
+				}
+			}
+
+			if len(budget) == 0 {
+				defaults := []domain.CreateBudgetSourceRequest{
+					{Name: "Money Savings", Year: req.Year, Month: req.Month, AmountCents: 10000},
+					{Name: "Gas/Fuel", Year: req.Year, Month: req.Month, AmountCents: 8000},
+					{Name: "Dance School", Year: req.Year, Month: req.Month, AmountCents: 4000},
+					{Name: "Rent", Year: req.Year, Month: req.Month, AmountCents: 97686},
+					{Name: "Car Loan", Year: req.Year, Month: req.Month, AmountCents: 28404},
+					{Name: "Car Maintenance", Year: req.Year, Month: req.Month, AmountCents: 20025},
+					{Name: "Home Insurance", Year: req.Year, Month: req.Month, AmountCents: 2315},
+					{Name: "Car Insurance", Year: req.Year, Month: req.Month, AmountCents: 21185},
+					{Name: "Electricity", Year: req.Year, Month: req.Month, AmountCents: 5300},
+					{Name: "Gas", Year: req.Year, Month: req.Month, AmountCents: 11200},
+					{Name: "Water", Year: req.Year, Month: req.Month, AmountCents: 4500},
+					{Name: "Daycare", Year: req.Year, Month: req.Month, AmountCents: 6865},
+					{Name: "Internet Subscription", Year: req.Year, Month: req.Month, AmountCents: 3798},
+					{Name: "Phone Subscription", Year: req.Year, Month: req.Month, AmountCents: 3998},
+					{Name: "Miscellaneous Courses", Year: req.Year, Month: req.Month, AmountCents: 65000},
+				}
+				for _, d := range defaults {
+					if _, err := repo.CreateBudgetSource(r.Context(), userID, d); err == nil {
+						seededBudget++
+					}
+				}
+			}
+
+			respondJSON(w, http.StatusOK, map[string]any{
+				"seeded_income": seededIncome,
+				"seeded_budget": seededBudget,
+			})
+		})
+
 		// Income Sources endpoints
 		api.Route("/income-sources", func(income chi.Router) {
 			income.Get("/", func(w http.ResponseWriter, r *http.Request) {
