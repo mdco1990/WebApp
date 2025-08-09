@@ -4,7 +4,8 @@ import react from '@vitejs/plugin-react'
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
-  const target = env.VITE_PROXY_TARGET || 'http://127.0.0.1:8082'
+  // Use service name for Docker Compose, fallback to localhost for local dev
+  const target = env.VITE_PROXY_TARGET || 'http://api:8082'
   
   return {
     plugins: [react()],
@@ -12,8 +13,19 @@ export default defineConfig(({ mode }) => {
       host: true,
       port: 5173,
       strictPort: false,
+      allowedHosts: [
+        'instance-agent.subnet05071228.vcn05071228.oraclevcn.com',
+        'localhost',
+        '127.0.0.1'
+      ],
       proxy: {
         '/api': {
+          target,
+          changeOrigin: true,
+          secure: false,
+          timeout: 10000
+        },
+        '/auth': {
           target,
           changeOrigin: true,
           secure: false,
@@ -23,6 +35,17 @@ export default defineConfig(({ mode }) => {
           target,
           changeOrigin: true,
           secure: false
+        },
+        '/docs': {
+          target,
+          changeOrigin: true,
+          secure: false
+        },
+        '/db-admin': {
+          target,
+          changeOrigin: true,
+          secure: false,
+          rewrite: (path) => path // allow API to handle prefix stripping
         }
       }
     },
@@ -31,7 +54,7 @@ export default defineConfig(({ mode }) => {
         output: {
           manualChunks: {
             vendor: ['react', 'react-dom'],
-            bootstrap: ['bootstrap']
+            charts: ['chart.js', 'react-chartjs-2']
           }
         }
       }
@@ -41,6 +64,10 @@ export default defineConfig(({ mode }) => {
     // Enable source maps in dev
     css: {
       devSourcemap: true
+    },
+    // Optimize dependencies
+    optimizeDeps: {
+      include: ['react', 'react-dom', 'bootstrap', 'chart.js', 'react-chartjs-2']
     }
   }
 })

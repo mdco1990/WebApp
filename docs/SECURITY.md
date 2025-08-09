@@ -22,3 +22,7 @@ Known potential vulnerabilities if left as-is:
 - Static API key is weak by design; not suitable for multi-user
 - SQLite + filesystem backup can leak data if device compromised
 - No per-user auth/roles; it's a single-user tool
+
+Role-based access:
+- Admin-only surfaces: Swagger UI at `/api/` and SQLite Web at `/db-admin/` require an authenticated admin session.
+- Users table includes `is_admin` flag. Existing DBs are auto-migrated to add this column and promote `admin` user.

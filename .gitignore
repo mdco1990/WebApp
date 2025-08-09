@@ -17,3 +17,44 @@ coverage.out
 web/node_modules/
 web/dist/
 web/.vite/
+
+# OS/Editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Environment files
+.env
+.env.*
+configs/.env
+configs/.env.*
+web/.env
+web/.env.*
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# Coverage
+coverage/
+web/coverage/
+
+# Frontend caches
+web/.eslintcache
+web/.cache
+web/*.tsbuildinfo
+
+# Databases
+data/*.db
+data/*.sqlite
+*.db
+
+# Docker/local overrides
+docker-compose.override.yml
+*.local.yml

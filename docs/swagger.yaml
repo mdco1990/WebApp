@@ -1,0 +1,1077 @@
+openapi: 3.0.3
+info:
+  title: Budget Planner API
+  description: A comprehensive budget planning and expense tracking API
+  version: 1.0.0
+  contact:
+    name: API Support
+    url: https://github.com/personal/webapp
+    email: support@budgetplanner.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:8082
+    description: Development server
+  - url: http://instance-agent.subnet05071228.vcn05071228.oraclevcn.com:8082
+    description: Production server
+
+tags:
+  - name: Auth
+    description: Authentication and session management
+  - name: Health
+    description: System health checks
+  - name: Legacy
+    description: Legacy budget and expense endpoints
+  - name: Income Sources
+    description: Named income source management
+  - name: Budget Sources
+    description: Named budget category management
+  - name: Monthly Data
+    description: Aggregated monthly financial data
+
+paths:
+  /healthz:
+    get:
+      tags:
+        - Health
+      summary: Health check endpoint
+      description: Returns the health status of the API
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: ok
+
+  /auth/login:
+    post:
+      tags:
+        - Auth
+      summary: User login
+      description: Authenticate user and create session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login attempt response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '400':
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/logout:
+    post:
+      tags:
+        - Auth
+      summary: User logout
+      description: Invalidate current session
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Logout successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+
+  /auth/register:
+    post:
+      tags:
+        - Auth
+      summary: User registration
+      description: Create a new user account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: User created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          description: Invalid request or missing required fields
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Username already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/summary:
+    get:
+      tags:
+        - Legacy
+      summary: Get monthly summary
+      description: Get financial summary for specified month
+      security:
+        - APIKeyAuth: []
+        - BearerAuth: []
+      parameters:
+        - name: year
+          in: query
+          required: true
+          schema:
+            type: integer
+            example: 2025
+        - name: month
+          in: query
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 12
+            example: 8
+      responses:
+        '200':
+          description: Monthly summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Summary'
+        '400':
+          description: Invalid year or month
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/monthly-data:
+    get:
+      tags:
+        - Monthly Data
+      summary: Get comprehensive monthly data
+      description: Get all financial data for specified month including income sources, budget sources, and expenses
+      security:
+        - APIKeyAuth: []
+        - BearerAuth: []
+      parameters:
+        - name: year
+          in: query
+          required: true
+          schema:
+            type: integer
+            example: 2025
+        - name: month
+          in: query
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 12
+            example: 8
+      responses:
+        '200':
+          description: Comprehensive monthly data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MonthlyData'
+        '400':
+          description: Invalid year or month
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/income-sources:
+    get:
+      tags:
+        - Income Sources
+      summary: List income sources
+      description: Get all income sources for specified month
+      security:
+        - APIKeyAuth: []
+        - BearerAuth: []
+      parameters:
+        - name: year
+          in: query
+          required: true
+          schema:
+            type: integer
+            example: 2025
+        - name: month
+          in: query
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 12
+            example: 8
+      responses:
+        '200':
+          description: List of income sources
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/IncomeSource'
+        '400':
+          description: Invalid year or month
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    post:
+      tags:
+        - Income Sources
+      summary: Create income source
+      description: Create a new income source for specified month
+      security:
+        - APIKeyAuth: []
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateIncomeSourceRequest'
+      responses:
+        '201':
+          description: Income source created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IncomeSource'
+        '400':
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/income-sources/{id}:
+    put:
+      tags:
+        - Income Sources
+      summary: Update income source
+      description: Update an existing income source
+      security:
+        - APIKeyAuth: []
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+            example: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateSourceRequest'
+      responses:
+        '200':
+          description: Income source updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+        '400':
+          description: Invalid ID or request body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      tags:
+        - Income Sources
+      summary: Delete income source
+      description: Delete an existing income source
+      security:
+        - APIKeyAuth: []
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+            example: 1
+      responses:
+        '200':
+          description: Income source deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+        '400':
+          description: Invalid ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/budget-sources:
+    get:
+      tags:
+        - Budget Sources
+      summary: List budget sources
+      description: Get all budget sources for specified month
+      security:
+        - APIKeyAuth: []
+        - BearerAuth: []
+      parameters:
+        - name: year
+          in: query
+          required: true
+          schema:
+            type: integer
+            example: 2025
+        - name: month
+          in: query
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 12
+            example: 8
+      responses:
+        '200':
+          description: List of budget sources
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BudgetSource'
+        '400':
+          description: Invalid year or month
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    post:
+      tags:
+        - Budget Sources
+      summary: Create budget source
+      description: Create a new budget source for specified month
+      security:
+        - APIKeyAuth: []
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateBudgetSourceRequest'
+      responses:
+        '201':
+          description: Budget source created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BudgetSource'
+        '400':
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/budget-sources/{id}:
+    put:
+      tags:
+        - Budget Sources
+      summary: Update budget source
+      description: Update an existing budget source
+      security:
+        - APIKeyAuth: []
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+            example: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateSourceRequest'
+      responses:
+        '200':
+          description: Budget source updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+        '400':
+          description: Invalid ID or request body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      tags:
+        - Budget Sources
+      summary: Delete budget source
+      description: Delete an existing budget source
+      security:
+        - APIKeyAuth: []
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+            example: 1
+      responses:
+        '200':
+          description: Budget source deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+        '400':
+          description: Invalid ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/expenses:
+    get:
+      tags:
+        - Legacy
+      summary: List expenses
+      description: Get all expenses for specified month
+      security:
+        - APIKeyAuth: []
+        - BearerAuth: []
+      parameters:
+        - name: year
+          in: query
+          required: true
+          schema:
+            type: integer
+            example: 2025
+        - name: month
+          in: query
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 12
+            example: 8
+      responses:
+        '200':
+          description: List of expenses
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Expense'
+        '400':
+          description: Invalid year or month
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    post:
+      tags:
+        - Legacy
+      summary: Create expense
+      description: Create a new expense
+      security:
+        - APIKeyAuth: []
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateExpenseRequest'
+      responses:
+        '201':
+          description: Expense created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                    format: int64
+                    example: 1
+        '400':
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/expenses/{id}:
+    delete:
+      tags:
+        - Legacy
+      summary: Delete expense
+      description: Delete an existing expense
+      security:
+        - APIKeyAuth: []
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+            example: 1
+      responses:
+        '200':
+          description: Expense deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+        '400':
+          description: Invalid ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/salary:
+    post:
+      tags:
+        - Legacy
+      summary: Set monthly salary
+      description: Set or update salary for specified month
+      security:
+        - APIKeyAuth: []
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - year
+                - month
+                - amount_cents
+              properties:
+                year:
+                  type: integer
+                  example: 2025
+                month:
+                  type: integer
+                  minimum: 1
+                  maximum: 12
+                  example: 8
+                amount_cents:
+                  type: integer
+                  format: int64
+                  example: 500000
+                  description: Amount in cents (e.g., 500000 = $5000.00)
+      responses:
+        '200':
+          description: Salary updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+        '400':
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/budget:
+    post:
+      tags:
+        - Legacy
+      summary: Set monthly budget
+      description: Set or update budget for specified month
+      security:
+        - APIKeyAuth: []
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - year
+                - month
+                - amount_cents
+              properties:
+                year:
+                  type: integer
+                  example: 2025
+                month:
+                  type: integer
+                  minimum: 1
+                  maximum: 12
+                  example: 8
+                amount_cents:
+                  type: integer
+                  format: int64
+                  example: 400000
+                  description: Amount in cents (e.g., 400000 = $4000.00)
+      responses:
+        '200':
+          description: Budget updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+        '400':
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  securitySchemes:
+    APIKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: API Key authentication
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: session_id
+      description: Session-based authentication
+
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        username:
+          type: string
+          example: admin
+        email:
+          type: string
+          format: email
+          example: admin@localhost
+        created_at:
+          type: string
+          format: date-time
+          example: "2025-08-08T21:56:13Z"
+        last_login:
+          type: string
+          format: date-time
+          example: "2025-08-08T21:57:54Z"
+          nullable: true
+
+    LoginRequest:
+      type: object
+      required:
+        - username
+        - password
+      properties:
+        username:
+          type: string
+          example: admin
+        password:
+          type: string
+          format: password
+          example: password
+
+    LoginResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: "Login successful"
+        session_id:
+          type: string
+          example: "cd69d274b34382c42862a929b7372b8a974327b81fe0c7010b8cc3f8513b3cd9"
+        user:
+          $ref: '#/components/schemas/User'
+
+    RegisterRequest:
+      type: object
+      required:
+        - username
+        - password
+      properties:
+        username:
+          type: string
+          example: newuser
+        password:
+          type: string
+          format: password
+          example: newpassword
+        email:
+          type: string
+          format: email
+          example: newuser@example.com
+
+    YearMonth:
+      type: object
+      properties:
+        year:
+          type: integer
+          example: 2025
+        month:
+          type: integer
+          minimum: 1
+          maximum: 12
+          example: 8
+
+    IncomeSource:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        user_id:
+          type: integer
+          format: int64
+          example: 1
+        name:
+          type: string
+          example: "Primary Job"
+        year:
+          type: integer
+          example: 2025
+        month:
+          type: integer
+          minimum: 1
+          maximum: 12
+          example: 8
+        amount_cents:
+          type: integer
+          format: int64
+          example: 500000
+          description: Amount in cents (e.g., 500000 = $5000.00)
+        created_at:
+          type: string
+          format: date-time
+          example: "2025-08-08T21:56:13Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2025-08-08T21:57:54Z"
+
+    BudgetSource:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        user_id:
+          type: integer
+          format: int64
+          example: 1
+        name:
+          type: string
+          example: "Housing"
+        year:
+          type: integer
+          example: 2025
+        month:
+          type: integer
+          minimum: 1
+          maximum: 12
+          example: 8
+        amount_cents:
+          type: integer
+          format: int64
+          example: 150000
+          description: Amount in cents (e.g., 150000 = $1500.00)
+        created_at:
+          type: string
+          format: date-time
+          example: "2025-08-08T21:56:13Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2025-08-08T21:57:54Z"
+
+    Expense:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        year:
+          type: integer
+          example: 2025
+        month:
+          type: integer
+          minimum: 1
+          maximum: 12
+          example: 8
+        category:
+          type: string
+          example: "Food"
+        description:
+          type: string
+          example: "Grocery shopping"
+        amount_cents:
+          type: integer
+          format: int64
+          example: 15000
+          description: Amount in cents (e.g., 15000 = $150.00)
+        created_at:
+          type: string
+          format: date-time
+          example: "2025-08-08T21:56:13Z"
+
+    Summary:
+      type: object
+      properties:
+        year:
+          type: integer
+          example: 2025
+        month:
+          type: integer
+          minimum: 1
+          maximum: 12
+          example: 8
+        salary_cents:
+          type: integer
+          format: int64
+          example: 500000
+          description: Total salary in cents
+        budget_cents:
+          type: integer
+          format: int64
+          example: 400000
+          description: Total budget in cents
+        expense_cents:
+          type: integer
+          format: int64
+          example: 350000
+          description: Total expenses in cents
+        remaining_cents:
+          type: integer
+          format: int64
+          example: 150000
+          description: Remaining amount in cents
+
+    MonthlyData:
+      type: object
+      properties:
+        year:
+          type: integer
+          example: 2025
+        month:
+          type: integer
+          minimum: 1
+          maximum: 12
+          example: 8
+        month_name:
+          type: string
+          example: "August"
+        income_sources:
+          type: array
+          items:
+            $ref: '#/components/schemas/IncomeSource'
+        budget_sources:
+          type: array
+          items:
+            $ref: '#/components/schemas/BudgetSource'
+        expenses:
+          type: array
+          items:
+            $ref: '#/components/schemas/Expense'
+        total_income_cents:
+          type: integer
+          format: int64
+          example: 500000
+          description: Total income in cents
+        total_budget_cents:
+          type: integer
+          format: int64
+          example: 400000
+          description: Total budget in cents
+        total_expenses_cents:
+          type: integer
+          format: int64
+          example: 350000
+          description: Total expenses in cents
+        remaining_cents:
+          type: integer
+          format: int64
+          example: 150000
+          description: Remaining amount in cents
+
+    CreateIncomeSourceRequest:
+      type: object
+      required:
+        - name
+        - year
+        - month
+        - amount_cents
+      properties:
+        name:
+          type: string
+          example: "Primary Job"
+        year:
+          type: integer
+          example: 2025
+        month:
+          type: integer
+          minimum: 1
+          maximum: 12
+          example: 8
+        amount_cents:
+          type: integer
+          format: int64
+          example: 500000
+          description: Amount in cents (e.g., 500000 = $5000.00)
+
+    CreateBudgetSourceRequest:
+      type: object
+      required:
+        - name
+        - year
+        - month
+        - amount_cents
+      properties:
+        name:
+          type: string
+          example: "Housing"
+        year:
+          type: integer
+          example: 2025
+        month:
+          type: integer
+          minimum: 1
+          maximum: 12
+          example: 8
+        amount_cents:
+          type: integer
+          format: int64
+          example: 150000
+          description: Amount in cents (e.g., 150000 = $1500.00)
+
+    CreateExpenseRequest:
+      type: object
+      required:
+        - year
+        - month
+        - description
+        - amount_cents
+      properties:
+        year:
+          type: integer
+          example: 2025
+        month:
+          type: integer
+          minimum: 1
+          maximum: 12
+          example: 8
+        category:
+          type: string
+          example: "Food"
+        description:
+          type: string
+          example: "Grocery shopping"
+        amount_cents:
+          type: integer
+          format: int64
+          example: 15000
+          description: Amount in cents (e.g., 15000 = $150.00)
+
+    UpdateSourceRequest:
+      type: object
+      required:
+        - name
+        - amount_cents
+      properties:
+        name:
+          type: string
+          example: "Updated Name"
+        amount_cents:
+          type: integer
+          format: int64
+          example: 600000
+          description: Amount in cents (e.g., 600000 = $6000.00)
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          example: "Invalid request"
