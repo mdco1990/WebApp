@@ -1,24 +1,24 @@
-import React from 'react'
-import { useToast } from '../shared/toast'
+import React from 'react';
+import { useToast } from '../shared/toast';
 
 export interface SourceItem {
-  id?: number
-  name: string
-  amount_cents: number
+  id?: number;
+  name: string;
+  amount_cents: number;
 }
 
 interface Props {
-  title?: string
-  helpText?: string
-  sources: SourceItem[]
-  isDarkMode: boolean
-  parseLocaleAmount: (v: string) => number
-  onUpdate: (index: number, next: SourceItem) => void
-  onBlurSave: (index: number) => void
-  onRemoveUnsaved: (index: number) => void
-  onDeletePersisted: (id: number) => Promise<void>
-  onAddEmpty: () => void
-  addButtonText?: string
+  title?: string;
+  helpText?: string;
+  sources: SourceItem[];
+  isDarkMode: boolean;
+  parseLocaleAmount: (v: string) => number;
+  onUpdate: (index: number, next: SourceItem) => void;
+  onBlurSave: (index: number) => void;
+  onRemoveUnsaved: (index: number) => void;
+  onDeletePersisted: (id: number) => Promise<void>;
+  onAddEmpty: () => void;
+  addButtonText?: string;
 }
 
 const IncomeSources: React.FC<Props> = ({
@@ -34,7 +34,7 @@ const IncomeSources: React.FC<Props> = ({
   onAddEmpty,
   addButtonText = '+ Add Income Source',
 }) => {
-  const { push } = useToast()
+  const { push } = useToast();
   return (
     <div className="col-lg-6 mb-4">
       <h5>{title}</h5>
@@ -58,9 +58,15 @@ const IncomeSources: React.FC<Props> = ({
                   type="number"
                   className={`form-control form-control-sm ${isDarkMode ? 'bg-dark text-light border-secondary' : ''}`}
                   value={source.amount_cents / 100}
-                  onChange={(e) => onUpdate(index, { ...source, amount_cents: Math.round(parseLocaleAmount(e.target.value || '0') * 100) })}
+                  onChange={(e) =>
+                    onUpdate(index, {
+                      ...source,
+                      amount_cents: Math.round(parseLocaleAmount(e.target.value || '0') * 100),
+                    })
+                  }
                   onBlur={() => onBlurSave(index)}
-                  inputMode="decimal" step="0.01"
+                  inputMode="decimal"
+                  step="0.01"
                 />
               </div>
               <div className="col-sm-2 col-4">
@@ -68,14 +74,14 @@ const IncomeSources: React.FC<Props> = ({
                   className="btn btn-sm btn-outline-danger w-100"
                   onClick={async () => {
                     if (!source.id) {
-                      onRemoveUnsaved(index)
-                      return
+                      onRemoveUnsaved(index);
+                      return;
                     }
                     try {
-                      await onDeletePersisted(source.id)
+                      await onDeletePersisted(source.id);
                     } catch (err) {
-                      console.error('Delete failed', err)
-                      push('Failed to delete. Please try again.', 'error')
+                      console.error('Delete failed', err);
+                      push('Failed to delete. Please try again.', 'error');
                     }
                   }}
                   title="Delete this source"
@@ -91,7 +97,7 @@ const IncomeSources: React.FC<Props> = ({
         {addButtonText}
       </button>
     </div>
-  )
-}
+  );
+};
 
-export default IncomeSources
+export default IncomeSources;

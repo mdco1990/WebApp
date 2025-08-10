@@ -69,11 +69,12 @@ func Load() Config {
 	if cfg.HTTPAddress == "" {
 		log.Fatal("HTTP_ADDRESS must not be empty")
 	}
-	if cfg.DBDriver == "sqlite" {
+	switch cfg.DBDriver {
+	case "sqlite":
 		if cfg.DBPath == "" {
 			log.Fatal("DB_PATH must not be empty for sqlite driver")
 		}
-	} else if cfg.DBDriver == "mysql" {
+	case "mysql":
 		if cfg.DBDSN == "" {
 			log.Fatal("DB_DSN must not be empty for mysql driver")
 		}

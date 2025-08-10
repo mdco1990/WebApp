@@ -1,20 +1,20 @@
-import React from 'react'
-import { useTranslation } from 'react-i18next'
-import type { User } from '../types/budget'
+import React from 'react';
+import { useTranslation } from 'react-i18next';
+import type { User } from '../types/budget';
 
 export type HeaderControlsProps = {
-  isDarkMode: boolean
-  onToggleDarkMode: () => void
-  currency: 'EUR' | 'USD'
-  onSetCurrency: (c: 'EUR' | 'USD') => void
-  navigateMonth: (d: 'prev' | 'next') => void
-  goToToday: () => void
-  monthInputValue: string
-  onMonthChange: (v: string) => void
-  user: User | null
-  onChangePasswordClick: () => void
-  onLogout: () => void
-}
+  isDarkMode: boolean;
+  onToggleDarkMode: () => void;
+  currency: 'EUR' | 'USD';
+  onSetCurrency: (c: 'EUR' | 'USD') => void;
+  navigateMonth: (d: 'prev' | 'next') => void;
+  goToToday: () => void;
+  monthInputValue: string;
+  onMonthChange: (v: string) => void;
+  user: User | null;
+  onChangePasswordClick: () => void;
+  onLogout: () => void;
+};
 
 const HeaderControls: React.FC<HeaderControlsProps> = ({
   isDarkMode,
@@ -29,12 +29,15 @@ const HeaderControls: React.FC<HeaderControlsProps> = ({
   onChangePasswordClick,
   onLogout,
 }) => {
-  const { t, i18n } = useTranslation()
+  const { t, i18n } = useTranslation();
 
   return (
     <div className="btn-list">
       {/* Month navigation */}
-      <div className="btn-group" aria-label={t('nav.monthNav', { defaultValue: 'Month navigation' })}>
+      <div
+        className="btn-group"
+        aria-label={t('nav.monthNav', { defaultValue: 'Month navigation' })}
+      >
         <button
           className="btn btn-outline-primary btn-sm"
           onClick={() => navigateMonth('prev')}
@@ -76,13 +79,19 @@ const HeaderControls: React.FC<HeaderControlsProps> = ({
       <div className="btn-group btn-group-sm" aria-label="Language Switcher">
         <button
           className={`btn btn-outline-secondary ${i18n.language === 'en' ? 'active' : ''}`}
-          onClick={() => { i18n.changeLanguage('en'); localStorage.setItem('lang', 'en'); }}
+          onClick={() => {
+            i18n.changeLanguage('en');
+            localStorage.setItem('lang', 'en');
+          }}
         >
           {t('lang.english')}
         </button>
         <button
           className={`btn btn-outline-secondary ${i18n.language === 'fr' ? 'active' : ''}`}
-          onClick={() => { i18n.changeLanguage('fr'); localStorage.setItem('lang', 'fr'); }}
+          onClick={() => {
+            i18n.changeLanguage('fr');
+            localStorage.setItem('lang', 'fr');
+          }}
         >
           {t('lang.french')}
         </button>
@@ -110,7 +119,11 @@ const HeaderControls: React.FC<HeaderControlsProps> = ({
       <button
         className="btn btn-outline-secondary btn-sm"
         onClick={onToggleDarkMode}
-        aria-label={isDarkMode ? t('nav.light', { defaultValue: 'Switch to light mode' }) : t('nav.dark', { defaultValue: 'Switch to dark mode' })}
+        aria-label={
+          isDarkMode
+            ? t('nav.light', { defaultValue: 'Switch to light mode' })
+            : t('nav.dark', { defaultValue: 'Switch to dark mode' })
+        }
       >
         {isDarkMode ? t('nav.light') : t('nav.dark')}
       </button>
@@ -124,7 +137,11 @@ const HeaderControls: React.FC<HeaderControlsProps> = ({
         {t('nav.password')}
       </button>
 
-      <button className="btn btn-outline-danger btn-sm" onClick={onLogout} aria-label={t('nav.logout', { defaultValue: 'Log out' })}>
+      <button
+        className="btn btn-outline-danger btn-sm"
+        onClick={onLogout}
+        aria-label={t('nav.logout', { defaultValue: 'Log out' })}
+      >
         {t('nav.logout')} {user?.username ? `(${user.username})` : ''}
       </button>
 
@@ -152,7 +169,7 @@ const HeaderControls: React.FC<HeaderControlsProps> = ({
         </>
       ) : null}
     </div>
-  )
-}
+  );
+};
 
-export default HeaderControls
+export default HeaderControls;

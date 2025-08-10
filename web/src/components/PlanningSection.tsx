@@ -1,39 +1,39 @@
-import React from 'react'
-import IncomeSources from './IncomeSources'
-import OutcomeSources from './OutcomeSources'
-import type { IncomeSource as IncomeItem, OutcomeSource as OutcomeItem } from '../types/budget'
+import React from 'react';
+import IncomeSources from './IncomeSources';
+import OutcomeSources from './OutcomeSources';
+import type { IncomeSource as IncomeItem, OutcomeSource as OutcomeItem } from '../types/budget';
 
 interface Props {
-  isDarkMode: boolean
-  title: string
-  monthLabel: string
+  isDarkMode: boolean;
+  title: string;
+  monthLabel: string;
   // Lists
-  incomeSources: IncomeItem[]
-  outcomeSources: OutcomeItem[]
+  incomeSources: IncomeItem[];
+  outcomeSources: OutcomeItem[];
   // Formatting & parsing
-  parseLocaleAmount: (v: string) => number
-  formatCurrency: (cents: number) => string
+  parseLocaleAmount: (v: string) => number;
+  formatCurrency: (cents: number) => string;
   // Income handlers
-  onIncomeUpdate: (index: number, next: IncomeItem) => void
-  onIncomeBlurSave: (index: number) => void
-  onIncomeRemoveUnsaved: (index: number) => void
-  onIncomeDeletePersisted: (id: number) => Promise<void>
-  onIncomeAddEmpty: () => void
+  onIncomeUpdate: (index: number, next: IncomeItem) => void;
+  onIncomeBlurSave: (index: number) => void;
+  onIncomeRemoveUnsaved: (index: number) => void;
+  onIncomeDeletePersisted: (id: number) => Promise<void>;
+  onIncomeAddEmpty: () => void;
   // Outcome handlers
-  onOutcomeUpdate: (index: number, next: OutcomeItem) => void
-  onOutcomeBlurSave: (index: number) => void
-  onOutcomeRemoveUnsaved: (index: number) => void
-  onOutcomeDeletePersisted: (id: number) => Promise<void>
-  onOutcomeAddEmpty: () => void
+  onOutcomeUpdate: (index: number, next: OutcomeItem) => void;
+  onOutcomeBlurSave: (index: number) => void;
+  onOutcomeRemoveUnsaved: (index: number) => void;
+  onOutcomeDeletePersisted: (id: number) => Promise<void>;
+  onOutcomeAddEmpty: () => void;
   // Summary
-  totalIncome: number
-  totalOutcome: number
-  difference: number
-  totalIncomeLabel: string
-  totalOutcomeLabel: string
-  differenceLabel: string
-  incomeHelp?: string
-  outcomeHelp?: string
+  totalIncome: number;
+  totalOutcome: number;
+  difference: number;
+  totalIncomeLabel: string;
+  totalOutcomeLabel: string;
+  differenceLabel: string;
+  incomeHelp?: string;
+  outcomeHelp?: string;
 }
 
 const PlanningSection: React.FC<Props> = ({
@@ -129,7 +129,7 @@ const PlanningSection: React.FC<Props> = ({
         </div>
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default PlanningSection
+export default PlanningSection;

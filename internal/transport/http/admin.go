@@ -6,7 +6,6 @@ import (
 	"net/url"
 
 	"github.com/go-chi/chi/v5"
-
 	"github.com/personal/webapp/internal/repository"
 )
 

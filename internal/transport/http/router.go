@@ -12,7 +12,6 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/cors"
-
 	"github.com/personal/webapp/internal/config"
 	"github.com/personal/webapp/internal/domain"
 	"github.com/personal/webapp/internal/middleware"
@@ -75,7 +74,17 @@ func NewRouter(cfg config.Config, db *sql.DB) http.Handler {
 				"status": ww.status,
 				"t":      duration.String(),
 			}
-			slog.Info("http_request", "method", logLine["method"], "path", logLine["path"], "status", logLine["status"], "duration", logLine["t"])
+			slog.Info(
+				"http_request",
+				"method",
+				logLine["method"],
+				"path",
+				logLine["path"],
+				"status",
+				logLine["status"],
+				"duration",
+				logLine["t"],
+			)
 		})
 	})
 

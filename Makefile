@@ -1,13 +1,14 @@
 SHELL := /bin/bash
 GO ?= go
-GOTOOLCHAIN ?= go1.22.6
+GOTOOLCHAIN ?= go1.24.5
 BIN_DIR := bin
 BIN := $(BIN_DIR)/server
 PORT ?= 8082
 PORT_WEB ?= 5173
 DEV_DIR := .dev
 
-.PHONY: all tidy build run stop free-port test fmt vet clean web-setup web-dev web-build health dev dev-stop dev-logs
+.PHONY: all tidy build run stop free-port test fmt vet clean web-setup web-dev web-build health dev dev-stop dev-logs \
+	lint lint-install lint-fix format format-check check-all lint-web format-web lint-verify lint-linters
 
 all: build
 
@@ -65,11 +66,116 @@ free-port:
 test:
 	GOTOOLCHAIN=$(GOTOOLCHAIN) $(GO) test ./...
 
+# Basic Go formatting (legacy - use 'format' target instead)
 fmt:
 	$(GO) fmt ./...
 
+# Legacy vet target (may have compatibility issues)
 vet:
 	$(GO) vet ./...
+
+# Install linting tools (if not present)
+lint-install:
+	@echo "Installing Go linting tools..."
+	@echo "Ensuring Go toolchain $(GOTOOLCHAIN) is available..."
+	@GOTOOLCHAIN=$(GOTOOLCHAIN) $(GO) toolchain download $(GOTOOLCHAIN) >/dev/null 2>&1 || true
+	@if ! command -v goimports >/dev/null 2>&1; then \
+		echo "Installing goimports..."; \
+		$(GO) install golang.org/x/tools/cmd/goimports@latest; \
+	fi
+	@if ! command -v golangci-lint >/dev/null 2>&1; then \
+		echo "Installing golangci-lint..."; \
+		curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/install.sh | sh -s -- -b $$(go env GOPATH)/bin v2.3.1; \
+	fi
+	@echo "Go linting tools installed"
+
+# Run comprehensive Go linting (using golangci-lint minimal + goimports)
+lint: lint-install format-check
+	@echo "Running Go linting with working configuration..."
+	@echo "✓ Code formatting and import management verified (goimports)"
+	@echo ""
+	@export PATH=$$PATH:$$(go env GOPATH)/bin && GOTOOLCHAIN=$(GOTOOLCHAIN) golangci-lint run --timeout=4m
+	@echo ""
+	@echo "golangci-lint checks completed (core set):"
+	@echo "  ✓ govet, staticcheck (type-aware analysis)"
+	@echo "  ✓ errcheck, ineffassign, unused (robustness)"
+	@echo "  ✓ revive, misspell (style & spelling)"
+	@echo ""
+	@echo "Formatters available via golangci-lint: goimports, gofmt, gofumpt, gci, golines"
+	@echo ""
+	@echo "Go linting completed successfully"
+
+# Verify golangci-lint configuration (which file is used, schema validity) and print version
+lint-verify:
+	@which golangci-lint >/dev/null 2>&1 || { echo "golangci-lint not installed; run 'make lint-install'"; exit 1; }
+	@echo "golangci-lint version:" && golangci-lint --version
+	@echo "Verifying configuration file..." && GOTOOLCHAIN=$(GOTOOLCHAIN) golangci-lint config verify -v || true
+
+# List enabled/disabled linters according to current configuration
+lint-linters:
+	@which golangci-lint >/dev/null 2>&1 || { echo "golangci-lint not installed; run 'make lint-install'"; exit 1; }
+	@GOTOOLCHAIN=$(GOTOOLCHAIN) golangci-lint linters
+
+# Run linting with automatic fixes where possible
+lint-fix: lint-install
+	@echo "Auto-fixing Go code issues with golangci-lint and goimports..."
+	@$(MAKE) format
+	@export PATH=$$PATH:$$(go env GOPATH)/bin && GOTOOLCHAIN=$(GOTOOLCHAIN) golangci-lint run --fix --timeout=4m
+	@echo "✓ Auto-fix completed: formatting + import management + spelling fixes"
+
+# Format Go code with goimports (comprehensive formatting + import management)
+format:
+	@echo "Formatting Go code with goimports (replaces gofmt + manages imports)..."
+	@if command -v goimports >/dev/null 2>&1; then \
+		echo "Using goimports: adds missing imports, removes unused ones, sorts alphabetically"; \
+		goimports -w .; \
+	else \
+		echo "Installing goimports..."; \
+		$(GO) install golang.org/x/tools/cmd/goimports@latest; \
+		echo "Running goimports: comprehensive formatting + import management"; \
+		goimports -w .; \
+	fi
+	@echo "✓ Go code formatted and imports organized"
+
+# Check if code is properly formatted with goimports standards
+format-check:
+	@echo "Checking Go code formatting with goimports standards..."
+	@if command -v goimports >/dev/null 2>&1; then \
+		DIFF_OUTPUT=$$(goimports -l .); \
+		if [ -n "$$DIFF_OUTPUT" ]; then \
+			echo "The following files are not properly formatted or have import issues:"; \
+			echo "$$DIFF_OUTPUT"; \
+			echo ""; \
+			echo "Run 'make format' to fix these issues automatically."; \
+			echo "goimports will:"; \
+			echo "  - Format code (replaces gofmt)"; \
+			echo "  - Add missing imports"; \
+			echo "  - Remove unused imports"; \
+			echo "  - Sort imports alphabetically"; \
+			exit 1; \
+		fi; \
+	else \
+		echo "goimports not found, falling back to gofmt check..."; \
+		if [ -n "$$(gofmt -l .)" ]; then \
+			echo "Files need formatting - install goimports for full import management:"; \
+			echo "  go install golang.org/x/tools/cmd/goimports@latest"; \
+			gofmt -l .; \
+			exit 1; \
+		fi; \
+	fi
+	@echo "✓ All Go files are properly formatted and imports are organized"
+
+# Run all Go quality checks (format, static analysis, security, test)
+check-all: format-check lint test
+	@echo "All Go quality checks completed!"
+
+# Frontend linting
+lint-web:
+	cd web && npm run lint
+
+# Frontend formatting
+format-web:
+	cd web && npm run format
 
 clean:
 	rm -rf $(BIN_DIR) data/app.db

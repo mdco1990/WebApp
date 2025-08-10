@@ -1,5 +1,7 @@
 import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
+import eslint from 'vite-plugin-eslint'
+import stylelint from 'vite-plugin-stylelint'
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
@@ -8,7 +10,23 @@ export default defineConfig(({ mode }) => {
   const target = env.VITE_PROXY_TARGET || 'http://api:8082'
   
   return {
-    plugins: [react()],
+    plugins: [
+      react(),
+      // ESLint for TypeScript and React
+      eslint({
+        include: ['src/**/*.{ts,tsx,js,jsx}'],
+        exclude: ['node_modules', 'dist'],
+        cache: true,
+        failOnError: false,
+        failOnWarning: false
+      }),
+      // Stylelint for CSS
+      stylelint({
+        include: ['src/**/*.{css,scss,sass}'],
+        exclude: ['node_modules', 'dist'],
+        cache: true
+      })
+    ],
     server: {
       host: true,
       port: 5173,

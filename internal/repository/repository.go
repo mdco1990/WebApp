@@ -7,9 +7,8 @@ import (
 	"encoding/hex"
 	"time"
 
-	"golang.org/x/crypto/bcrypt"
-
 	"github.com/personal/webapp/internal/domain"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type Repository struct {
@@ -24,14 +23,19 @@ func New(db *sql.DB) *Repository {
 	// If the PRAGMA query fails for any reason, default to false.
 	var exists int
 	// Using COUNT from pragma_table_info is safe on SQLite and returns 0/1
-	if err := r.db.QueryRow(`SELECT COUNT(1) FROM pragma_table_info('users') WHERE name='is_admin'`).Scan(&exists); err == nil && exists > 0 {
+	if err := r.db.QueryRow(`SELECT COUNT(1) FROM pragma_table_info('users') WHERE name='is_admin'`).Scan(&exists); err == nil &&
+		exists > 0 {
 		r.hasIsAdmin = true
 	}
 	return r
 }
 
 // Legacy methods
-func (r *Repository) UpsertSalary(ctx context.Context, ym domain.YearMonth, amount domain.Money) error {
+func (r *Repository) UpsertSalary(
+	ctx context.Context,
+	ym domain.YearMonth,
+	amount domain.Money,
+) error {
 	_, err := r.db.ExecContext(ctx,
 		`INSERT INTO salary(year, month, amount_cents) VALUES(?, ?, ?)
 		 ON CONFLICT(year, month) DO UPDATE SET amount_cents=excluded.amount_cents`,
@@ -39,7 +43,11 @@ func (r *Repository) UpsertSalary(ctx context.Context, ym domain.YearMonth, amou
 	return err
 }
 
-func (r *Repository) UpsertBudget(ctx context.Context, ym domain.YearMonth, amount domain.Money) error {
+func (r *Repository) UpsertBudget(
+	ctx context.Context,
+	ym domain.YearMonth,
+	amount domain.Money,
+) error {
 	_, err := r.db.ExecContext(ctx,
 		`INSERT INTO budget(year, month, amount_cents) VALUES(?, ?, ?)
 		 ON CONFLICT(year, month) DO UPDATE SET amount_cents=excluded.amount_cents`,
@@ -57,10 +65,16 @@ func (r *Repository) AddExpense(ctx context.Context, e *domain.Expense) (int64, 
 	return res.LastInsertId()
 }
 
-func (r *Repository) ListExpenses(ctx context.Context, ym domain.YearMonth) ([]domain.Expense, error) {
-	rows, err := r.db.QueryContext(ctx,
+func (r *Repository) ListExpenses(
+	ctx context.Context,
+	ym domain.YearMonth,
+) ([]domain.Expense, error) {
+	rows, err := r.db.QueryContext(
+		ctx,
 		`SELECT id, year, month, category, description, amount_cents, created_at FROM expense WHERE year=? AND month=? ORDER BY id DESC`,
-		ym.Year, ym.Month)
+		ym.Year,
+		ym.Month,
+	)
 	if err != nil {
 		return []domain.Expense{}, err
 	}
@@ -91,7 +105,8 @@ func (r *Repository) DeleteExpense(ctx context.Context, id int64) error {
 
 func (r *Repository) GetSalary(ctx context.Context, ym domain.YearMonth) (domain.Money, error) {
 	var amount int64
-	err := r.db.QueryRowContext(ctx, `SELECT amount_cents FROM salary WHERE year=? AND month=?`, ym.Year, ym.Month).Scan(&amount)
+	err := r.db.QueryRowContext(ctx, `SELECT amount_cents FROM salary WHERE year=? AND month=?`, ym.Year, ym.Month).
+		Scan(&amount)
 	if err == sql.ErrNoRows {
 		return 0, nil
 	}
@@ -100,21 +115,29 @@ func (r *Repository) GetSalary(ctx context.Context, ym domain.YearMonth) (domain
 
 func (r *Repository) GetBudget(ctx context.Context, ym domain.YearMonth) (domain.Money, error) {
 	var amount int64
-	err := r.db.QueryRowContext(ctx, `SELECT amount_cents FROM budget WHERE year=? AND month=?`, ym.Year, ym.Month).Scan(&amount)
+	err := r.db.QueryRowContext(ctx, `SELECT amount_cents FROM budget WHERE year=? AND month=?`, ym.Year, ym.Month).
+		Scan(&amount)
 	if err == sql.ErrNoRows {
 		return 0, nil
 	}
 	return domain.Money(amount), err
 }
 
-func (r *Repository) GetExpensesTotal(ctx context.Context, ym domain.YearMonth) (domain.Money, error) {
+func (r *Repository) GetExpensesTotal(
+	ctx context.Context,
+	ym domain.YearMonth,
+) (domain.Money, error) {
 	var total int64
-	err := r.db.QueryRowContext(ctx, `SELECT COALESCE(SUM(amount_cents),0) FROM expense WHERE year=? AND month=?`, ym.Year, ym.Month).Scan(&total)
+	err := r.db.QueryRowContext(ctx, `SELECT COALESCE(SUM(amount_cents),0) FROM expense WHERE year=? AND month=?`, ym.Year, ym.Month).
+		Scan(&total)
 	return domain.Money(total), err
 }
 
 // Authentication methods
-func (r *Repository) CreateUser(ctx context.Context, username, password, email string) (*domain.User, error) {
+func (r *Repository) CreateUser(
+	ctx context.Context,
+	username, password, email string,
+) (*domain.User, error) {
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		return nil, err
@@ -140,91 +163,126 @@ func (r *Repository) CreateUser(ctx context.Context, username, password, email s
 	}, nil
 }
 
-func (r *Repository) GetUserByUsername(ctx context.Context, username string) (*domain.User, string, error) {
+func (r *Repository) GetUserByUsername(
+	ctx context.Context,
+	username string,
+) (*domain.User, string, error) {
+	if r.hasIsAdmin {
+		return r.getUserByUsernameWithAdmin(ctx, username)
+	}
+	return r.getUserByUsernameWithoutAdmin(ctx, username)
+}
+
+// getUserByUsernameWithAdmin handles user lookup when is_admin column exists
+func (r *Repository) getUserByUsernameWithAdmin(
+	ctx context.Context,
+	username string,
+) (*domain.User, string, error) {
+	var user domain.User
+	var passwordHash string
+	var email sql.NullString
+	var lastLogin sql.NullTime
+	var isAdminInt sql.NullInt64
+
+	query := `SELECT id, username, password_hash, email, created_at, last_login, is_admin FROM users WHERE username = ?`
+	err := r.db.QueryRowContext(ctx, query, username).Scan(
+		&user.ID, &user.Username, &passwordHash, &email, &user.CreatedAt, &lastLogin, &isAdminInt,
+	)
+	if err != nil {
+		return nil, "", err
+	}
+
+	r.populateUserFields(&user, email, lastLogin)
+	user.IsAdmin = isAdminInt.Valid && isAdminInt.Int64 != 0
+	return &user, passwordHash, nil
+}
+
+// getUserByUsernameWithoutAdmin handles user lookup when is_admin column doesn't exist
+func (r *Repository) getUserByUsernameWithoutAdmin(
+	ctx context.Context,
+	username string,
+) (*domain.User, string, error) {
 	var user domain.User
 	var passwordHash string
 	var email sql.NullString
 	var lastLogin sql.NullTime
 
 	query := `SELECT id, username, password_hash, email, created_at, last_login FROM users WHERE username = ?`
-	if r.hasIsAdmin {
-		// Select is_admin as well when available
-		query = `SELECT id, username, password_hash, email, created_at, last_login, is_admin FROM users WHERE username = ?`
-		var isAdminInt sql.NullInt64
-		err := r.db.QueryRowContext(ctx, query, username).Scan(
-			&user.ID, &user.Username, &passwordHash, &email, &user.CreatedAt, &lastLogin, &isAdminInt,
-		)
-		if err != nil {
-			return nil, "", err
-		}
-		user.Email = email.String
-		if lastLogin.Valid {
-			user.LastLogin = &lastLogin.Time
-		}
-		user.IsAdmin = isAdminInt.Valid && isAdminInt.Int64 != 0
-		return &user, passwordHash, nil
-	}
-
 	err := r.db.QueryRowContext(ctx, query, username).Scan(
 		&user.ID, &user.Username, &passwordHash, &email, &user.CreatedAt, &lastLogin)
-
 	if err != nil {
 		return nil, "", err
 	}
 
+	r.populateUserFields(&user, email, lastLogin)
+	// No is_admin column: treat built-in 'admin' username as admin
+	user.IsAdmin = user.Username == "admin"
+	return &user, passwordHash, nil
+}
+
+// populateUserFields sets common user fields from nullable database values
+func (r *Repository) populateUserFields(
+	user *domain.User,
+	email sql.NullString,
+	lastLogin sql.NullTime,
+) {
 	user.Email = email.String
 	if lastLogin.Valid {
 		user.LastLogin = &lastLogin.Time
 	}
-
-	// No is_admin column: treat built-in 'admin' username as admin
-	if user.Username == "admin" {
-		user.IsAdmin = true
-	}
-
-	return &user, passwordHash, nil
 }
 
 func (r *Repository) GetUserByID(ctx context.Context, userID int64) (*domain.User, string, error) {
+	if r.hasIsAdmin {
+		return r.getUserByIDWithAdmin(ctx, userID)
+	}
+	return r.getUserByIDWithoutAdmin(ctx, userID)
+}
+
+// getUserByIDWithAdmin handles user lookup by ID when is_admin column exists
+func (r *Repository) getUserByIDWithAdmin(
+	ctx context.Context,
+	userID int64,
+) (*domain.User, string, error) {
+	var user domain.User
+	var passwordHash string
+	var email sql.NullString
+	var lastLogin sql.NullTime
+	var isAdminInt sql.NullInt64
+
+	err := r.db.QueryRowContext(ctx,
+		`SELECT id, username, password_hash, email, created_at, last_login, is_admin 
+		 FROM users WHERE id = ?`, userID).Scan(
+		&user.ID, &user.Username, &passwordHash, &email, &user.CreatedAt, &lastLogin, &isAdminInt)
+	if err != nil {
+		return nil, "", err
+	}
+
+	r.populateUserFields(&user, email, lastLogin)
+	user.IsAdmin = isAdminInt.Valid && isAdminInt.Int64 != 0
+	return &user, passwordHash, nil
+}
+
+// getUserByIDWithoutAdmin handles user lookup by ID when is_admin column doesn't exist
+func (r *Repository) getUserByIDWithoutAdmin(
+	ctx context.Context,
+	userID int64,
+) (*domain.User, string, error) {
 	var user domain.User
 	var passwordHash string
 	var email sql.NullString
 	var lastLogin sql.NullTime
 
-	if r.hasIsAdmin {
-		var isAdminInt sql.NullInt64
-		err := r.db.QueryRowContext(ctx,
-			`SELECT id, username, password_hash, email, created_at, last_login, is_admin 
-			 FROM users WHERE id = ?`, userID).Scan(
-			&user.ID, &user.Username, &passwordHash, &email, &user.CreatedAt, &lastLogin, &isAdminInt)
-		if err != nil {
-			return nil, "", err
-		}
-		user.Email = email.String
-		if lastLogin.Valid {
-			user.LastLogin = &lastLogin.Time
-		}
-		user.IsAdmin = isAdminInt.Valid && isAdminInt.Int64 != 0
-		return &user, passwordHash, nil
-	}
-
 	err := r.db.QueryRowContext(ctx,
 		`SELECT id, username, password_hash, email, created_at, last_login 
 		 FROM users WHERE id = ?`, userID).Scan(
 		&user.ID, &user.Username, &passwordHash, &email, &user.CreatedAt, &lastLogin)
-
 	if err != nil {
 		return nil, "", err
 	}
 
-	user.Email = email.String
-	if lastLogin.Valid {
-		user.LastLogin = &lastLogin.Time
-	}
-	if user.Username == "admin" {
-		user.IsAdmin = true
-	}
-
+	r.populateUserFields(&user, email, lastLogin)
+	user.IsAdmin = user.Username == "admin"
 	return &user, passwordHash, nil
 }
 
@@ -245,7 +303,11 @@ func (r *Repository) IsUserAdmin(ctx context.Context, userID int64) (bool, error
 	return username == "admin", nil
 }
 
-func (r *Repository) UpdateUserPassword(ctx context.Context, userID int64, newPassword string) error {
+func (r *Repository) UpdateUserPassword(
+	ctx context.Context,
+	userID int64,
+	newPassword string,
+) error {
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
 	if err != nil {
 		return err
@@ -288,7 +350,6 @@ func (r *Repository) GetSession(ctx context.Context, sessionID string) (*domain.
 		`SELECT id, user_id, created_at, expires_at FROM sessions 
 		 WHERE id = ? AND expires_at > CURRENT_TIMESTAMP`, sessionID).Scan(
 		&session.ID, &session.UserID, &session.CreatedAt, &session.ExpiresAt)
-
 	if err != nil {
 		return nil, err
 	}
@@ -302,12 +363,24 @@ func (r *Repository) DeleteSession(ctx context.Context, sessionID string) error 
 }
 
 // Income Sources methods
-func (r *Repository) CreateIncomeSource(ctx context.Context, userID int64, req domain.CreateIncomeSourceRequest) (*domain.IncomeSource, error) {
+func (r *Repository) CreateIncomeSource(
+	ctx context.Context,
+	userID int64,
+	req domain.CreateIncomeSourceRequest,
+) (*domain.IncomeSource, error) {
 	now := time.Now()
-	result, err := r.db.ExecContext(ctx,
+	result, err := r.db.ExecContext(
+		ctx,
 		`INSERT INTO income_sources (user_id, name, year, month, amount_cents, created_at, updated_at)
 		 VALUES (?, ?, ?, ?, ?, ?, ?)`,
-		userID, req.Name, req.Year, req.Month, int64(req.AmountCents), now, now)
+		userID,
+		req.Name,
+		req.Year,
+		req.Month,
+		int64(req.AmountCents),
+		now,
+		now,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -328,7 +401,12 @@ func (r *Repository) CreateIncomeSource(ctx context.Context, userID int64, req d
 	}, nil
 }
 
-func (r *Repository) UpdateIncomeSource(ctx context.Context, id int64, userID int64, req domain.UpdateSourceRequest) error {
+func (r *Repository) UpdateIncomeSource(
+	ctx context.Context,
+	id int64,
+	userID int64,
+	req domain.UpdateSourceRequest,
+) error {
 	_, err := r.db.ExecContext(ctx,
 		`UPDATE income_sources SET name = ?, amount_cents = ?, updated_at = CURRENT_TIMESTAMP
 		 WHERE id = ? AND user_id = ?`,
@@ -336,7 +414,11 @@ func (r *Repository) UpdateIncomeSource(ctx context.Context, id int64, userID in
 	return err
 }
 
-func (r *Repository) ListIncomeSources(ctx context.Context, userID int64, ym domain.YearMonth) ([]domain.IncomeSource, error) {
+func (r *Repository) ListIncomeSources(
+	ctx context.Context,
+	userID int64,
+	ym domain.YearMonth,
+) ([]domain.IncomeSource, error) {
 	rows, err := r.db.QueryContext(ctx,
 		`SELECT id, user_id, name, year, month, amount_cents, created_at, updated_at
 		 FROM income_sources WHERE user_id = ? AND year = ? AND month = ?
@@ -366,17 +448,34 @@ func (r *Repository) ListIncomeSources(ctx context.Context, userID int64, ym dom
 }
 
 func (r *Repository) DeleteIncomeSource(ctx context.Context, id int64, userID int64) error {
-	_, err := r.db.ExecContext(ctx, `DELETE FROM income_sources WHERE id = ? AND user_id = ?`, id, userID)
+	_, err := r.db.ExecContext(
+		ctx,
+		`DELETE FROM income_sources WHERE id = ? AND user_id = ?`,
+		id,
+		userID,
+	)
 	return err
 }
 
 // Budget Sources methods
-func (r *Repository) CreateBudgetSource(ctx context.Context, userID int64, req domain.CreateBudgetSourceRequest) (*domain.BudgetSource, error) {
+func (r *Repository) CreateBudgetSource(
+	ctx context.Context,
+	userID int64,
+	req domain.CreateBudgetSourceRequest,
+) (*domain.BudgetSource, error) {
 	now := time.Now()
-	result, err := r.db.ExecContext(ctx,
+	result, err := r.db.ExecContext(
+		ctx,
 		`INSERT INTO budget_sources (user_id, name, year, month, amount_cents, created_at, updated_at)
 		 VALUES (?, ?, ?, ?, ?, ?, ?)`,
-		userID, req.Name, req.Year, req.Month, int64(req.AmountCents), now, now)
+		userID,
+		req.Name,
+		req.Year,
+		req.Month,
+		int64(req.AmountCents),
+		now,
+		now,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -397,7 +496,12 @@ func (r *Repository) CreateBudgetSource(ctx context.Context, userID int64, req d
 	}, nil
 }
 
-func (r *Repository) UpdateBudgetSource(ctx context.Context, id int64, userID int64, req domain.UpdateSourceRequest) error {
+func (r *Repository) UpdateBudgetSource(
+	ctx context.Context,
+	id int64,
+	userID int64,
+	req domain.UpdateSourceRequest,
+) error {
 	_, err := r.db.ExecContext(ctx,
 		`UPDATE budget_sources SET name = ?, amount_cents = ?, updated_at = CURRENT_TIMESTAMP
 		 WHERE id = ? AND user_id = ?`,
@@ -405,7 +509,11 @@ func (r *Repository) UpdateBudgetSource(ctx context.Context, id int64, userID in
 	return err
 }
 
-func (r *Repository) ListBudgetSources(ctx context.Context, userID int64, ym domain.YearMonth) ([]domain.BudgetSource, error) {
+func (r *Repository) ListBudgetSources(
+	ctx context.Context,
+	userID int64,
+	ym domain.YearMonth,
+) ([]domain.BudgetSource, error) {
 	rows, err := r.db.QueryContext(ctx,
 		`SELECT id, user_id, name, year, month, amount_cents, created_at, updated_at
 		 FROM budget_sources WHERE user_id = ? AND year = ? AND month = ?
@@ -435,30 +543,50 @@ func (r *Repository) ListBudgetSources(ctx context.Context, userID int64, ym dom
 }
 
 func (r *Repository) DeleteBudgetSource(ctx context.Context, id int64, userID int64) error {
-	_, err := r.db.ExecContext(ctx, `DELETE FROM budget_sources WHERE id = ? AND user_id = ?`, id, userID)
+	_, err := r.db.ExecContext(
+		ctx,
+		`DELETE FROM budget_sources WHERE id = ? AND user_id = ?`,
+		id,
+		userID,
+	)
 	return err
 }
 
 // Manual Budget methods
-func (r *Repository) GetManualBudget(ctx context.Context, userID int64, ym domain.YearMonth) (*domain.ManualBudget, error) {
+func (r *Repository) GetManualBudget(
+	ctx context.Context,
+	userID int64,
+	ym domain.YearMonth,
+) (*domain.ManualBudget, error) {
 	var (
 		id   int64
 		bank int64
 	)
-	err := r.db.QueryRowContext(ctx,
+	err := r.db.QueryRowContext(
+		ctx,
 		`SELECT id, bank_amount_cents FROM manual_budgets WHERE user_id = ? AND year = ? AND month = ?`,
-		userID, ym.Year, ym.Month,
+		userID,
+		ym.Year,
+		ym.Month,
 	).Scan(&id, &bank)
 	if err == sql.ErrNoRows {
 		// Return empty structure
-		return &domain.ManualBudget{UserID: userID, YearMonth: ym, BankAmountCents: 0, Items: []domain.ManualBudgetItem{}}, nil
+		return &domain.ManualBudget{
+			UserID:          userID,
+			YearMonth:       ym,
+			BankAmountCents: 0,
+			Items:           []domain.ManualBudgetItem{},
+		}, nil
 	}
 	if err != nil {
 		return nil, err
 	}
 
-	rows, err := r.db.QueryContext(ctx,
-		`SELECT id, name, amount_cents FROM manual_budget_items WHERE budget_id = ? ORDER BY id`, id)
+	rows, err := r.db.QueryContext(
+		ctx,
+		`SELECT id, name, amount_cents FROM manual_budget_items WHERE budget_id = ? ORDER BY id`,
+		id,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -489,7 +617,13 @@ func (r *Repository) GetManualBudget(ctx context.Context, userID int64, ym domai
 }
 
 // UpsertManualBudget replaces the manual budget and its items for a given user/month atomically
-func (r *Repository) UpsertManualBudget(ctx context.Context, userID int64, ym domain.YearMonth, bank domain.Money, items []domain.ManualBudgetItem) error {
+func (r *Repository) UpsertManualBudget(
+	ctx context.Context,
+	userID int64,
+	ym domain.YearMonth,
+	bank domain.Money,
+	items []domain.ManualBudgetItem,
+) error {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
@@ -500,63 +634,108 @@ func (r *Repository) UpsertManualBudget(ctx context.Context, userID int64, ym do
 		}
 	}()
 
-	// Upsert budget row
-	var budgetID int64
-	// Try update first
-	res, err := tx.ExecContext(ctx,
-		`UPDATE manual_budgets SET bank_amount_cents = ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND year = ? AND month = ?`,
-		int64(bank), userID, ym.Year, ym.Month,
-	)
+	budgetID, err := r.upsertManualBudgetRow(ctx, tx, userID, ym, bank)
 	if err != nil {
 		return err
 	}
-	rowsAff, _ := res.RowsAffected()
-	if rowsAff == 0 {
-		// Insert
-		result, err2 := tx.ExecContext(ctx,
-			`INSERT INTO manual_budgets(user_id, year, month, bank_amount_cents) VALUES(?, ?, ?, ?)`,
-			userID, ym.Year, ym.Month, int64(bank),
-		)
-		if err2 != nil {
-			err = err2
-			return err
-		}
-		budgetID, err = result.LastInsertId()
-		if err != nil {
-			return err
-		}
-	} else {
-		// Get id for existing
-		if err = tx.QueryRowContext(ctx,
-			`SELECT id FROM manual_budgets WHERE user_id = ? AND year = ? AND month = ?`, userID, ym.Year, ym.Month,
-		).Scan(&budgetID); err != nil {
-			return err
-		}
-	}
 
-	// Replace items
-	if _, err = tx.ExecContext(ctx, `DELETE FROM manual_budget_items WHERE budget_id = ?`, budgetID); err != nil {
+	if err = r.replaceManualBudgetItems(ctx, tx, budgetID, items); err != nil {
 		return err
-	}
-	if len(items) > 0 {
-		stmt, err2 := tx.PrepareContext(ctx, `INSERT INTO manual_budget_items(budget_id, name, amount_cents) VALUES(?, ?, ?)`)
-		if err2 != nil {
-			err = err2
-			return err
-		}
-		defer stmt.Close()
-		for _, it := range items {
-			if _, err = stmt.ExecContext(ctx, budgetID, it.Name, int64(it.AmountCents)); err != nil {
-				return err
-			}
-		}
 	}
 
 	return tx.Commit()
 }
 
+// upsertManualBudgetRow inserts or updates the manual_budgets row and returns its ID
+func (r *Repository) upsertManualBudgetRow(
+	ctx context.Context,
+	tx *sql.Tx,
+	userID int64,
+	ym domain.YearMonth,
+	bank domain.Money,
+) (int64, error) {
+	// Try update first
+	res, err := tx.ExecContext(
+		ctx,
+		`UPDATE manual_budgets SET bank_amount_cents = ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND year = ? AND month = ?`,
+		int64(bank),
+		userID,
+		ym.Year,
+		ym.Month,
+	)
+	if err != nil {
+		return 0, err
+	}
+
+	rowsAff, _ := res.RowsAffected()
+	if rowsAff == 0 {
+		// Insert new row
+		result, err := tx.ExecContext(
+			ctx,
+			`INSERT INTO manual_budgets(user_id, year, month, bank_amount_cents) VALUES(?, ?, ?, ?)`,
+			userID,
+			ym.Year,
+			ym.Month,
+			int64(bank),
+		)
+		if err != nil {
+			return 0, err
+		}
+		return result.LastInsertId()
+	}
+
+	// Get ID for existing row
+	var budgetID int64
+	err = tx.QueryRowContext(
+		ctx,
+		`SELECT id FROM manual_budgets WHERE user_id = ? AND year = ? AND month = ?`,
+		userID,
+		ym.Year,
+		ym.Month,
+	).Scan(&budgetID)
+	return budgetID, err
+}
+
+// replaceManualBudgetItems deletes existing items and inserts new ones for the budget
+func (r *Repository) replaceManualBudgetItems(
+	ctx context.Context,
+	tx *sql.Tx,
+	budgetID int64,
+	items []domain.ManualBudgetItem,
+) error {
+	// Delete existing items
+	if _, err := tx.ExecContext(ctx, `DELETE FROM manual_budget_items WHERE budget_id = ?`, budgetID); err != nil {
+		return err
+	}
+
+	// Insert new items if any
+	if len(items) == 0 {
+		return nil
+	}
+
+	stmt, err := tx.PrepareContext(
+		ctx,
+		`INSERT INTO manual_budget_items(budget_id, name, amount_cents) VALUES(?, ?, ?)`,
+	)
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	for _, it := range items {
+		if _, err := stmt.ExecContext(ctx, budgetID, it.Name, int64(it.AmountCents)); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // Monthly data aggregation
-func (r *Repository) GetMonthlyData(ctx context.Context, userID int64, ym domain.YearMonth) (*domain.MonthlyData, error) {
+func (r *Repository) GetMonthlyData(
+	ctx context.Context,
+	userID int64,
+	ym domain.YearMonth,
+) (*domain.MonthlyData, error) {
 	incomeSources, err := r.ListIncomeSources(ctx, userID, ym)
 	if err != nil {
 		return nil, err

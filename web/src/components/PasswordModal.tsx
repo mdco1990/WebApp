@@ -1,22 +1,29 @@
-import React from 'react'
-import { Modal, Button, Form } from 'react-bootstrap'
+import React from 'react';
+import { Modal, Button, Form } from 'react-bootstrap';
 
 export type PasswordForm = {
-  currentPassword: string
-  newPassword: string
-  confirmPassword: string
-}
+  currentPassword: string;
+  newPassword: string;
+  confirmPassword: string;
+};
 
 type Props = {
-  show: boolean
-  isDarkMode: boolean
-  values: PasswordForm
-  onChange: (values: PasswordForm) => void
-  onClose: () => void
-  onSubmit: (e: React.FormEvent) => void
-}
+  show: boolean;
+  isDarkMode: boolean;
+  values: PasswordForm;
+  onChange: (values: PasswordForm) => void;
+  onClose: () => void;
+  onSubmit: (e: React.FormEvent) => void;
+};
 
-const PasswordModal: React.FC<Props> = ({ show, isDarkMode, values, onChange, onClose, onSubmit }) => {
+const PasswordModal: React.FC<Props> = ({
+  show,
+  isDarkMode,
+  values,
+  onChange,
+  onClose,
+  onSubmit,
+}) => {
   return (
     <Modal show={show} onHide={onClose} centered data-bs-theme={isDarkMode ? 'dark' : 'light'}>
       <Form onSubmit={onSubmit} noValidate>
@@ -55,12 +62,16 @@ const PasswordModal: React.FC<Props> = ({ show, isDarkMode, values, onChange, on
           </Form.Group>
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={onClose}>Cancel</Button>
-          <Button type="submit" variant="warning">Update password</Button>
+          <Button variant="secondary" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit" variant="warning">
+            Update password
+          </Button>
         </Modal.Footer>
       </Form>
     </Modal>
-  )
-}
+  );
+};
 
-export default PasswordModal
+export default PasswordModal;
