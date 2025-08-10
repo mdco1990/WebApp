@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Chart as ChartJS,
@@ -41,6 +41,7 @@ ChartJS.register(
 // Types
 import type { IncomeSource, OutcomeSource } from './types/budget';
 
+// eslint-disable-next-line complexity
 const App: React.FC = () => {
   const { t, i18n } = useTranslation();
   const { push } = useToast();
@@ -68,6 +69,19 @@ const App: React.FC = () => {
   const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
   const [autoUpdate] = useState(true); // Enabled by default
+
+  // Helper to merge server list with any unsaved client-only items (id missing or 0)
+  const mergeSources = useCallback(
+    <T extends { id?: number; name: string; amount_cents: number }>(prevList: T[], incomingList: T[]) => {
+      const incoming = Array.isArray(incomingList) ? incomingList : [];
+      const unsaved = (prevList || []).filter((s) => !s.id || s.id === 0);
+      const dedupUnsaved = unsaved.filter(
+        (u) => !incoming.some((s) => s.name === u.name && s.amount_cents === u.amount_cents)
+      );
+      return [...incoming, ...dedupUnsaved];
+    },
+    []
+  );
 
   // Helper functions
   const formatCurrency = (cents: number) => {
@@ -97,10 +111,10 @@ const App: React.FC = () => {
     return monthNames[month - 1] || 'Unknown';
   };
 
-  const getPageTitle = () => {
+  const getPageTitle = useCallback(() => {
     const monthName = getMonthName(navigation.currentDate.getMonth() + 1);
     return t('app.title', { month: monthName, year: navigation.currentDate.getFullYear() });
-  };
+  }, [navigation.currentDate, t]);
 
   const parseLocaleAmount = (value: string): number => {
     if (!value) return 0;
@@ -149,48 +163,50 @@ const App: React.FC = () => {
     if (monthly) {
       const totalIncome = monthly.total_income_cents || 0;
       const totalOutcome = monthly.total_budget_cents || 0;
-      budgetState.setPredictedBudget((prev) => ({
-        ...prev,
-        incomeSources: monthly.income_sources || [],
-        outcomeSources: monthly.budget_sources || [],
-        totalIncome,
-        totalOutcome,
-        difference: totalIncome - totalOutcome,
-      }));
+      budgetState.setPredictedBudget((prev) => {
+        return {
+          ...prev,
+    incomeSources: mergeSources(prev.incomeSources, monthly.income_sources || []),
+    outcomeSources: mergeSources(prev.outcomeSources, monthly.budget_sources || []),
+          totalIncome,
+          totalOutcome,
+          difference: totalIncome - totalOutcome,
+        };
+      });
       setDataLoaded(true);
     }
-  }, [monthly, monthlyLoading, budgetState]);
+  }, [monthly, monthlyLoading, budgetState, mergeSources]);
 
   // Add default data if none exists
-  const addDefaultData = async () => {
+  const addDefaultData = useCallback(async () => {
     try {
       await addDefaultsHook();
-    } catch (error) {
-      console.error('Failed to add default data:', error);
+    } catch {
+  push('Failed to add default data', 'error');
     }
-  };
+  }, [addDefaultsHook, push]);
 
   // Auto-save functions
   const autoSaveIncomeSource = async (source: IncomeSource) => {
     try {
       await saveIncomeHook(source, ym);
-    } catch (error) {
-      console.error('Failed to save income source:', error);
+    } catch {
+  push('Failed to save income source', 'error');
     }
   };
 
   const autoSaveOutcomeSource = async (source: OutcomeSource) => {
     try {
       await saveOutcomeHook(source, ym);
-    } catch (error) {
-      console.error('Failed to save budget source:', error);
+    } catch {
+  push('Failed to save budget source', 'error');
     }
   };
 
   // Effects
   useEffect(() => {
     document.title = getPageTitle();
-  }, [navigation.currentDate, t]);
+  }, [navigation.currentDate, t, getPageTitle]);
 
   // Reload monthly data on login
   useEffect(() => {
@@ -198,12 +214,11 @@ const App: React.FC = () => {
   }, [auth.sessionId, reload]);
 
   useEffect(() => {
-    // Add default data after an initial load if needed (avoid racing before load completes)
+    // Add default data only when BOTH lists are empty to avoid overwriting freshly added items
     if (auth.sessionId && dataLoaded) {
-      if (
-        budgetState.predictedBudget.incomeSources.length === 0 ||
-        budgetState.predictedBudget.outcomeSources.length === 0
-      ) {
+      const noIncome = budgetState.predictedBudget.incomeSources.length === 0;
+      const noOutcome = budgetState.predictedBudget.outcomeSources.length === 0;
+      if (noIncome && noOutcome) {
         addDefaultData();
       }
     }
@@ -212,17 +227,18 @@ const App: React.FC = () => {
     dataLoaded,
     budgetState.predictedBudget.incomeSources.length,
     budgetState.predictedBudget.outcomeSources.length,
+    addDefaultData,
   ]);
 
   useEffect(() => {
-    let interval: any;
+    let interval: number | undefined;
     if (autoUpdate) {
-      interval = setInterval(() => {
+      interval = window.setInterval(() => {
         reload();
       }, 30000); // Update every 30 seconds
     }
     return () => {
-      if (interval) window.clearInterval(interval);
+      if (interval !== undefined) window.clearInterval(interval);
     };
   }, [autoUpdate, reload]);
 

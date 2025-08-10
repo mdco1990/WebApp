@@ -9,4 +9,10 @@
 - [x] Items of "Manual Budget (Bank and Planned Deductions)" Not saved that gon when reload the page. Items could be positive benefits or expenses
 - [x] Manual Budget (Bank and Planned Deductions) default values (All items must be 0)
 - [x] Review and enhance UI/UX based on PDF and Web Preview
-- [ ] Improve project layout (Current structure follows Go standards well)
+- [x] Improve project layout (Current structure follows Go standards well)
+- [x] Fix add income/outcome Source bug
+- [ ] Refacor App.ts
+- [ ] Add tests for Go and react
+- [ ] Give unsaved rows a client UUID key to avoid index-key edge cases.
+- [ ] Add a small unit test for the merge helper to guarantee behavior across refactors.
+- [ ] Consider pausing auto-reload while the user is actively editing an unsaved row to reduce distractions.
