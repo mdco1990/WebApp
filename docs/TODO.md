@@ -11,7 +11,7 @@
 - [x] Review and enhance UI/UX based on PDF and Web Preview
 - [x] Improve project layout (Current structure follows Go standards well)
 - [x] Fix add income/outcome Source bug
-- [ ] Refacor App.ts
+- [ ] Refactor en clean code. Add lint and test jobs to the CI.
 - [ ] Add tests for Go and react
 - [ ] Give unsaved rows a client UUID key to avoid index-key edge cases.
 - [ ] Add a small unit test for the merge helper to guarantee behavior across refactors.
