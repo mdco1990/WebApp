@@ -1,0 +1,12 @@
+# Air config for Go live reload in dev (v1.62+ schema)
+root = "."
+tmp_dir = "tmp"
+
+[build]
+cmd = "go build -buildvcs=false -o ./bin/webapp ./cmd/webapp"
+bin = "./bin/webapp"
+include_ext = ["go"]
+exclude_dir = ["bin", "web", "node_modules", ".git"]
+
+[log]
+color = true

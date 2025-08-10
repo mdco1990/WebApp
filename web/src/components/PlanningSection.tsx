@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import IncomeSources from './IncomeSources';
 import OutcomeSources from './OutcomeSources';
 import type { IncomeSource as IncomeItem, OutcomeSource as OutcomeItem } from '../types/budget';
@@ -63,6 +64,7 @@ const PlanningSection: React.FC<Props> = ({
   incomeHelp,
   outcomeHelp,
 }) => {
+  const { t } = useTranslation();
   return (
     <div className="row">
       <div className="col-lg-12 mb-4">
@@ -84,7 +86,7 @@ const PlanningSection: React.FC<Props> = ({
                 onRemoveUnsaved={onIncomeRemoveUnsaved}
                 onDeletePersisted={onIncomeDeletePersisted}
                 onAddEmpty={onIncomeAddEmpty}
-                addButtonText={'+ Add Income Source'}
+                addButtonText={t('btn.addIncomeSource', { defaultValue: '+ Add Income Source' })}
               />
 
               <OutcomeSources
@@ -98,7 +100,7 @@ const PlanningSection: React.FC<Props> = ({
                 onRemoveUnsaved={onOutcomeRemoveUnsaved}
                 onDeletePersisted={onOutcomeDeletePersisted}
                 onAddEmpty={onOutcomeAddEmpty}
-                addButtonText={'+ Add Outcome Source'}
+                addButtonText={t('btn.addOutcomeSource', { defaultValue: '+ Add Outcome Source' })}
               />
             </div>
 

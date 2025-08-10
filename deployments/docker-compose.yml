@@ -1,14 +1,14 @@
 services:
   # Main API service - Development mode with live reloading
   api:
-    image: golang:1.22-alpine
+    image: golang:1.24-alpine
     container_name: webapp-api-dev
     platform: linux/arm64
     working_dir: /app
     volumes:
       - ..:/app
       - webapp_cache:/go/pkg/mod  # Go module cache
-      - dbdata:/db
+      - ../data:/db  # persist DB file on host for dev
     environment:
       - HTTP_ADDRESS=0.0.0.0:8082
       - DB_DRIVER=sqlite
@@ -17,8 +17,8 @@ services:
       - ENV=dev
       - LOG_LEVEL=debug
       - LOG_FORMAT=text
-      - GOTOOLCHAIN=go1.22.6
-    command: ["sh", "-c", "apk add --no-cache git wget && go mod download && go run ./cmd/webapp"]
+      - GOFLAGS=-buildvcs=false
+    command: ["sh", "-c", "apk add --no-cache git wget && go install github.com/air-verse/air@latest && go mod download && air -c .air.toml"]
     depends_on:
       db:
         condition: service_started
@@ -36,13 +36,13 @@ services:
     image: arm64v8/alpine:3.19
     container_name: webapp-db-dev
     platform: linux/arm64
-    command: sh -c "apk add --no-cache sqlite sqlite-libs >/dev/null 2>&1 && sqlite3 /data/app.db 'PRAGMA user_version;' || true; tail -f /dev/null"
+    command: sh -c "apk add --no-cache sqlite sqlite-libs >/dev/null 2>&1 && sqlite3 /db/app.db 'PRAGMA user_version;' || true; tail -f /dev/null"
     volumes:
-      - dbdata:/data
+      - ../data:/db  # same host folder as API for persistence
     networks:
       - webapp-network
     healthcheck:
-      test: ["CMD-SHELL", "sqlite3 /data/app.db 'PRAGMA user_version;' >/dev/null 2>&1 || sqlite3 /data/app.db '.databases' >/dev/null 2>&1"]
+      test: ["CMD-SHELL", "sqlite3 /db/app.db 'PRAGMA user_version;' >/dev/null 2>&1 || sqlite3 /db/app.db '.databases' >/dev/null 2>&1"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -69,19 +69,17 @@ services:
       api:
         condition: service_healthy
 
-  # SQLite Admin - Development tool (profile: tools)
+  # SQLite Admin UI (always on in dev)
   sqlite-admin:
     image: python:3.12-alpine
     container_name: webapp-sqlite-admin
     platform: linux/arm64
     working_dir: /app
     volumes:
-      - dbdata:/data
-    command: sh -c "pip install --no-cache-dir sqlite-web && sqlite_web --host 0.0.0.0 --port 8080 /data/app.db"
+      - ../data:/db  # same host folder as API for persistence
+    command: sh -c "pip install --no-cache-dir sqlite-web && sqlite_web --host 0.0.0.0 --port 8080 /db/app.db"
     networks:
       - webapp-network
-    profiles:
-      - tools
     depends_on:
       db:
         condition: service_started
@@ -93,7 +91,6 @@ services:
       start_period: 20s
 
 volumes:
-  dbdata:
   webapp_cache:
   webapp_node_modules:
 

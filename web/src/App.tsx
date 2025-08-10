@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Chart as ChartJS,
@@ -41,7 +41,6 @@ ChartJS.register(
 // Types
 import type { IncomeSource, OutcomeSource } from './types/budget';
 
-// eslint-disable-next-line complexity
 const App: React.FC = () => {
   const { t, i18n } = useTranslation();
   const { push } = useToast();
@@ -84,37 +83,27 @@ const App: React.FC = () => {
   );
 
   // Helper functions
-  const formatCurrency = (cents: number) => {
+  const formatCurrency = useCallback((cents: number) => {
     const locale = i18n.language?.startsWith('fr') ? 'fr-FR' : 'en-US';
     return new Intl.NumberFormat(locale, {
       style: 'currency',
       currency: theme.currency,
     }).format(cents / 100);
-  };
+  }, [i18n.language, theme.currency]);
   const currencySymbol = theme.currency === 'EUR' ? '€' : '$';
 
-  const getMonthName = (month: number) => {
-    const monthNames = [
-      'January',
-      'February',
-      'March',
-      'April',
-      'May',
-      'June',
-      'July',
-      'August',
-      'September',
-      'October',
-      'November',
-      'December',
-    ];
-    return monthNames[month - 1] || 'Unknown';
-  };
+  const formatMonth = useCallback(
+    (date: Date, length: 'long' | 'short' = 'long') => {
+      const locale = i18n.language?.startsWith('fr') ? 'fr-FR' : 'en-US';
+      return new Intl.DateTimeFormat(locale, { month: length }).format(date);
+    },
+    [i18n.language]
+  );
 
   const getPageTitle = useCallback(() => {
-    const monthName = getMonthName(navigation.currentDate.getMonth() + 1);
+    const monthName = formatMonth(navigation.currentDate, 'long');
     return t('app.title', { month: monthName, year: navigation.currentDate.getFullYear() });
-  }, [navigation.currentDate, t]);
+  }, [navigation.currentDate, t, formatMonth]);
 
   const parseLocaleAmount = (value: string): number => {
     if (!value) return 0;
@@ -124,10 +113,9 @@ const App: React.FC = () => {
   };
 
   // Hook: monthly data (budget sources) for current year-month
-  const ym = {
-    year: navigation.currentDate.getFullYear(),
-    month: navigation.currentDate.getMonth() + 1,
-  };
+  const curYear = navigation.currentDate.getFullYear();
+  const curMonth = navigation.currentDate.getMonth() + 1;
+  const ym = useMemo(() => ({ year: curYear, month: curMonth }), [curYear, curMonth]);
   const {
     data: monthly,
     loading: monthlyLoading,
@@ -325,14 +313,14 @@ const App: React.FC = () => {
       <div className="page-header-tabs">
         <div className="container-xl">
           <ul className="nav nav-tabs nav-pills nav-fill" aria-label="Sections">
-            <li className="nav-item">
+      <li className="nav-item">
               <a
                 href="#planning"
                 className={`nav-link ${navigation.activeSection === 'planning' ? 'active' : ''}`}
                 role="tab"
                 aria-current={navigation.activeSection === 'planning' ? 'page' : undefined}
               >
-                Planning
+        {t('nav.planning', { defaultValue: 'Planning' })}
               </a>
             </li>
             <li className="nav-item">
@@ -342,7 +330,7 @@ const App: React.FC = () => {
                 role="tab"
                 aria-current={navigation.activeSection === 'tracking' ? 'page' : undefined}
               >
-                Tracking
+        {t('nav.tracking', { defaultValue: 'Tracking' })}
               </a>
             </li>
             <li className="nav-item">
@@ -352,7 +340,7 @@ const App: React.FC = () => {
                 role="tab"
                 aria-current={navigation.activeSection === 'analytics' ? 'page' : undefined}
               >
-                Analytics
+        {t('nav.analytics', { defaultValue: 'Analytics' })}
               </a>
             </li>
           </ul>
@@ -366,10 +354,10 @@ const App: React.FC = () => {
         <PlanningSection
           isDarkMode={theme.isDarkMode}
           title={t('section.predictedBudget', {
-            month: getMonthName(navigation.currentDate.getMonth() + 1),
+            month: formatMonth(navigation.currentDate, 'long'),
             year: navigation.currentDate.getFullYear(),
           })}
-          monthLabel={`${getMonthName(navigation.currentDate.getMonth() + 1)} ${navigation.currentDate.getFullYear()}`}
+          monthLabel={`${formatMonth(navigation.currentDate, 'long')} ${navigation.currentDate.getFullYear()}`}
           incomeSources={budgetState.predictedBudget.incomeSources}
           outcomeSources={budgetState.predictedBudget.outcomeSources}
           parseLocaleAmount={parseLocaleAmount}
@@ -432,13 +420,14 @@ const App: React.FC = () => {
         <div id="tracking" className="section-anchor"></div>
         <ManualBudgetSection
           isDarkMode={theme.isDarkMode}
-          monthLabel={`${getMonthName(navigation.currentDate.getMonth() + 1)} ${navigation.currentDate.getFullYear()}`}
+          title={t('section.manualBudget', { defaultValue: 'Manual Budget (Bank and Planned Deductions)' })}
+          monthLabel={`${formatMonth(navigation.currentDate, 'long')} ${navigation.currentDate.getFullYear()}`}
           currencySymbol={currencySymbol}
           manualBudget={manualBudget.manualBudget}
           setManualBudget={manualBudget.setManualBudget}
           parseLocaleAmount={parseLocaleAmount}
           formatCurrency={formatCurrency}
-          resetLabel={t('btn.reset') ?? 'Reset'}
+          resetLabel={t('btn.reset', { defaultValue: 'Reset' })}
           bankLabel={t('label.bankAmount')}
           plannedLabel={t('label.plannedExpenses')}
           formulaHint={t('label.formula')}

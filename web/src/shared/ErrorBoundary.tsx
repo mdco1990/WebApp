@@ -18,7 +18,8 @@ export class ErrorBoundary extends React.Component<Props, State> {
 
   componentDidCatch(error: Error, info: React.ErrorInfo) {
     // Log to console so you don't just see a blank page
-    console.error('ErrorBoundary caught:', error, info);
+  // eslint-disable-next-line no-console
+  console.error('ErrorBoundary caught:', error, info);
   }
 
   render() {
@@ -27,7 +28,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
         <div className="container py-5">
           <div className="alert alert-danger" role="alert">
             <h4 className="alert-heading">Something went wrong!</h4>
-            <p>The application encountered an error and couldn't continue.</p>
+            <p>The application encountered an error and could not continue.</p>
             <hr />
             <p className="mb-0">
               <strong>Error:</strong> {this.state.error?.message || 'Unknown error'}

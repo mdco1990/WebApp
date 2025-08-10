@@ -44,6 +44,7 @@ func NewRouter(cfg config.Config, db *sql.DB) http.Handler {
 		AllowedOrigins:   cfg.CORSAllowedOrigins,
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Accept", "Content-Type", "X-API-Key", "Authorization"},
+		ExposedHeaders:   []string{"Set-Cookie"},
 		AllowCredentials: true,
 		MaxAge:           300,
 	}))

@@ -35,13 +35,13 @@ export function useMonthlyData(ym: YearMonth | null): UseMonthlyDataResult {
     } finally {
       setLoading(false);
     }
-  }, [ym?.year, ym?.month]);
+  }, [ym]);
 
   const addDefaultData = useCallback(async () => {
     if (!ym) return;
     await seedDefaults(ym);
     await reload();
-  }, [ym?.year, ym?.month, reload]);
+  }, [ym, reload]);
 
   // mutations
   const autoSaveIncomeSource = useCallback(

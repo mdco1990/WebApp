@@ -6,33 +6,38 @@ type Props = {
   labels: string[];
   incomeSeries: number[];
   outcomeSeries: number[];
+  legendIncome: string;
+  legendOutcome: string;
 };
 
-const KpiTrendChart: React.FC<Props> = ({ isDarkMode, labels, incomeSeries, outcomeSeries }) => {
-  const data = {
-    labels,
-    datasets: [
-      {
-        label: 'Predicted Income',
-        data: incomeSeries,
-        borderColor: 'rgb(75, 192, 192)',
-        backgroundColor: 'rgba(75, 192, 192, 0.2)',
-        tension: 0.1,
-      },
-      {
-        label: 'Predicted Outcomes',
-        data: outcomeSeries,
-        borderColor: 'rgb(255, 99, 132)',
-        backgroundColor: 'rgba(255, 99, 132, 0.2)',
-        tension: 0.1,
-      },
-    ],
-  };
+const KpiTrendChart = React.memo<Props>(({ isDarkMode, labels, incomeSeries, outcomeSeries, legendIncome, legendOutcome }) => {
+  const data = React.useMemo(
+    () => ({
+      labels,
+      datasets: [
+        {
+          label: legendIncome,
+          data: incomeSeries,
+          borderColor: 'rgb(75, 192, 192)',
+          backgroundColor: 'rgba(75, 192, 192, 0.2)',
+          tension: 0.1,
+        },
+        {
+          label: legendOutcome,
+          data: outcomeSeries,
+          borderColor: 'rgb(255, 99, 132)',
+          backgroundColor: 'rgba(255, 99, 132, 0.2)',
+          tension: 0.1,
+        },
+      ],
+    }),
+    [labels, incomeSeries, outcomeSeries, legendIncome, legendOutcome]
+  );
 
   return (
     <Line
       data={data}
-      options={{
+      options={React.useMemo(() => ({
         responsive: true,
         maintainAspectRatio: false,
         plugins: { legend: { labels: { color: isDarkMode ? '#fff' : '#333' } } },
@@ -46,9 +51,10 @@ const KpiTrendChart: React.FC<Props> = ({ isDarkMode, labels, incomeSeries, outc
             grid: { color: isDarkMode ? '#555' : '#ddd' },
           },
         },
-      }}
+      }), [isDarkMode])}
     />
   );
-};
+});
+KpiTrendChart.displayName = 'KpiTrendChart';
 
 export default KpiTrendChart;

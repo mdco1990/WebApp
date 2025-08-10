@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { useToast } from '../shared/toast';
 
 export interface SourceItem {
@@ -32,9 +33,12 @@ const IncomeSources: React.FC<Props> = ({
   onRemoveUnsaved,
   onDeletePersisted,
   onAddEmpty,
-  addButtonText = '+ Add Income Source',
+  addButtonText,
 }) => {
   const { push } = useToast();
+  const { t } = useTranslation();
+  const buttonLabel =
+    addButtonText ?? t('btn.addIncomeSource', { defaultValue: '+ Add Income Source' });
   return (
     <div className="col-lg-6 mb-4">
       <h5>{title}</h5>
@@ -79,8 +83,7 @@ const IncomeSources: React.FC<Props> = ({
                     }
                     try {
                       await onDeletePersisted(source.id);
-                    } catch (err) {
-                      console.error('Delete failed', err);
+                    } catch {
                       push('Failed to delete. Please try again.', 'error');
                     }
                   }}
@@ -94,7 +97,7 @@ const IncomeSources: React.FC<Props> = ({
         ))}
       </div>
       <button className="btn btn-sm btn-outline-primary mt-2" onClick={onAddEmpty}>
-        {addButtonText}
+        {buttonLabel}
       </button>
     </div>
   );

@@ -54,8 +54,9 @@ export const useNavigation = () => {
         const visible = entries
           .filter((e) => e.isIntersecting)
           .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
-        if (visible?.target?.id && ids.includes(visible.target.id as any)) {
-          setActiveSection(visible.target.id as typeof activeSection);
+        const id = visible?.target?.id as string | undefined;
+        if (id && (ids as string[]).includes(id)) {
+          setActiveSection(id as typeof activeSection);
         }
       },
       {

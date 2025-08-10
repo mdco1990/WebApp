@@ -12,6 +12,7 @@ export interface ManualBudgetState {
 
 interface Props {
   isDarkMode: boolean;
+  title: string;
   monthLabel: string;
   currencySymbol: string;
   manualBudget: ManualBudgetState;
@@ -31,6 +32,7 @@ interface Props {
 
 const ManualBudgetSection: React.FC<Props> = ({
   isDarkMode,
+  title,
   monthLabel,
   currencySymbol,
   manualBudget,
@@ -54,7 +56,7 @@ const ManualBudgetSection: React.FC<Props> = ({
       <div className="col-lg-12 mb-4">
         <div className={`card ${isDarkMode ? 'bg-secondary text-light' : 'bg-white'}`}>
           <div className="card-header d-flex justify-content-between align-items-center">
-            <h3 className="mb-0">Manual Budget</h3>
+            <h3 className="mb-0">{title}</h3>
             <div className="d-flex align-items-center gap-2">
               <span className="badge bg-secondary">{monthLabel}</span>
               <div className="small text-muted me-2">{formulaHint}</div>

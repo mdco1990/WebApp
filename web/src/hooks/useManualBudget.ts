@@ -31,7 +31,9 @@ export const useManualBudget = (currentDate: Date) => {
 
     try {
       localStorage.setItem(key, JSON.stringify(manualBudget));
-    } catch {}
+    } catch {
+      // ignore storage quota or availability issues
+    }
 
     // Also attempt to save to backend (best-effort)
     const year = currentDate.getFullYear();
@@ -70,19 +72,22 @@ export const useManualBudget = (currentDate: Date) => {
         const month = currentDate.getMonth() + 1;
         const data = await getManualBudget({ year, month });
         if (data && typeof data.bank_amount_cents === 'number' && Array.isArray(data.items)) {
+          interface ServerItem { id?: string | number; client_id?: string | number; name?: unknown; amount_cents?: number }
           const fromServer: ManualBudgetState = {
             bankAmount: (data.bank_amount_cents || 0) / 100,
-            items: data.items.map((it: any) => ({
+            items: (data.items as ServerItem[]).map((it) => ({
               id: String(it.id ?? it.client_id ?? Math.random().toString(36).slice(2)),
-              name: String(it.name ?? ''),
-              amount: (it.amount_cents || 0) / 100,
+              name: String((it as ServerItem).name ?? ''),
+              amount: ((it.amount_cents || 0) as number) / 100,
             })),
           };
           setManualBudget(fromServer);
           // cache locally as well
           try {
             localStorage.setItem(key, JSON.stringify(fromServer));
-          } catch {}
+          } catch {
+            // ignore localStorage failures
+          }
           manualBudgetLoadedRef.current = true;
           return;
         }
@@ -95,7 +100,9 @@ export const useManualBudget = (currentDate: Date) => {
         try {
           const parsed = JSON.parse(saved) as ManualBudgetState;
           setManualBudget(parsed);
-        } catch {}
+        } catch {
+          // ignore parse errors; fall through to default state
+        }
       } else {
         // default zero state for months without saved data
         setManualBudget({ bankAmount: 0, items: [] });

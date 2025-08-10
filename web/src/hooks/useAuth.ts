@@ -34,6 +34,7 @@ export const useAuth = () => {
         return false;
       }
     } catch (error) {
+      // eslint-disable-next-line no-console
       console.error('Login error:', error);
       push(t('auth.error.login'), 'error');
       return false;
@@ -51,6 +52,7 @@ export const useAuth = () => {
         });
       }
     } catch (error) {
+      // eslint-disable-next-line no-console
       console.error('Logout error:', error);
     } finally {
       setSessionId(null);
@@ -78,6 +80,7 @@ export const useAuth = () => {
         return false;
       }
     } catch (error) {
+      // eslint-disable-next-line no-console
       console.error('Registration error:', error);
       push('Registration failed. Please try again.', 'error');
       return false;
@@ -106,6 +109,7 @@ export const useAuth = () => {
         return false;
       }
     } catch (error) {
+      // eslint-disable-next-line no-console
       console.error('Password update error:', error);
       push('Password update failed. Please try again.', 'error');
       return false;

@@ -70,6 +70,22 @@ func handleLogin(repo *repository.Repository) http.HandlerFunc {
 
 		_ = repo.UpdateLastLogin(r.Context(), user.ID)
 
+		// Also set a session cookie so browser navigation to admin routes works
+		cookie := &http.Cookie{
+			Name:     "session_id",
+			Value:    session.ID,
+			Path:     "/",
+			HttpOnly: true,
+			SameSite: http.SameSiteLaxMode,
+			// MaxAge 24h to match server-side session duration
+			MaxAge: 24 * 60 * 60,
+		}
+		// Mark secure when behind TLS or forwarded as HTTPS
+		if r.TLS != nil || strings.EqualFold(r.Header.Get("X-Forwarded-Proto"), "https") {
+			cookie.Secure = true
+		}
+		http.SetCookie(w, cookie)
+
 		respondJSON(w, http.StatusOK, map[string]any{
 			"success":    true,
 			"message":    "Login successful",
@@ -86,6 +102,13 @@ func handleLogout(repo *repository.Repository) http.HandlerFunc {
 		if sessionID != "" {
 			_ = repo.DeleteSession(r.Context(), sessionID)
 		}
+		// Expire the session cookie in the browser
+		http.SetCookie(w, &http.Cookie{
+			Name:   "session_id",
+			Value:  "",
+			Path:   "/",
+			MaxAge: -1,
+		})
 		respondJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 	}
 }
