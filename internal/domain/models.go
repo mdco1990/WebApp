@@ -1,3 +1,4 @@
+// Package domain contains core business entities and request/response models.
 package domain
 
 import "time"
@@ -110,6 +111,7 @@ type ManualBudget struct {
 	Items           []ManualBudgetItem `json:"items"`
 }
 
+// ManualBudgetItem represents a single manual budget line item.
 type ManualBudgetItem struct {
 	ID          int64  `json:"id"`
 	BudgetID    int64  `json:"-"`
@@ -117,12 +119,13 @@ type ManualBudgetItem struct {
 	AmountCents Money  `json:"amount_cents"`
 }
 
-// Request/Response models
+// LoginRequest represents user credentials for authentication.
 type LoginRequest struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
 }
 
+// LoginResponse is returned after a successful or failed login attempt.
 type LoginResponse struct {
 	Success   bool   `json:"success"`
 	Message   string `json:"message"`
@@ -130,6 +133,7 @@ type LoginResponse struct {
 	User      *User  `json:"user,omitempty"`
 }
 
+// CreateIncomeSourceRequest defines the payload to create an income source.
 type CreateIncomeSourceRequest struct {
 	Name        string `json:"name"`
 	Year        int    `json:"year"`
@@ -137,6 +141,7 @@ type CreateIncomeSourceRequest struct {
 	AmountCents Money  `json:"amount_cents"`
 }
 
+// CreateBudgetSourceRequest defines the payload to create a budget source.
 type CreateBudgetSourceRequest struct {
 	Name        string `json:"name"`
 	Year        int    `json:"year"`
@@ -144,6 +149,7 @@ type CreateBudgetSourceRequest struct {
 	AmountCents Money  `json:"amount_cents"`
 }
 
+// UpdateSourceRequest defines the payload to update a source's name or amount.
 type UpdateSourceRequest struct {
 	Name        string `json:"name"`
 	AmountCents Money  `json:"amount_cents"`

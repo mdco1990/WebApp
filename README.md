@@ -6,10 +6,10 @@ Budget Web App - A modern full-stack application built with Go and React/TypeScr
 ### Development
 ```bash
 # Start all services (SQLite + hot reloading)
-docker compose up
+docker compose -f deployments/docker-compose.yml up
 
 # With development tools (SQLite admin)
-docker compose --profile tools up
+docker compose -f deployments/docker-compose.yml --profile tools up
 
 # Or run manually
 ./scripts/dev.sh    # Start Go API
@@ -52,15 +52,10 @@ This application follows Clean Architecture principles with a clear separation o
 ## Documentation
 
 - [Development Guide](docs/DEVELOPMENT.md) - Local development setup and workflows  
-- [Project Layout](docs/PROJECT_LAYOUT.md) - Detailed architecture and structure
-- [API Documentation](docs/swagger.yaml) - OpenAPI specification
 - [Security](docs/SECURITY.md) - Security considerations
 - [Cleanup Summary](docs/CLEANUP_SUMMARY.md) - Recent Docker cleanup changes
 - [TODO](docs/TODO.md) - Development roadmap
 
-A modern full-stack web app for tracking monthly budget, salary, and expenses. The codebase is split into two components:
-
-- **Backend API** (Go): `cmd/webapp`, `internal/*`
 - **Frontend UI** (React+TS+Vite): `web/`
 
 **Technology Stack:**
@@ -125,18 +120,19 @@ Frontend runs on http://localhost:5173 and calls the backend at http://127.0.0.1
 
 ## API Documentation
 
-Interactive API documentation is available via SwaggerUI:
-- **Local Development**: http://localhost:8082/api/ or http://localhost:5173/api/
-- **Production**: http://instance-agent.subnet05071228.vcn05071228.oraclevcn.com:5173/api/
+Interactive API documentation is available via SwaggerUI (admin-only route):
+- Admin only: http://localhost:8082/api/ (backend) or http://localhost:5173/api/ (frontend proxy)
+- You must be authenticated as an admin user to access the Swagger UI.
+- The OpenAPI spec is served publicly at: http://localhost:8082/docs/swagger.yaml
 
 The documentation includes all endpoints, request/response schemas, and interactive testing capabilities.
 
 ## API overview
 
 ### Interactive Documentation
-- **SwaggerUI**: http://localhost:8082/swagger/ (interactive API explorer)
-- **OpenAPI Spec**: http://localhost:8082/docs/swagger.yaml
-- **Via Frontend**: Click "📚 API Docs" button when logged in
+- SwaggerUI (admin-only): http://localhost:8082/api/
+- OpenAPI Spec: http://localhost:8082/docs/swagger.yaml
+- Via Frontend: Click "📚 API Docs" when logged in as admin
 
 ### Core Endpoints
 **Authentication:**

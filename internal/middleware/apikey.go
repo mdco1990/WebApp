@@ -1,14 +1,17 @@
+// Package middleware contains HTTP middleware for the API server.
 package middleware
 
 import (
 	"net/http"
 )
 
+// APIKeyConfig configures simple header-based API key authentication.
 type APIKeyConfig struct {
 	Header string
 	Key    string
 }
 
+// APIKeyAuth returns middleware that validates a shared API key in a header.
 func APIKeyAuth(cfg APIKeyConfig) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

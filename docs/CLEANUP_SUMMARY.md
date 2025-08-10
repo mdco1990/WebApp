@@ -8,10 +8,9 @@
 ### **Docker Compose Files**
 - ❌ `docker-compose.prod.yml` - Production overrides  
 - ❌ `docker-compose.staging.yml` - Staging configuration
-- ❌ `deployments/docker-compose.yml` - Legacy production config
+- ♻️ Moved dev compose to `deployments/docker-compose.yml`
 - ❌ `deployments/docker/Dockerfile.api` - Production API Dockerfile
 - ❌ `deployments/docker/Dockerfile.web` - Production web Dockerfile  
-- ❌ `deployments/` - Entire directory removed
 
 ### **Environment Files**
 - ❌ `.env.prod.example` - Production environment template
@@ -42,7 +41,7 @@
 ## ✅ **What Remains**
 
 ### **Development Files**
-- ✅ `docker-compose.yml` - Development environment (SQLite + hot reloading)
+- ✅ `deployments/docker-compose.yml` - Development environment (SQLite + hot reloading)
 - ✅ `.env.dev` - Development environment variables
 - ✅ All existing source code and documentation
 
@@ -55,8 +54,8 @@ make docker-dev              # Start with Docker + tools
 ./scripts/docker.sh --tools  # Direct Docker script usage
 
 # Quick commands
-docker compose up --profile tools    # Development with SQLite admin
-docker compose up --detach          # Background development
+docker compose -f deployments/docker-compose.yml up --profile tools    # With SQLite admin
+docker compose -f deployments/docker-compose.yml up --detach          # Background development
 ```
 
 ## 🎯 **Benefits Achieved**

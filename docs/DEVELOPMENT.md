@@ -9,13 +9,13 @@ This project supports multiple development approaches. Choose the one that best 
 #### Option 1: Docker Compose (Recommended)
 ```bash
 # Start development environment
-docker compose up
+docker compose -f deployments/docker-compose.yml up
 
 # With development tools (SQLite Admin)
-docker compose --profile tools up
+docker compose -f deployments/docker-compose.yml --profile tools up
 
 # Background mode
-docker compose up -d
+docker compose -f deployments/docker-compose.yml up -d
 ```
 
 #### Option 2: Makefile (Most Convenient)
@@ -83,7 +83,7 @@ CORS_ALLOWED_ORIGINS=http://localhost:5173
 Enable development tools with the `tools` profile:
 
 ```bash
-docker compose --profile tools up
+docker compose -f deployments/docker-compose.yml --profile tools up
 ```
 
 This adds:
@@ -115,16 +115,16 @@ make dev
 **Database issues:**
 ```bash
 # Reset SQLite database
-docker compose down -v
-docker compose up
+docker compose -f deployments/docker-compose.yml down -v
+docker compose -f deployments/docker-compose.yml up
 ```
 
 **Module cache issues:**
 ```bash
 # Clear Go modules cache
-docker compose down
+docker compose -f deployments/docker-compose.yml down
 docker volume rm webapp_webapp_cache
-docker compose up --build
+docker compose -f deployments/docker-compose.yml up --build
 ```
 
 ### Development Tips

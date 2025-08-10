@@ -35,7 +35,7 @@ EOF
 
 # Default values
 ACTION=${1:-up}
-COMPOSE_FILES="-f docker-compose.yml"
+COMPOSE_FILES="-f deployments/docker-compose.yml"
 EXTRA_ARGS=""
 PROFILE=""
 

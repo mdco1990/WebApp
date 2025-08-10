@@ -1,11 +1,14 @@
+// Package db provides database connectivity and schema migration helpers.
 package db
 
 import (
 	"database/sql"
 	"embed"
+	"errors"
 	"fmt"
 	"log"
 
+	// sqlite driver is required at runtime when DBDriver=sqlite; imported for side effects.
 	_ "github.com/glebarez/sqlite"
 	_ "github.com/go-sql-driver/mysql"
 )
@@ -26,7 +29,7 @@ func Open(driver string, path string, dsn string) (*sql.DB, error) {
 	case "mysql":
 		// dsn example: user:pass@tcp(db:3306)/webapp?parseTime=true&multiStatements=true
 		if dsn == "" {
-			return nil, fmt.Errorf("empty DSN for mysql driver")
+			return nil, errors.New("empty DSN for mysql driver")
 		}
 		db, err = sql.Open("mysql", dsn)
 	default:

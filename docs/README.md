@@ -11,7 +11,7 @@ This directory contains the API documentation for the Budget Planner application
 - **Production**: http://instance-agent.subnet05071228.vcn05071228.oraclevcn.com:5173/api/
 
 ### OpenAPI Specification
-- **YAML Format**: `/docs/swagger.yaml`
+- **YAML Format**: `/docs/swagger.yaml` (served from `api/swagger.yaml`)
 - **Via Frontend Proxy**: http://localhost:5173/docs/swagger.yaml
 - **Direct Access (Local only)**: http://localhost:8082/docs/swagger.yaml
 
@@ -138,7 +138,7 @@ Open http://localhost:5173/db-admin/ in a browser while logged in as an admin us
 
 To update the API documentation:
 
-1. Edit `docs/swagger.yaml` with your changes
+1. Edit `api/swagger.yaml` with your changes
 2. Restart the API service: `docker compose restart api`
 3. Documentation will be available at `/api/`
 

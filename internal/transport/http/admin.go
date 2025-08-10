@@ -1,3 +1,4 @@
+// Package httpapi wires HTTP routing, handlers, and admin utilities.
 package httpapi
 
 import (
@@ -6,7 +7,7 @@ import (
 	"net/url"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/personal/webapp/internal/repository"
+	"github.com/mdco1990/webapp/internal/repository"
 )
 
 const pathDBAdmin = "/db-admin"
@@ -16,7 +17,7 @@ func registerAdminRoutes(r chi.Router, repo *repository.Repository) {
 	// Swagger UI endpoint - serve the UI with our spec at /api/
 	r.Group(func(g chi.Router) {
 		g.Use(AdminOnly(repo))
-		g.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
+		g.HandleFunc("/api/", func(w http.ResponseWriter, _ *http.Request) {
 			// Serve Swagger UI with our OpenAPI spec shipped in docs
 			swaggerHTML := `<!DOCTYPE html>
 <html>

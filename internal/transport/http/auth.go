@@ -8,8 +8,8 @@ import (
 	"strings"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/personal/webapp/internal/domain"
-	"github.com/personal/webapp/internal/repository"
+	"github.com/mdco1990/webapp/internal/domain"
+	"github.com/mdco1990/webapp/internal/repository"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -43,7 +43,7 @@ func handleLogin(repo *repository.Repository) http.HandlerFunc {
 
 		user, passwordHash, err := repo.GetUserByUsername(r.Context(), req.Username)
 		if err != nil {
-			if err == sql.ErrNoRows {
+			if errors.Is(err, sql.ErrNoRows) {
 				respondJSON(w, http.StatusOK, map[string]any{
 					"success": false,
 					"message": "Invalid username or password",
@@ -68,7 +68,7 @@ func handleLogin(repo *repository.Repository) http.HandlerFunc {
 			return
 		}
 
-		repo.UpdateLastLogin(r.Context(), user.ID)
+		_ = repo.UpdateLastLogin(r.Context(), user.ID)
 
 		respondJSON(w, http.StatusOK, map[string]any{
 			"success":    true,
@@ -84,7 +84,7 @@ func handleLogout(repo *repository.Repository) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		sessionID := getSessionFromRequest(r)
 		if sessionID != "" {
-			repo.DeleteSession(r.Context(), sessionID)
+			_ = repo.DeleteSession(r.Context(), sessionID)
 		}
 		respondJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 	}
@@ -99,8 +99,8 @@ func handleUpdatePassword(repo *repository.Repository) http.HandlerFunc {
 		}
 
 		var req struct {
-			CurrentPassword string `json:"currentPassword"`
-			NewPassword     string `json:"newPassword"`
+			CurrentPassword string `json:"current_password"`
+			NewPassword     string `json:"new_password"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			respondErr(w, http.StatusBadRequest, invalidBodyMsg)

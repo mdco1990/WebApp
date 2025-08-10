@@ -1,3 +1,4 @@
+// Package httpapi contains the HTTP router and middlewares for the API.
 package httpapi
 
 import (
@@ -12,11 +13,11 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/cors"
-	"github.com/personal/webapp/internal/config"
-	"github.com/personal/webapp/internal/domain"
-	"github.com/personal/webapp/internal/middleware"
-	"github.com/personal/webapp/internal/repository"
-	"github.com/personal/webapp/internal/service"
+	"github.com/mdco1990/webapp/internal/config"
+	"github.com/mdco1990/webapp/internal/domain"
+	"github.com/mdco1990/webapp/internal/middleware"
+	"github.com/mdco1990/webapp/internal/repository"
+	"github.com/mdco1990/webapp/internal/service"
 )
 
 // Context key for user ID
@@ -35,6 +36,7 @@ func (w *statusWriter) WriteHeader(code int) {
 	w.ResponseWriter.WriteHeader(code)
 }
 
+// NewRouter builds and returns the API HTTP router.
 func NewRouter(cfg config.Config, db *sql.DB) http.Handler {
 	r := chi.NewRouter()
 
@@ -88,7 +90,7 @@ func NewRouter(cfg config.Config, db *sql.DB) http.Handler {
 		})
 	})
 
-	r.Get("/healthz", func(w http.ResponseWriter, r *http.Request) {
+	r.Get("/healthz", func(w http.ResponseWriter, _ *http.Request) {
 		// Basic health info
 		status := map[string]any{
 			"status": "ok",
@@ -97,7 +99,7 @@ func NewRouter(cfg config.Config, db *sql.DB) http.Handler {
 		respondJSON(w, http.StatusOK, status)
 	})
 	// Readiness endpoint (lightweight)
-	r.Get("/readyz", func(w http.ResponseWriter, r *http.Request) {
+	r.Get("/readyz", func(w http.ResponseWriter, _ *http.Request) {
 		respondJSON(w, http.StatusOK, map[string]string{"status": "ready"})
 	})
 
@@ -106,7 +108,8 @@ func NewRouter(cfg config.Config, db *sql.DB) http.Handler {
 
 	// Serve static files from docs directory
 	r.Route("/docs", func(docs chi.Router) {
-		fs := http.FileServer(http.Dir("./docs/"))
+		// Serve OpenAPI spec from standard layout folder `api/`
+		fs := http.FileServer(http.Dir("./api/"))
 		docs.Handle("/*", http.StripPrefix("/docs", fs))
 	})
 

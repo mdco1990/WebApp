@@ -1,3 +1,4 @@
+// Package repository provides data access for domain models using a SQL database.
 package repository
 
 import (
@@ -5,18 +6,21 @@ import (
 	"crypto/rand"
 	"database/sql"
 	"encoding/hex"
+	"errors"
 	"time"
 
-	"github.com/personal/webapp/internal/domain"
+	"github.com/mdco1990/webapp/internal/domain"
 	"golang.org/x/crypto/bcrypt"
 )
 
+// Repository wraps a *sql.DB and exposes data access methods.
 type Repository struct {
 	db *sql.DB
 	// feature flags detected from DB schema
 	hasIsAdmin bool
 }
 
+// New creates a new Repository.
 func New(db *sql.DB) *Repository {
 	r := &Repository{db: db}
 	// Detect if users table has is_admin column (SQLite specific PRAGMA)
@@ -31,6 +35,8 @@ func New(db *sql.DB) *Repository {
 }
 
 // Legacy methods
+
+// UpsertSalary inserts or updates the salary for a given year/month.
 func (r *Repository) UpsertSalary(
 	ctx context.Context,
 	ym domain.YearMonth,
@@ -43,6 +49,7 @@ func (r *Repository) UpsertSalary(
 	return err
 }
 
+// UpsertBudget inserts or updates the budget for a given year/month.
 func (r *Repository) UpsertBudget(
 	ctx context.Context,
 	ym domain.YearMonth,
@@ -55,6 +62,7 @@ func (r *Repository) UpsertBudget(
 	return err
 }
 
+// AddExpense creates a new expense record.
 func (r *Repository) AddExpense(ctx context.Context, e *domain.Expense) (int64, error) {
 	res, err := r.db.ExecContext(ctx,
 		`INSERT INTO expense(year, month, category, description, amount_cents)
@@ -65,6 +73,7 @@ func (r *Repository) AddExpense(ctx context.Context, e *domain.Expense) (int64, 
 	return res.LastInsertId()
 }
 
+// ListExpenses returns all expenses for the provided year/month.
 func (r *Repository) ListExpenses(
 	ctx context.Context,
 	ym domain.YearMonth,
@@ -78,7 +87,7 @@ func (r *Repository) ListExpenses(
 	if err != nil {
 		return []domain.Expense{}, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var out []domain.Expense
 	for rows.Next() {
 		var e domain.Expense
@@ -98,31 +107,35 @@ func (r *Repository) ListExpenses(
 	return out, rows.Err()
 }
 
+// DeleteExpense removes an expense by ID.
 func (r *Repository) DeleteExpense(ctx context.Context, id int64) error {
 	_, err := r.db.ExecContext(ctx, `DELETE FROM expense WHERE id=?`, id)
 	return err
 }
 
+// GetSalary returns salary for a given year/month or 0 if none.
 func (r *Repository) GetSalary(ctx context.Context, ym domain.YearMonth) (domain.Money, error) {
 	var amount int64
 	err := r.db.QueryRowContext(ctx, `SELECT amount_cents FROM salary WHERE year=? AND month=?`, ym.Year, ym.Month).
 		Scan(&amount)
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return 0, nil
 	}
 	return domain.Money(amount), err
 }
 
+// GetBudget returns budget for a given year/month or 0 if none.
 func (r *Repository) GetBudget(ctx context.Context, ym domain.YearMonth) (domain.Money, error) {
 	var amount int64
 	err := r.db.QueryRowContext(ctx, `SELECT amount_cents FROM budget WHERE year=? AND month=?`, ym.Year, ym.Month).
 		Scan(&amount)
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return 0, nil
 	}
 	return domain.Money(amount), err
 }
 
+// GetExpensesTotal returns the sum of expenses for a given year/month.
 func (r *Repository) GetExpensesTotal(
 	ctx context.Context,
 	ym domain.YearMonth,
@@ -134,6 +147,8 @@ func (r *Repository) GetExpensesTotal(
 }
 
 // Authentication methods
+
+// CreateUser stores a new user and returns it.
 func (r *Repository) CreateUser(
 	ctx context.Context,
 	username, password, email string,
@@ -163,6 +178,7 @@ func (r *Repository) CreateUser(
 	}, nil
 }
 
+// GetUserByUsername retrieves a user by username along with the password hash.
 func (r *Repository) GetUserByUsername(
 	ctx context.Context,
 	username string,
@@ -232,6 +248,7 @@ func (r *Repository) populateUserFields(
 	}
 }
 
+// GetUserByID retrieves a user by ID along with the password hash.
 func (r *Repository) GetUserByID(ctx context.Context, userID int64) (*domain.User, string, error) {
 	if r.hasIsAdmin {
 		return r.getUserByIDWithAdmin(ctx, userID)
@@ -288,6 +305,7 @@ func (r *Repository) getUserByIDWithoutAdmin(
 
 // IsUserAdmin returns true if the user has admin privileges.
 // It supports both schema with is_admin column and legacy fallback to username 'admin'.
+// IsUserAdmin reports whether the given user has admin privileges.
 func (r *Repository) IsUserAdmin(ctx context.Context, userID int64) (bool, error) {
 	if r.hasIsAdmin {
 		var isAdmin int64
@@ -303,6 +321,7 @@ func (r *Repository) IsUserAdmin(ctx context.Context, userID int64) (bool, error
 	return username == "admin", nil
 }
 
+// UpdateUserPassword changes the stored password hash for a user.
 func (r *Repository) UpdateUserPassword(
 	ctx context.Context,
 	userID int64,
@@ -319,12 +338,14 @@ func (r *Repository) UpdateUserPassword(
 	return err
 }
 
+// UpdateLastLogin sets the user's last_login to current timestamp.
 func (r *Repository) UpdateLastLogin(ctx context.Context, userID int64) error {
 	_, err := r.db.ExecContext(ctx,
 		`UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?`, userID)
 	return err
 }
 
+// CreateSession creates a new session for a user with a 24h expiration.
 func (r *Repository) CreateSession(ctx context.Context, userID int64) (*domain.Session, error) {
 	sessionID := generateSessionID()
 	expiresAt := time.Now().Add(24 * time.Hour) // 24 hour sessions
@@ -344,6 +365,7 @@ func (r *Repository) CreateSession(ctx context.Context, userID int64) (*domain.S
 	}, nil
 }
 
+// GetSession fetches a non-expired session by ID.
 func (r *Repository) GetSession(ctx context.Context, sessionID string) (*domain.Session, error) {
 	var session domain.Session
 	err := r.db.QueryRowContext(ctx,
@@ -357,12 +379,15 @@ func (r *Repository) GetSession(ctx context.Context, sessionID string) (*domain.
 	return &session, nil
 }
 
+// DeleteSession removes a session by ID.
 func (r *Repository) DeleteSession(ctx context.Context, sessionID string) error {
 	_, err := r.db.ExecContext(ctx, `DELETE FROM sessions WHERE id = ?`, sessionID)
 	return err
 }
 
 // Income Sources methods
+
+// CreateIncomeSource creates a new income source for a user and month.
 func (r *Repository) CreateIncomeSource(
 	ctx context.Context,
 	userID int64,
@@ -401,6 +426,7 @@ func (r *Repository) CreateIncomeSource(
 	}, nil
 }
 
+// UpdateIncomeSource updates an existing income source.
 func (r *Repository) UpdateIncomeSource(
 	ctx context.Context,
 	id int64,
@@ -414,6 +440,7 @@ func (r *Repository) UpdateIncomeSource(
 	return err
 }
 
+// ListIncomeSources lists income sources for a user and month.
 func (r *Repository) ListIncomeSources(
 	ctx context.Context,
 	userID int64,
@@ -427,7 +454,7 @@ func (r *Repository) ListIncomeSources(
 	if err != nil {
 		return []domain.IncomeSource{}, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var sources []domain.IncomeSource
 	for rows.Next() {
@@ -447,6 +474,7 @@ func (r *Repository) ListIncomeSources(
 	return sources, rows.Err()
 }
 
+// DeleteIncomeSource deletes an income source by ID for a user.
 func (r *Repository) DeleteIncomeSource(ctx context.Context, id int64, userID int64) error {
 	_, err := r.db.ExecContext(
 		ctx,
@@ -458,6 +486,8 @@ func (r *Repository) DeleteIncomeSource(ctx context.Context, id int64, userID in
 }
 
 // Budget Sources methods
+
+// CreateBudgetSource creates a new budget source for a user and month.
 func (r *Repository) CreateBudgetSource(
 	ctx context.Context,
 	userID int64,
@@ -496,6 +526,7 @@ func (r *Repository) CreateBudgetSource(
 	}, nil
 }
 
+// UpdateBudgetSource updates an existing budget source.
 func (r *Repository) UpdateBudgetSource(
 	ctx context.Context,
 	id int64,
@@ -509,6 +540,7 @@ func (r *Repository) UpdateBudgetSource(
 	return err
 }
 
+// ListBudgetSources lists budget sources for a user and month.
 func (r *Repository) ListBudgetSources(
 	ctx context.Context,
 	userID int64,
@@ -522,7 +554,7 @@ func (r *Repository) ListBudgetSources(
 	if err != nil {
 		return []domain.BudgetSource{}, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var sources []domain.BudgetSource
 	for rows.Next() {
@@ -542,6 +574,7 @@ func (r *Repository) ListBudgetSources(
 	return sources, rows.Err()
 }
 
+// DeleteBudgetSource deletes a budget source by ID for a user.
 func (r *Repository) DeleteBudgetSource(ctx context.Context, id int64, userID int64) error {
 	_, err := r.db.ExecContext(
 		ctx,
@@ -553,6 +586,8 @@ func (r *Repository) DeleteBudgetSource(ctx context.Context, id int64, userID in
 }
 
 // Manual Budget methods
+
+// GetManualBudget returns a manual budget with its items for the given user/month.
 func (r *Repository) GetManualBudget(
 	ctx context.Context,
 	userID int64,
@@ -569,7 +604,7 @@ func (r *Repository) GetManualBudget(
 		ym.Year,
 		ym.Month,
 	).Scan(&id, &bank)
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		// Return empty structure
 		return &domain.ManualBudget{
 			UserID:          userID,
@@ -590,7 +625,7 @@ func (r *Repository) GetManualBudget(
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	items := []domain.ManualBudgetItem{}
 	for rows.Next() {
@@ -617,6 +652,7 @@ func (r *Repository) GetManualBudget(
 }
 
 // UpsertManualBudget replaces the manual budget and its items for a given user/month atomically
+// UpsertManualBudget replaces the manual budget and items for a user/month atomically.
 func (r *Repository) UpsertManualBudget(
 	ctx context.Context,
 	userID int64,
@@ -720,7 +756,7 @@ func (r *Repository) replaceManualBudgetItems(
 	if err != nil {
 		return err
 	}
-	defer stmt.Close()
+	defer func() { _ = stmt.Close() }()
 
 	for _, it := range items {
 		if _, err := stmt.ExecContext(ctx, budgetID, it.Name, int64(it.AmountCents)); err != nil {
@@ -731,6 +767,8 @@ func (r *Repository) replaceManualBudgetItems(
 }
 
 // Monthly data aggregation
+
+// GetMonthlyData aggregates monthly income, budget sources, and expenses.
 func (r *Repository) GetMonthlyData(
 	ctx context.Context,
 	userID int64,
@@ -795,6 +833,6 @@ func nullify(s string) any {
 
 func generateSessionID() string {
 	bytes := make([]byte, 32)
-	rand.Read(bytes)
+	_, _ = rand.Read(bytes) // ignore error; non-crypto ID sufficient for sessions here
 	return hex.EncodeToString(bytes)
 }

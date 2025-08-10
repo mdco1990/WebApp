@@ -14,7 +14,7 @@
 - [x] Verified development environment works correctly
 
 ### 🔧 **Development Environment**
-**File**: `docker-compose.yml` (development only)
+**File**: `deployments/docker-compose.yml` (development only)
 - **Database**: SQLite (file-based, persistent)
 - **API**: Go with hot reloading (`cmd/webapp`)
 - **Frontend**: React/TypeScript with Vite HMR

@@ -1,3 +1,4 @@
+// Package log configures structured logging and helpers to propagate loggers via context.
 package log
 
 import (
@@ -7,6 +8,7 @@ import (
 	"strings"
 )
 
+// CtxKey is the context key used to store/retrieve a slog.Logger.
 type CtxKey struct{}
 
 // FromContext returns a slog.Logger stored in context or the default logger.

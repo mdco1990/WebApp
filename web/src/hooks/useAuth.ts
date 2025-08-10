@@ -94,7 +94,7 @@ export const useAuth = () => {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${sessionId}`,
         },
-        body: JSON.stringify({ currentPassword, newPassword }),
+        body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
       });
 
       if (response.ok) {

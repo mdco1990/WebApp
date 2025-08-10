@@ -5,9 +5,9 @@ import (
 	"database/sql"
 	"testing"
 
-	"github.com/personal/webapp/internal/db"
-	"github.com/personal/webapp/internal/domain"
-	"github.com/personal/webapp/internal/repository"
+	"github.com/mdco1990/webapp/internal/db"
+	"github.com/mdco1990/webapp/internal/domain"
+	"github.com/mdco1990/webapp/internal/repository"
 )
 
 func newTestService(t *testing.T) *Service {

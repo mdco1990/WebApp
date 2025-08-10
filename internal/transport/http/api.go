@@ -7,11 +7,11 @@ import (
 	"strings"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/personal/webapp/internal/config"
-	"github.com/personal/webapp/internal/domain"
-	"github.com/personal/webapp/internal/middleware"
-	"github.com/personal/webapp/internal/repository"
-	"github.com/personal/webapp/internal/service"
+	"github.com/mdco1990/webapp/internal/config"
+	"github.com/mdco1990/webapp/internal/domain"
+	"github.com/mdco1990/webapp/internal/middleware"
+	"github.com/mdco1990/webapp/internal/repository"
+	"github.com/mdco1990/webapp/internal/service"
 )
 
 const errInvalidID = "invalid id"
