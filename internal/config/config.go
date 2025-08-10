@@ -22,6 +22,14 @@ type Config struct {
 	CORSAllowedOrigins []string
 	APIKey             string
 	Env                string // dev or prod
+	// Logging
+	LogLevel  string // debug, info, warn, error
+	LogFormat string // json or text
+	// HTTP server timeouts
+	ReadHeaderTimeout time.Duration
+	ReadTimeout       time.Duration
+	WriteTimeout      time.Duration
+	IdleTimeout       time.Duration
 }
 
 // Load reads configuration from environment variables and optional .env file.
@@ -35,7 +43,15 @@ func Load() Config {
 		DBDSN:       os.Getenv("DB_DSN"),
 		APIKey:      os.Getenv("API_KEY"),
 		Env:         getenv("ENV", "dev"),
+		LogLevel:    getenv("LOG_LEVEL", "info"),
+		LogFormat:   getenv("LOG_FORMAT", "json"),
 	}
+
+	// HTTP timeouts (defaults suitable for APIs)
+	cfg.ReadHeaderTimeout = durationFromMillis(getenv("HTTP_READ_HEADER_TIMEOUT_MS", "5000"))
+	cfg.ReadTimeout = durationFromMillis(getenv("HTTP_READ_TIMEOUT_MS", "15000"))
+	cfg.WriteTimeout = durationFromMillis(getenv("HTTP_WRITE_TIMEOUT_MS", "15000"))
+	cfg.IdleTimeout = durationFromMillis(getenv("HTTP_IDLE_TIMEOUT_MS", "60000"))
 
 	origins := getenv("CORS_ALLOWED_ORIGINS", "http://localhost:5173")
 	// split by comma or space
@@ -84,4 +100,13 @@ func ParseInt(key string, def int) int {
 		return def
 	}
 	return i
+}
+
+// durationFromMillis parses millisecond strings into time.Duration with sane fallback.
+func durationFromMillis(ms string) time.Duration {
+	i, err := strconv.Atoi(strings.TrimSpace(ms))
+	if err != nil || i < 0 {
+		return 0
+	}
+	return time.Duration(i) * time.Millisecond
 }

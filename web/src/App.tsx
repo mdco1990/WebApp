@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Chart as ChartJS,
@@ -12,24 +12,21 @@ import {
   LineElement,
   PointElement,
 } from 'chart.js';
-import { Bar, Pie, Line } from 'react-chartjs-2';
-import 'bootstrap/dist/css/bootstrap.min.css';
-import {
-  getMonthlyData,
-  seedDefaults,
-  createIncomeSource,
-  updateIncomeSource,
-  deleteIncomeSource,
-  createBudgetSource,
-  updateBudgetSource,
-  deleteBudgetSource,
-  getManualBudget,
-  saveManualBudget,
-} from './api';
-import IncomeSources from './components/IncomeSources';
-import OutcomeSources from './components/OutcomeSources';
+import { Spinner } from 'react-bootstrap';
+import { getManualBudget, saveManualBudget } from './services/api';
+import { useMonthlyData } from './hooks/useMonthlyData';
 import PlanningSection from './components/PlanningSection';
 import ManualBudgetSection from './components/ManualBudgetSection';
+import PasswordModal from './components/PasswordModal';
+import HeaderControls from './components/HeaderControls';
+import BudgetOverviewChart from './components/BudgetOverviewChart';
+import LoginForm from './components/LoginForm';
+import RegisterForm from './components/RegisterForm';
+import SavingsProgressChart from './components/SavingsProgressChart';
+import KpiTrendChart from './components/KpiTrendChart';
+import ManualBudgetDailyChart from './components/ManualBudgetDailyChart';
+import IncomeBreakdownChart from './components/IncomeBreakdownChart';
+import OutcomeBreakdownChart from './components/OutcomeBreakdownChart';
 import { useToast } from './shared/toast';
 
 ChartJS.register(
@@ -45,17 +42,7 @@ ChartJS.register(
 );
 
 // Types
-interface IncomeSource {
-  id: number;
-  name: string;
-  amount_cents: number;
-}
-
-interface OutcomeSource {
-  id?: number;
-  name: string;
-  amount_cents: number;
-}
+import type { IncomeSource, OutcomeSource, User, LoginData } from './types/budget'
 
 interface PredictedBudget {
   incomeSources: IncomeSource[];
@@ -65,12 +52,7 @@ interface PredictedBudget {
   difference: number;
 }
 
-interface Expense {
-  id: number;
-  description: string;
-  amount_cents: number;
-  category?: string;
-}
+// Removed unused Expense interface; expenses UI is not implemented in this view
 
 interface SavingsTracker {
   targetAmount: number;
@@ -90,42 +72,17 @@ interface ManualBudgetState {
   items: ManualBudgetItem[];
 }
 
-interface User {
-  id: number;
-  username: string;
-  email?: string;
-  is_admin?: boolean;
-}
-
-interface LoginData {
-  success: boolean;
-  message: string;
-  session_id?: string;
-  user?: User;
-}
-
-// Backend aggregated payload
-interface MonthlyData {
-  year: number;
-  month: number;
-  month_name?: string;
-  income_sources: IncomeSource[];
-  budget_sources: OutcomeSource[]; // naming: backend returns budget sources; UI calls them outcome sources
-  expenses: Expense[];
-  total_income_cents: number;
-  total_budget_cents: number;
-  total_expenses_cents: number;
-  remaining_cents: number;
-}
+// using shared types for User, LoginData, MonthlyData
 
 const App: React.FC = () => {
   const { push } = useToast()
   // State management
   const [activeSection, setActiveSection] = useState<'planning' | 'tracking' | 'analytics'>('planning');
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [isDarkMode, setIsDarkMode] = useState(() => {
-    const saved = localStorage.getItem('darkMode');
-    return saved ? JSON.parse(saved) : false;
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
+    const raw = localStorage.getItem('darkMode');
+    if (raw === null) return false;
+    try { return JSON.parse(raw) as boolean } catch { return raw === 'true'; }
   });
   const [predictedBudget, setPredictedBudget] = useState<PredictedBudget>({
     incomeSources: [],
@@ -140,8 +97,7 @@ const App: React.FC = () => {
     monthlyContribution: 500,
     monthsToTarget: 15
   });
-  const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [newExpense, setNewExpense] = useState({ description: '', amount: '', category: '', type: 'expense' });
+  // Removed unused expenses state (not rendered in UI)
   const [manualBudget, setManualBudget] = useState<ManualBudgetState>(() => ({
     bankAmount: 0,
     items: []
@@ -160,12 +116,15 @@ const App: React.FC = () => {
   const [showPasswordForm, setShowPasswordForm] = useState(false);
   const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
   const [dataLoaded, setDataLoaded] = useState(false);
+  const [authLoading, setAuthLoading] = useState(false);
+  const [loginValidated, setLoginValidated] = useState(false);
+  const [registerValidated, setRegisterValidated] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const { t, i18n } = useTranslation();
-  // Security: do not hardcode API keys; read from localStorage if needed (dev only)
-  const apiKey = localStorage.getItem('api_key') || '';
   const [currency, setCurrency] = useState<'EUR' | 'USD'>(() => (localStorage.getItem('currency') as 'EUR' | 'USD') || 'EUR');
-  const baseURL = '/api';
+  // baseURL not needed; services/api.ts uses absolute paths
 
   // Helper functions
   const formatCurrency = (cents: number) => {
@@ -177,12 +136,7 @@ const App: React.FC = () => {
   };
   const currencySymbol = currency === 'EUR' ? '€' : '$';
 
-  const getCurrentYearMonth = () => {
-    return {
-      year: currentDate.getFullYear(),
-      month: currentDate.getMonth() + 1
-    };
-  };
+  // Year/Month derived from currentDate is provided to the monthly-data hook (see ym below)
 
   const getMonthName = (month: number) => {
     const monthNames = [
@@ -205,9 +159,23 @@ const App: React.FC = () => {
   };
   // Centralized API is in src/api.ts
 
+  // Hook: monthly data (budget sources) for current year-month
+  const ym = { year: currentDate.getFullYear(), month: currentDate.getMonth() + 1 };
+  const {
+    data: monthly,
+    loading: monthlyLoading,
+    reload,
+    addDefaultData: addDefaultsHook,
+    autoSaveIncomeSource: saveIncomeHook,
+    autoSaveOutcomeSource: saveOutcomeHook,
+    deleteIncome,
+    deleteOutcome,
+  } = useMonthlyData(sessionId ? ym : null);
+
   // Authentication functions
   const login = async (username: string, password: string) => {
     try {
+  setAuthLoading(true);
       const response = await fetch(`/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -221,13 +189,15 @@ const App: React.FC = () => {
         setUser(data.user);
         localStorage.setItem('session_id', data.session_id);
         setShowLogin(false);
-        loadData();
+        reload();
       } else {
         push(data.message || t('auth.error.login'), 'error');
       }
     } catch (error) {
       console.error('Login error:', error);
       push(t('auth.error.login'), 'error');
+    } finally {
+      setAuthLoading(false);
     }
   };
 
@@ -276,6 +246,7 @@ const App: React.FC = () => {
 
   const register = async (username: string, password: string, email: string) => {
     try {
+  setAuthLoading(true);
       const response = await fetch(`/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -292,6 +263,8 @@ const App: React.FC = () => {
     } catch (error) {
       console.error('Registration error:', error);
       push('Registration failed. Please try again.','error');
+    } finally {
+      setAuthLoading(false);
     }
   };
 
@@ -308,40 +281,28 @@ const App: React.FC = () => {
     updatePassword(passwordForm.currentPassword, passwordForm.newPassword);
   };
 
-  // Data loading and management
-  const loadData = useCallback(async () => {
-    if (!sessionId) return;
-
-    try {
-  const { year, month } = getCurrentYearMonth();
-  // Load consolidated monthly data in one request
-  const data: MonthlyData = await getMonthlyData({ year, month });
-
-      const totalIncome = data?.total_income_cents || 0;
-      const totalOutcome = data?.total_budget_cents || 0;
-
+  // Sync predictedBudget from hook data
+  useEffect(() => {
+    setLoading(monthlyLoading);
+    if (monthly) {
+      const totalIncome = monthly.total_income_cents || 0;
+      const totalOutcome = monthly.total_budget_cents || 0;
       setPredictedBudget(prev => ({
         ...prev,
-        incomeSources: data?.income_sources || [],
-        outcomeSources: data?.budget_sources || [],
+        incomeSources: monthly.income_sources || [],
+        outcomeSources: monthly.budget_sources || [],
         totalIncome,
         totalOutcome,
         difference: totalIncome - totalOutcome,
       }));
-
-      setExpenses(data?.expenses || []);
       setDataLoaded(true);
-    } catch (error) {
-      console.error('Failed to load data:', error);
     }
-  }, [sessionId, currentDate]);
+  }, [monthly, monthlyLoading]);
 
   // Add default data if none exists
   const addDefaultData = async () => {
     try {
-      const { year, month } = getCurrentYearMonth();
-  await seedDefaults({ year, month });
-      await loadData();
+      await addDefaultsHook();
     } catch (error) {
       console.error('Failed to add default data:', error);
     }
@@ -350,13 +311,7 @@ const App: React.FC = () => {
   // Auto-save functions
   const autoSaveIncomeSource = async (source: IncomeSource) => {
     try {
-      const { year, month } = getCurrentYearMonth();
-      if (source.id) {
-        await updateIncomeSource(source.id, { name: source.name, amount_cents: source.amount_cents });
-      } else {
-        await createIncomeSource({ name: source.name, year, month, amount_cents: source.amount_cents });
-      }
-      loadData();
+      await saveIncomeHook(source, ym);
     } catch (error) {
       console.error('Failed to save income source:', error);
     }
@@ -364,13 +319,7 @@ const App: React.FC = () => {
 
   const autoSaveOutcomeSource = async (source: OutcomeSource) => {
     try {
-      const { year, month } = getCurrentYearMonth();
-      if (source.id) {
-        await updateBudgetSource(source.id, { name: source.name, amount_cents: source.amount_cents });
-      } else {
-        await createBudgetSource({ name: source.name, year, month, amount_cents: source.amount_cents });
-      }
-      loadData();
+      await saveOutcomeHook(source, ym);
     } catch (error) {
       console.error('Failed to save budget source:', error);
     }
@@ -378,7 +327,8 @@ const App: React.FC = () => {
 
   // Month navigation
   const navigateMonth = (direction: 'prev' | 'next') => {
-    setCurrentDate(prev => {
+  const prevScroll = window.scrollY;
+  setCurrentDate(prev => {
       const newDate = new Date(prev);
       if (direction === 'prev') {
         newDate.setMonth(prev.getMonth() - 1);
@@ -387,6 +337,8 @@ const App: React.FC = () => {
       }
       return newDate;
     });
+  // Preserve scroll position on month change
+  requestAnimationFrame(() => window.scrollTo({ top: prevScroll }));
   };
 
   // Effects
@@ -395,15 +347,20 @@ const App: React.FC = () => {
   }, [currentDate]);
 
   useEffect(() => {
-    document.body.className = isDarkMode ? 'bg-dark text-light' : 'bg-light text-dark';
-    localStorage.setItem('darkMode', JSON.stringify(isDarkMode));
+    // Toggle, don't overwrite existing classes
+    document.body.classList.toggle('bg-dark', isDarkMode)
+    document.body.classList.toggle('text-light', isDarkMode)
+    document.body.classList.toggle('bg-light', !isDarkMode)
+    document.body.classList.toggle('text-dark', !isDarkMode)
+    // Bootstrap theme variable for components
+    document.documentElement.setAttribute('data-bs-theme', isDarkMode ? 'dark' : 'light')
+    localStorage.setItem('darkMode', JSON.stringify(isDarkMode))
   }, [isDarkMode]);
 
+  // Reload monthly data on login
   useEffect(() => {
-    if (sessionId) {
-      loadData();
-    }
-  }, [sessionId, loadData]);
+    if (sessionId) reload();
+  }, [sessionId, reload]);
 
   // Observe sections to update active tab on scroll
   useEffect(() => {
@@ -533,13 +490,13 @@ const App: React.FC = () => {
     let interval: any;
     if (autoUpdate) {
       interval = setInterval(() => {
-        loadData();
+        reload();
       }, 30000); // Update every 30 seconds
     }
     return () => {
-      if (interval) clearInterval(interval);
+          if (interval) window.clearInterval(interval);
     };
-  }, [autoUpdate, loadData]);
+  }, [autoUpdate, reload]);
 
   // Back-to-top visibility
   const [showBackToTop, setShowBackToTop] = useState(false);
@@ -550,6 +507,19 @@ const App: React.FC = () => {
   }, []);
 
   const scrollToTop = () => window.scrollTo({ top: 0, behavior: 'smooth' });
+  const goToToday = () => setCurrentDate(new Date());
+  const monthInputValue = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
+  const onMonthChange = (value: string) => {
+    // value is in format YYYY-MM
+    const [y, m] = value.split('-').map(Number);
+    if (!isNaN(y) && !isNaN(m)) {
+      const d = new Date(currentDate);
+      d.setFullYear(y);
+      d.setMonth(m - 1);
+      d.setDate(1);
+      setCurrentDate(d);
+    }
+  };
 
   // Chart data
   // KPI time series (Income vs Outcomes Trend) — last point reflects current totals
@@ -557,64 +527,10 @@ const App: React.FC = () => {
   const kpiLabels = monthShort.slice(0, Math.max(8, (currentDate.getMonth() + 1))); // show up to current month or 8 months minimum
   const kpiIncomeSeries = [...Array(kpiLabels.length)].map((_, idx) => idx < kpiLabels.length - 1 ? [4200, 4150, 4300, 4250, 4180, 4220, 4280][idx % 7] : predictedBudget.totalIncome / 100);
   const kpiOutcomeSeries = [...Array(kpiLabels.length)].map((_, idx) => idx < kpiLabels.length - 1 ? [2800, 2950, 3100, 2875, 2920, 3050, 2980][idx % 7] : predictedBudget.totalOutcome / 100);
-  const kpiTimeSeriesData = {
-    labels: kpiLabels,
-    datasets: [
-      {
-        label: 'Predicted Income',
-        data: kpiIncomeSeries,
-        borderColor: 'rgb(75, 192, 192)',
-        backgroundColor: 'rgba(75, 192, 192, 0.2)',
-        tension: 0.1
-      },
-      {
-        label: 'Predicted Outcomes',
-        data: kpiOutcomeSeries,
-        borderColor: 'rgb(255, 99, 132)',
-        backgroundColor: 'rgba(255, 99, 132, 0.2)',
-        tension: 0.1
-      }
-    ]
-  };
-  const budgetChartData = {
-    labels: [t('label.totalIncomes'), t('label.totalOutcomes')],
-    datasets: [
-      {
-        label: `${t('table.amount')} ($)`,
-        data: [
-          predictedBudget.totalIncome / 100,
-          predictedBudget.totalOutcome / 100
-        ],
-        backgroundColor: [
-          'rgba(75, 192, 192, 0.6)',
-          'rgba(255, 99, 132, 0.6)'
-        ],
-        borderColor: [
-          'rgba(75, 192, 192, 1)',
-          'rgba(255, 99, 132, 1)'
-        ],
-        borderWidth: 1
-      }
-    ]
-  };
+  // KPI data is now provided to KpiTrendChart via props
+  // Removed inline budgetChartData in favor of BudgetOverviewChart component
 
-  const savingsProgressData = {
-    labels: [t('label.currentAmount'), t('label.targetAmount')],
-    datasets: [
-      {
-        data: [savingsTracker.currentAmount, savingsTracker.targetAmount - savingsTracker.currentAmount],
-        backgroundColor: [
-          'rgba(54, 162, 235, 0.6)',
-          'rgba(255, 206, 86, 0.6)'
-        ],
-        borderColor: [
-          'rgba(54, 162, 235, 1)',
-          'rgba(255, 206, 86, 1)'
-        ],
-        borderWidth: 1
-      }
-    ]
-  };
+  // Savings chart data now provided by SavingsProgressChart component
 
   // Login/Register UI
   if (showLogin) {
@@ -630,81 +546,36 @@ const App: React.FC = () => {
                   </h2>
 
                   {!showRegister ? (
-                    <form onSubmit={(e) => {
-                      e.preventDefault();
-                      login(loginForm.username, loginForm.password);
-                    }}>
-                      <div className="mb-3">
-                        <label htmlFor="username" className="form-label">{t('auth.username')}</label>
-                        <input
-                          type="text"
-                          className={`form-control ${isDarkMode ? 'bg-dark text-light border-secondary' : ''}`}
-                          id="username"
-                          value={loginForm.username}
-                          onChange={(e) => setLoginForm({ ...loginForm, username: e.target.value })}
-                          required
-                        />
-                      </div>
-                      <div className="mb-3">
-                        <label htmlFor="password" className="form-label">{t('auth.password')}</label>
-                        <input
-                          type="password"
-                          className={`form-control ${isDarkMode ? 'bg-dark text-light border-secondary' : ''}`}
-                          id="password"
-                          value={loginForm.password}
-                          onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
-                          required
-                        />
-                      </div>
-                      <button type="submit" className="btn btn-primary w-100 mb-3">{t('auth.login')}</button>
-                    </form>
+                    <LoginForm
+                      isDarkMode={isDarkMode}
+                      values={loginForm}
+                      onChange={setLoginForm}
+                      loading={authLoading}
+                      validated={loginValidated}
+                      onValidatedChange={setLoginValidated}
+                      rememberMe={rememberMe}
+                      onRememberMeChange={setRememberMe}
+                      onSubmit={(u, p) => login(u, p)}
+                    />
                   ) : (
-                    <form onSubmit={(e) => {
-                      e.preventDefault();
-                      register(registerForm.username, registerForm.password, registerForm.email);
-                    }}>
-                      <div className="mb-3">
-                        <label htmlFor="reg-username" className="form-label">{t('auth.username')}</label>
-                        <input
-                          type="text"
-                          className={`form-control ${isDarkMode ? 'bg-dark text-light border-secondary' : ''}`}
-                          id="reg-username"
-                          value={registerForm.username}
-                          onChange={(e) => setRegisterForm({ ...registerForm, username: e.target.value })}
-                          required
-                        />
-                      </div>
-                      <div className="mb-3">
-                        <label htmlFor="reg-email" className="form-label">{t('auth.email')}</label>
-                        <input
-                          type="email"
-                          className={`form-control ${isDarkMode ? 'bg-dark text-light border-secondary' : ''}`}
-                          id="reg-email"
-                          value={registerForm.email}
-                          onChange={(e) => setRegisterForm({ ...registerForm, email: e.target.value })}
-                        />
-                      </div>
-                      <div className="mb-3">
-                        <label htmlFor="reg-password" className="form-label">{t('auth.password')}</label>
-                        <input
-                          type="password"
-                          className={`form-control ${isDarkMode ? 'bg-dark text-light border-secondary' : ''}`}
-                          id="reg-password"
-                          value={registerForm.password}
-                          onChange={(e) => setRegisterForm({ ...registerForm, password: e.target.value })}
-                          required
-                        />
-                      </div>
-                      <button type="submit" className="btn btn-success w-100 mb-3">{t('auth.register')}</button>
-                    </form>
+                    <RegisterForm
+                      isDarkMode={isDarkMode}
+                      values={registerForm}
+                      onChange={setRegisterForm}
+                      loading={authLoading}
+                      validated={registerValidated}
+                      onValidatedChange={setRegisterValidated}
+                      onSubmit={(u, p, e) => register(u, p, e)}
+                    />
                   )}
 
                   <div className="text-center">
                     <button
                       className="btn btn-link"
                       onClick={() => setShowRegister(!showRegister)}
+                      aria-label={showRegister ? t('auth.already', { defaultValue: 'Already have an account? Sign in' }) : t('auth.need', { defaultValue: "Don't have an account? Create one" })}
                     >
-                      {showRegister ? t('auth.already') : t('auth.need')}
+                      {showRegister ? t('auth.already', { defaultValue: 'Already have an account? Sign in' }) : t('auth.need', { defaultValue: "Don't have an account? Create one" })}
                     </button>
                   </div>
 
@@ -729,144 +600,41 @@ const App: React.FC = () => {
   return (
     <div className={`min-vh-100 ${isDarkMode ? 'bg-dark text-light' : 'bg-light text-dark'}`}>
       {/* Password Update Modal */}
-      {showPasswordForm && (
-        <div className="modal fade show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
-          <div className="modal-dialog modal-dialog-centered">
-            <div className={`modal-content ${isDarkMode ? 'bg-secondary text-light' : ''}`}>
-              <div className="modal-header">
-                <h5 className="modal-title">{t('modal.changePassword')}</h5>
-                <button
-                  type="button"
-                  className="btn-close"
-                  onClick={() => setShowPasswordForm(false)}
-                ></button>
-              </div>
-              <form onSubmit={handlePasswordUpdate}>
-                <div className="modal-body">
-                  <div className="mb-3">
-                    <label htmlFor="currentPassword" className="form-label">{t('modal.currentPassword')}</label>
-                    <input
-                      type="password"
-                      className={`form-control ${isDarkMode ? 'bg-dark text-light border-secondary' : ''}`}
-                      id="currentPassword"
-                      value={passwordForm.currentPassword}
-                      onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
-                      required
-                    />
-                  </div>
-                  <div className="mb-3">
-                    <label htmlFor="newPassword" className="form-label">{t('modal.newPassword')}</label>
-                    <input
-                      type="password"
-                      className={`form-control ${isDarkMode ? 'bg-dark text-light border-secondary' : ''}`}
-                      id="newPassword"
-                      value={passwordForm.newPassword}
-                      onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
-                      required
-                      minLength={6}
-                    />
-                  </div>
-                  <div className="mb-3">
-                    <label htmlFor="confirmPassword" className="form-label">{t('modal.confirmNewPassword')}</label>
-                    <input
-                      type="password"
-                      className={`form-control ${isDarkMode ? 'bg-dark text-light border-secondary' : ''}`}
-                      id="confirmPassword"
-                      value={passwordForm.confirmPassword}
-                      onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
-                      required
-                      minLength={6}
-                    />
-                  </div>
-                </div>
-                <div className="modal-footer">
-                  <button
-                    type="button"
-                    className="btn btn-secondary"
-                    onClick={() => setShowPasswordForm(false)}
-                  >
-                    {t('btn.cancel')}
-                  </button>
-                  <button type="submit" className="btn btn-warning">
-                    {t('btn.updatePassword')}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
+      <PasswordModal
+        show={showPasswordForm}
+        isDarkMode={isDarkMode}
+        values={passwordForm}
+        onChange={setPasswordForm}
+        onClose={() => setShowPasswordForm(false)}
+        onSubmit={handlePasswordUpdate}
+      />
       {/* Page Header */}
       <div className="page-header d-print-none">
         <div className="container-xl">
           <div className="row g-2 align-items-center">
             <div className="col">
               <div className="page-pretitle">Personal Finance</div>
-              <h2 className="page-title">{getPageTitle()}</h2>
+              <h2 className="page-title d-flex align-items-center gap-2">
+                {getPageTitle()}
+                {loading && (
+                  <span className="spinner-border spinner-border-sm text-light" aria-live="polite" aria-label={t('label.loading', { defaultValue: 'Loading' })}></span>
+                )}
+              </h2>
             </div>
             <div className="col-auto ms-auto d-print-none">
-              <div className="btn-list">
-                <div className="btn-group">
-                  <button
-                    className="btn btn-outline-primary btn-sm"
-                    onClick={() => navigateMonth('prev')}
-                  >
-                    {t('nav.prev')}
-                  </button>
-                  <button
-                    className="btn btn-outline-primary btn-sm"
-                    onClick={() => navigateMonth('next')}
-                  >
-                    {t('nav.next')}
-                  </button>
-                </div>
-                <div className="btn-group btn-group-sm" aria-label="Language Switcher">
-                  <button className={`btn btn-outline-secondary ${i18n.language === 'en' ? 'active' : ''}`} onClick={() => { i18n.changeLanguage('en'); localStorage.setItem('lang', 'en'); }}>{t('lang.english')}</button>
-                  <button className={`btn btn-outline-secondary ${i18n.language === 'fr' ? 'active' : ''}`} onClick={() => { i18n.changeLanguage('fr'); localStorage.setItem('lang', 'fr'); }}>{t('lang.french')}</button>
-                </div>
-                <div className="btn-group btn-group-sm" aria-label="Currency Switcher">
-                  <button className={`btn btn-outline-secondary ${currency === 'EUR' ? 'active' : ''}`} onClick={() => { setCurrency('EUR'); localStorage.setItem('currency', 'EUR'); }}>€ EUR</button>
-                  <button className={`btn btn-outline-secondary ${currency === 'USD' ? 'active' : ''}`} onClick={() => { setCurrency('USD'); localStorage.setItem('currency', 'USD'); }}>$ USD</button>
-                </div>
-                <button
-                  className="btn btn-outline-secondary btn-sm"
-                  onClick={() => setIsDarkMode(!isDarkMode)}
-                >
-                  {isDarkMode ? t('nav.light') : t('nav.dark')}
-                </button>
-                <button
-                  className="btn btn-outline-warning btn-sm"
-                  onClick={() => setShowPasswordForm(true)}
-                  title="Change Password"
-                >
-                  {t('nav.password')}
-                </button>
-                <button className="btn btn-outline-danger btn-sm" onClick={logout}>
-                  {t('nav.logout')} ({user?.username})
-                </button>
-                {user?.is_admin ? (
-                  <>
-                    <a
-                      href="/api/"
-                      target="_blank"
-                      className="btn btn-outline-info btn-sm"
-                      title="API Documentation"
-                      rel="noreferrer"
-                    >
-                      {t('nav.apiDocs')}
-                    </a>
-                    <a
-                      href="/db-admin/"
-                      target="_blank"
-                      className="btn btn-outline-success btn-sm"
-                      title="SQLite DB Admin"
-                      rel="noreferrer"
-                    >
-                      DB Admin
-                    </a>
-                  </>
-                ) : null}
-              </div>
+              <HeaderControls
+                isDarkMode={isDarkMode}
+                onToggleDarkMode={() => setIsDarkMode(!isDarkMode)}
+                currency={currency}
+                onSetCurrency={(c) => { setCurrency(c); localStorage.setItem('currency', c); }}
+                navigateMonth={navigateMonth}
+                goToToday={goToToday}
+                monthInputValue={monthInputValue}
+                onMonthChange={onMonthChange}
+                user={user}
+                onChangePasswordClick={() => setShowPasswordForm(true)}
+                onLogout={logout}
+              />
             </div>
           </div>
         </div>
@@ -875,7 +643,7 @@ const App: React.FC = () => {
       {/* Quick Nav Tabs */}
       <div className="page-header-tabs">
         <div className="container-xl">
-          <ul className="nav nav-tabs nav-pills nav-fill" role="tablist">
+          <ul className="nav nav-tabs nav-pills nav-fill" aria-label="Sections">
             <li className="nav-item">
               <a
                 href="#planning"
@@ -919,13 +687,13 @@ const App: React.FC = () => {
           isDarkMode={isDarkMode}
           title={t('section.predictedBudget', { month: getMonthName(currentDate.getMonth() + 1), year: currentDate.getFullYear() })}
           monthLabel={`${getMonthName(currentDate.getMonth() + 1)} ${currentDate.getFullYear()}`}
-          incomeSources={predictedBudget.incomeSources as any}
-          outcomeSources={predictedBudget.outcomeSources as any}
+          incomeSources={predictedBudget.incomeSources}
+          outcomeSources={predictedBudget.outcomeSources}
           parseLocaleAmount={parseLocaleAmount}
           formatCurrency={formatCurrency}
           onIncomeUpdate={(index, next) => {
             const updated = [...predictedBudget.incomeSources]
-            updated[index] = next as any
+            updated[index] = next
             setPredictedBudget(prev => ({ ...prev, incomeSources: updated }))
           }}
           onIncomeBlurSave={(index) => autoSaveIncomeSource({ ...predictedBudget.incomeSources[index] })}
@@ -933,11 +701,11 @@ const App: React.FC = () => {
             const updated = predictedBudget.incomeSources.filter((_, i) => i !== index)
             setPredictedBudget(prev => ({ ...prev, incomeSources: updated }))
           }}
-          onIncomeDeletePersisted={async (id) => { await deleteIncomeSource(id); await loadData() }}
+          onIncomeDeletePersisted={async (id) => { await deleteIncome(id); }}
           onIncomeAddEmpty={() => setPredictedBudget(prev => ({ ...prev, incomeSources: [...prev.incomeSources, { id: 0, name: '', amount_cents: 0 }] }))}
           onOutcomeUpdate={(index, next) => {
             const updated = [...predictedBudget.outcomeSources]
-            updated[index] = next as any
+            updated[index] = next
             setPredictedBudget(prev => ({ ...prev, outcomeSources: updated }))
           }}
           onOutcomeBlurSave={(index) => autoSaveOutcomeSource({ ...predictedBudget.outcomeSources[index] })}
@@ -945,7 +713,7 @@ const App: React.FC = () => {
             const updated = predictedBudget.outcomeSources.filter((_, i) => i !== index)
             setPredictedBudget(prev => ({ ...prev, outcomeSources: updated }))
           }}
-          onOutcomeDeletePersisted={async (id) => { await deleteBudgetSource(id); await loadData() }}
+          onOutcomeDeletePersisted={async (id) => { await deleteOutcome(id); }}
           onOutcomeAddEmpty={() => setPredictedBudget(prev => ({ ...prev, outcomeSources: [...prev.outcomeSources, { id: 0, name: '', amount_cents: 0 }] }))}
           totalIncome={predictedBudget.totalIncome}
           totalOutcome={predictedBudget.totalOutcome}
@@ -990,30 +758,17 @@ const App: React.FC = () => {
               </div>
               <div className="card-body">
                 <div style={{ height: '300px' }}>
-                  <Bar
-                    data={budgetChartData}
-                    options={{
-                      responsive: true,
-                      maintainAspectRatio: false,
-                      scales: {
-                        y: {
-                          ticks: { color: isDarkMode ? '#fff' : '#333' },
-                          grid: { color: isDarkMode ? '#555' : '#ddd' }
-                        },
-                        x: {
-                          ticks: { color: isDarkMode ? '#fff' : '#333' },
-                          grid: { color: isDarkMode ? '#555' : '#ddd' }
-                        }
-                      },
-                      plugins: {
-                        legend: {
-                          labels: {
-                            color: isDarkMode ? '#fff' : '#333'
-                          }
-                        }
-                      }
-                    }}
-                  />
+                  {!dataLoaded ? (
+                    <div className="d-flex justify-content-center align-items-center h-100" aria-busy="true" aria-live="polite">
+                      <Spinner animation="border" />
+                    </div>
+                  ) : (
+                    <BudgetOverviewChart
+                      isDarkMode={isDarkMode}
+                      labels={[t('label.totalIncomes'), t('label.totalOutcomes')]}
+                      data={[predictedBudget.totalIncome / 100, predictedBudget.totalOutcome / 100]}
+                    />
+                  )}
                 </div>
               </div>
             </div>
@@ -1034,6 +789,7 @@ const App: React.FC = () => {
                       className={`form-control ${isDarkMode ? 'bg-dark text-light border-secondary' : ''}`}
                       value={savingsTracker.targetAmount}
                       onChange={(e) => setSavingsTracker({ ...savingsTracker, targetAmount: parseFloat(e.target.value) || 0 })}
+                      inputMode="decimal" step="0.01"
                     />
                   </div>
                   <div className="col-md-6 col-12">
@@ -1043,6 +799,7 @@ const App: React.FC = () => {
                       className={`form-control ${isDarkMode ? 'bg-dark text-light border-secondary' : ''}`}
                       value={savingsTracker.currentAmount}
                       onChange={(e) => setSavingsTracker({ ...savingsTracker, currentAmount: parseFloat(e.target.value) || 0 })}
+                      inputMode="decimal" step="0.01"
                     />
                   </div>
                 </div>
@@ -1064,33 +821,18 @@ const App: React.FC = () => {
                   </div>
                 </div>
                 <div style={{ height: '200px' }}>
-                  <Pie
-                    data={savingsProgressData}
-                    options={{
-                      responsive: true,
-                      maintainAspectRatio: false,
-                      plugins: {
-                        legend: {
-                          labels: {
-                            color: isDarkMode ? '#fff' : '#333'
-                          }
-                        },
-                        tooltip: {
-                          callbacks: {
-                            label: (ctx: any) => {
-                              const dataset = ctx.dataset;
-                              const data = dataset.data as number[];
-                              const total = data.reduce((a, b) => a + b, 0) || 1;
-                              const value = ctx.parsed;
-                              const pct = ((value / total) * 100).toFixed(1) + '%';
-                              const label = ctx.label || '';
-                              return `${label}: ${formatCurrency(Math.round(value * 100))} (${pct})`;
-                            }
-                          }
-                        }
-                      }
-                    }}
-                  />
+                  {!dataLoaded ? (
+                    <div className="d-flex justify-content-center align-items-center h-100" aria-busy="true" aria-live="polite">
+                      <Spinner animation="border" />
+                    </div>
+                  ) : (
+                    <SavingsProgressChart
+                      isDarkMode={isDarkMode}
+                      currentAmount={savingsTracker.currentAmount}
+                      targetAmount={savingsTracker.targetAmount}
+                      formatCurrency={formatCurrency}
+                    />
+                  )}
                 </div>
               </div>
             </div>
@@ -1104,18 +846,18 @@ const App: React.FC = () => {
               </div>
               <div className="card-body">
                 <div style={{ height: '300px' }}>
-                  <Line
-                    data={kpiTimeSeriesData}
-                    options={{
-                      responsive: true,
-                      maintainAspectRatio: false,
-                      plugins: { legend: { labels: { color: isDarkMode ? '#fff' : '#333' } } },
-                      scales: {
-                        x: { ticks: { color: isDarkMode ? '#fff' : '#333' }, grid: { color: isDarkMode ? '#555' : '#ddd' } },
-                        y: { ticks: { color: isDarkMode ? '#fff' : '#333' }, grid: { color: isDarkMode ? '#555' : '#ddd' } }
-                      }
-                    }}
-                  />
+                  {!dataLoaded ? (
+                    <div className="d-flex justify-content-center align-items-center h-100">
+                      <Spinner animation="border" />
+                    </div>
+                  ) : (
+                    <KpiTrendChart
+                      isDarkMode={isDarkMode}
+                      labels={kpiLabels}
+                      incomeSeries={kpiIncomeSeries}
+                      outcomeSeries={kpiOutcomeSeries}
+                    />
+                  )}
                 </div>
               </div>
             </div>
@@ -1129,59 +871,19 @@ const App: React.FC = () => {
               </div>
               <div className="card-body">
                 <div style={{ height: '300px' }}>
-                  {(() => {
-                    const year = currentDate.getFullYear();
-                    const month = currentDate.getMonth(); // 0-based
-                    const daysInMonth = new Date(year, month + 1, 0).getDate();
-                    const labels = Array.from({ length: daysInMonth }, (_, i) => String(i + 1));
-                    const itemsTotal = manualBudget.items.reduce((s, i) => s + (i.amount || 0), 0);
-                    const seriesBank = Array.from({ length: daysInMonth }, () => manualBudget.bankAmount);
-                    const seriesItems = Array.from({ length: daysInMonth }, () => itemsTotal);
-                    const seriesRemaining = Array.from({ length: daysInMonth }, () => manualBudget.bankAmount + itemsTotal);
-                    const data = {
-                      labels,
-                      datasets: [
-                        {
-                          label: t('label.bankAmount') ?? 'Bank',
-                          data: seriesBank,
-                          borderColor: 'rgba(54, 162, 235, 1)',
-                          backgroundColor: 'rgba(54, 162, 235, 0.2)',
-                          tension: 0.2,
-                          fill: false
-                        },
-                        {
-                          label: t('label.plannedTotal') ?? 'Items Total',
-                          data: seriesItems,
-                          borderColor: 'rgba(255, 159, 64, 1)',
-                          backgroundColor: 'rgba(255, 159, 64, 0.2)',
-                          tension: 0.2,
-                          fill: false
-                        },
-                        {
-                          label: t('label.remaining') ?? 'Remaining',
-                          data: seriesRemaining,
-                          borderColor: 'rgba(75, 192, 192, 1)',
-                          backgroundColor: 'rgba(75, 192, 192, 0.2)',
-                          tension: 0.2,
-                          fill: false
-                        }
-                      ]
-                    };
-                    return (
-                      <Line
-                        data={data}
-                        options={{
-                          responsive: true,
-                          maintainAspectRatio: false,
-                          plugins: { legend: { labels: { color: isDarkMode ? '#fff' : '#333' } } },
-                          scales: {
-                            x: { ticks: { color: isDarkMode ? '#fff' : '#333' }, grid: { color: isDarkMode ? '#555' : '#ddd' } },
-                            y: { ticks: { color: isDarkMode ? '#fff' : '#333' }, grid: { color: isDarkMode ? '#555' : '#ddd' } }
-                          }
-                        }}
-                      />
-                    );
-                  })()}
+                  {!dataLoaded ? (
+                    <div className="d-flex justify-content-center align-items-center h-100" aria-busy="true" aria-live="polite">
+                      <Spinner animation="border" />
+                    </div>
+                  ) : (
+                    <ManualBudgetDailyChart
+                      isDarkMode={isDarkMode}
+                      year={currentDate.getFullYear()}
+                      monthIndex0={currentDate.getMonth()}
+                      bankAmount={manualBudget.bankAmount}
+                      itemsTotal={manualBudget.items.reduce((s, i) => s + (i.amount || 0), 0)}
+                    />
+                  )}
                 </div>
                 <div className="text-muted small mt-2">
                   {t('label.noteDailySeries') ?? 'Note: series are plotted per day. Items are planned totals (no dates), so lines are flat unless values change.'}
@@ -1199,52 +901,10 @@ const App: React.FC = () => {
               <div className="card-body">
                 <div style={{ height: '300px' }}>
                   {predictedBudget.incomeSources.length > 0 ? (
-                    <Pie
-                      data={{
-                        labels: predictedBudget.incomeSources.map(source => source.name),
-                        datasets: [{
-                          data: predictedBudget.incomeSources.map(source => source.amount_cents / 100),
-                          backgroundColor: [
-                            'rgba(54, 162, 235, 0.6)',
-                            'rgba(255, 99, 132, 0.6)',
-                            'rgba(255, 206, 86, 0.6)',
-                            'rgba(75, 192, 192, 0.6)',
-                            'rgba(153, 102, 255, 0.6)',
-                            'rgba(255, 159, 64, 0.6)'
-                          ],
-                          borderColor: [
-                            'rgba(54, 162, 235, 1)',
-                            'rgba(255, 99, 132, 1)',
-                            'rgba(255, 206, 86, 1)',
-                            'rgba(75, 192, 192, 1)',
-                            'rgba(153, 102, 255, 1)',
-                            'rgba(255, 159, 64, 1)'
-                          ],
-                          borderWidth: 1
-                        }] 
-                      }}
-                      options={{
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                          legend: {
-                            labels: { color: isDarkMode ? '#fff' : '#333' }
-                          },
-                          tooltip: {
-                            callbacks: {
-                              label: (ctx: any) => {
-                                const dataset = ctx.dataset;
-                                const data = dataset.data as number[];
-                                const total = data.reduce((a, b) => a + b, 0) || 1;
-                                const value = ctx.parsed;
-                                const pct = ((value / total) * 100).toFixed(1) + '%';
-                                const label = ctx.label || '';
-                                return `${label}: ${formatCurrency(Math.round(value * 100))} (${pct})`;
-                              }
-                            }
-                          }
-                        }
-                      }}
+                    <IncomeBreakdownChart
+                      isDarkMode={isDarkMode}
+                      items={predictedBudget.incomeSources}
+                      formatCurrency={formatCurrency}
                     />
                   ) : (
                     <div className="text-center text-muted pt-5">
@@ -1265,74 +925,10 @@ const App: React.FC = () => {
               <div className="card-body">
                 <div style={{ height: '300px' }}>
                   {predictedBudget.outcomeSources.length > 0 ? (
-                    <Pie
-                      data={{
-                        labels: predictedBudget.outcomeSources.map(source => source.name),
-                        datasets: [{
-                          data: predictedBudget.outcomeSources.map(source => source.amount_cents / 100),
-                          backgroundColor: [
-                            'rgba(255, 99, 132, 0.6)',
-                            'rgba(255, 159, 64, 0.6)',
-                            'rgba(255, 206, 86, 0.6)',
-                            'rgba(75, 192, 192, 0.6)',
-                            'rgba(54, 162, 235, 0.6)',
-                            'rgba(153, 102, 255, 0.6)',
-                            'rgba(231, 76, 60, 0.6)',
-                            'rgba(230, 126, 34, 0.6)',
-                            'rgba(241, 196, 15, 0.6)',
-                            'rgba(46, 204, 113, 0.6)',
-                            'rgba(52, 152, 219, 0.6)',
-                            'rgba(155, 89, 182, 0.6)',
-                            'rgba(149, 165, 166, 0.6)',
-                            'rgba(192, 57, 43, 0.6)',
-                            'rgba(211, 84, 0, 0.6)'
-                          ],
-                          borderColor: [
-                            'rgba(255, 99, 132, 1)',
-                            'rgba(255, 159, 64, 1)',
-                            'rgba(255, 206, 86, 1)',
-                            'rgba(75, 192, 192, 1)',
-                            'rgba(54, 162, 235, 1)',
-                            'rgba(153, 102, 255, 1)',
-                            'rgba(231, 76, 60, 1)',
-                            'rgba(230, 126, 34, 1)',
-                            'rgba(241, 196, 15, 1)',
-                            'rgba(46, 204, 113, 1)',
-                            'rgba(52, 152, 219, 1)',
-                            'rgba(155, 89, 182, 1)',
-                            'rgba(149, 165, 166, 1)',
-                            'rgba(192, 57, 43, 1)',
-                            'rgba(211, 84, 0, 1)'
-                          ],
-                          borderWidth: 2
-                        }]
-                      }}
-                      options={{
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                          legend: {
-                            position: 'bottom',
-                            labels: {
-                              color: isDarkMode ? '#fff' : '#333',
-                              padding: 10
-                            }
-                          },
-                          tooltip: {
-                            callbacks: {
-                              label: (ctx: any) => {
-                                const dataset = ctx.dataset;
-                                const data = dataset.data as number[];
-                                const total = data.reduce((a, b) => a + b, 0) || 1;
-                                const value = ctx.parsed;
-                                const pct = ((value / total) * 100).toFixed(1) + '%';
-                                const label = ctx.label || '';
-                                return `${label}: ${formatCurrency(Math.round(value * 100))} (${pct})`;
-                              }
-                            }
-                          }
-                        }
-                      }}
+                    <OutcomeBreakdownChart
+                      isDarkMode={isDarkMode}
+                      items={predictedBudget.outcomeSources}
+                      formatCurrency={formatCurrency}
                     />
                   ) : (
                     <div className="text-center text-muted pt-5">

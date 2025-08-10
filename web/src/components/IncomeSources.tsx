@@ -60,6 +60,7 @@ const IncomeSources: React.FC<Props> = ({
                   value={source.amount_cents / 100}
                   onChange={(e) => onUpdate(index, { ...source, amount_cents: Math.round(parseLocaleAmount(e.target.value || '0') * 100) })}
                   onBlur={() => onBlurSave(index)}
+                  inputMode="decimal" step="0.01"
                 />
               </div>
               <div className="col-sm-2 col-4">

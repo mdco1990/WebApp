@@ -1,6 +1,7 @@
 import React from 'react'
-import IncomeSources, { SourceItem as IncomeItem } from './IncomeSources'
-import OutcomeSources, { SourceItem as OutcomeItem } from './OutcomeSources'
+import IncomeSources from './IncomeSources'
+import OutcomeSources from './OutcomeSources'
+import type { IncomeSource as IncomeItem, OutcomeSource as OutcomeItem } from '../types/budget'
 
 interface Props {
   isDarkMode: boolean

@@ -67,7 +67,7 @@ export default defineConfig(({ mode }) => {
     },
     // Optimize dependencies
     optimizeDeps: {
-      include: ['react', 'react-dom', 'bootstrap', 'chart.js', 'react-chartjs-2']
+  include: ['react', 'react-dom', 'bootstrap', 'chart.js', 'react-chartjs-2', 'react-bootstrap']
     }
   }
 })

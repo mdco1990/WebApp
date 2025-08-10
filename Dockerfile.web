@@ -1,10 +1,15 @@
 FROM node:18-alpine
 
-WORKDIR /app
+# Keep the workdir aligned with docker-compose service
+WORKDIR /app/web
 
+# Copy only manifests first for better caching
 COPY web/package*.json ./
-RUN npm ci --only=production
 
+# Install all deps (including dev) for Vite dev server
+RUN npm ci
+
+# Copy the rest of the app
 COPY web/ .
 
 EXPOSE 5173

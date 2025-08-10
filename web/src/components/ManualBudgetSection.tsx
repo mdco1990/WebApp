@@ -69,6 +69,7 @@ const ManualBudgetSection: React.FC<Props> = ({
                   className={`form-control ${isDarkMode ? 'bg-dark text-light border-secondary' : ''}`}
                   value={manualBudget.bankAmount}
                   onChange={(e) => setManualBudget({ ...manualBudget, bankAmount: parseLocaleAmount(e.target.value) })}
+                  inputMode="decimal"
                 />
               </div>
               <div className="col-md-8">
@@ -99,6 +100,7 @@ const ManualBudgetSection: React.FC<Props> = ({
                             items[idx] = { ...items[idx], amount: parseLocaleAmount(e.target.value) }
                             setManualBudget({ ...manualBudget, items })
                           }}
+                          inputMode="decimal"
                         />
                         <button
                           type="button"
