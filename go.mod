@@ -1,4 +1,4 @@
-module github.com/personal/webapp
+module github.com/mdco1990/webapp
 
 go 1.22.6
 

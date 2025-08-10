@@ -30,6 +30,7 @@ Thumbs.db
 # Environment files
 .env
 .env.*
+!.env.dev
 configs/.env
 configs/.env.*
 web/.env

@@ -2,15 +2,65 @@ SHELL := /bin/bash
 GO ?= go
 GOTOOLCHAIN ?= go1.24.5
 BIN_DIR := bin
-BIN := $(BIN_DIR)/server
+BIN := $(BIN_DIR)/webapp
 PORT ?= 8082
 PORT_WEB ?= 5173
 DEV_DIR := .dev
 
 .PHONY: all tidy build run stop free-port test fmt vet clean web-setup web-dev web-build health dev dev-stop dev-logs \
-	lint lint-install lint-fix format format-check check-all lint-web format-web lint-verify lint-linters
+	lint lint-install lint-fix format format-check check-all lint-web format-web lint-verify lint-linters \
+	docker-dev docker-dev-detached docker-stop
 
 all: build
+
+# Show available commands
+help:
+	@echo "WebApp Makefile Commands"
+	@echo ""
+	@echo "🏗️  Building:"
+	@echo "  build                Build Go binary"
+	@echo "  tidy                 Sync Go module dependencies"
+	@echo ""
+	@echo "🚀 Running:"
+	@echo "  run                  Run Go API server (PORT=$(PORT))"
+	@echo "  dev                  Run API + frontend locally"
+	@echo "  docker-dev           Run with Docker + tools"
+	@echo "  docker-dev-detached  Run Docker in background"
+	@echo ""
+	@echo "🐳 Docker:"
+	@echo "  docker-stop          Stop Docker services"
+	@echo ""
+	@echo "📊 Development:"
+	@echo "  dev-logs             View dev logs"
+	@echo "  dev-stop             Stop local dev services"
+	@echo "  health               Test API health endpoint"
+	@echo ""
+	@echo "🧪 Testing:"
+	@echo "  test                 Run Go unit tests"
+	@echo "  check-all            Run format check + lint + tests"
+	@echo ""
+	@echo "✨ Code Quality:"
+	@echo "  format               Format Go code (goimports)"
+	@echo "  format-check         Check Go formatting"
+	@echo "  lint                 Run Go linting (golangci-lint)"
+	@echo "  lint-install         Install linting tools"
+	@echo "  lint-fix             Auto-fix linting issues"
+	@echo ""
+	@echo "🎨 Frontend:"
+	@echo "  web-setup            Install frontend dependencies"
+	@echo "  web-dev              Run frontend dev server"
+	@echo "  web-build            Build frontend for production"
+	@echo "  lint-web             Lint frontend code"
+	@echo "  format-web           Format frontend code"
+	@echo ""
+	@echo "🧹 Cleanup:"
+	@echo "  clean                Remove build artifacts"
+	@echo "  stop                 Stop any running server"
+	@echo "  free-port            Kill processes using PORT=$(PORT)"
+	@echo ""
+	@echo "Environment Variables:"
+	@echo "  PORT=$(PORT)         API server port"
+	@echo "  PORT_WEB=$(PORT_WEB) Frontend dev server port"
 
 # Sync dependencies
 tidy:
@@ -19,12 +69,12 @@ tidy:
 # Build backend server
 build:
 	@mkdir -p $(BIN_DIR)
-	GOTOOLCHAIN=$(GOTOOLCHAIN) $(GO) build -o $(BIN) ./cmd/server
+	GOTOOLCHAIN=$(GOTOOLCHAIN) $(GO) build -o $(BIN) ./cmd/webapp
 
 # Run backend server (foreground). Override with: make run PORT=8081
 run: free-port
 	@echo "Starting server on 127.0.0.1:$(PORT)"
-	HTTP_ADDRESS=127.0.0.1:$(PORT) GOTOOLCHAIN=$(GOTOOLCHAIN) $(GO) run ./cmd/server
+	HTTP_ADDRESS=127.0.0.1:$(PORT) GOTOOLCHAIN=$(GOTOOLCHAIN) $(GO) run ./cmd/webapp
 
 # Stop any running server (best-effort)
 stop:
@@ -194,7 +244,7 @@ web-build:
 health:
 	curl -sf http://127.0.0.1:$(PORT)/healthz | cat
 
-# Run both backend and frontend for integration testing
+# Run both backend and frontend for local development integration
 dev:
 	@mkdir -p $(DEV_DIR)
 	@echo "Stopping any existing processes..."
@@ -203,7 +253,7 @@ dev:
 	@sleep 2
 	@$(MAKE) free-port >/dev/null 2>&1 || true
 	@echo "Starting API on 127.0.0.1:$(PORT)"
-	@HTTP_ADDRESS=127.0.0.1:$(PORT) GOTOOLCHAIN=$(GOTOOLCHAIN) $(GO) run ./cmd/server > $(DEV_DIR)/api.log 2>&1 & echo $$! > $(DEV_DIR)/api.pid
+	@HTTP_ADDRESS=127.0.0.1:$(PORT) GOTOOLCHAIN=$(GOTOOLCHAIN) $(GO) run ./cmd/webapp > $(DEV_DIR)/api.log 2>&1 & echo $$! > $(DEV_DIR)/api.pid
 	@sleep 3
 	@echo "Starting Web on http://localhost:$(PORT_WEB) (proxy -> API)"
 	@cd web && npm install --silent >/dev/null 2>&1 && npm run dev -- --host 127.0.0.1 --port $(PORT_WEB) > ../$(DEV_DIR)/web.log 2>&1 & echo $$! > ../$(DEV_DIR)/web.pid
@@ -213,13 +263,27 @@ dev:
 	@echo "  Web: http://localhost:$(PORT_WEB) (PID: $$(cat $(DEV_DIR)/web.pid 2>/dev/null || echo 'unknown'))"
 	@echo "  Logs: make dev-logs"
 	@echo "  Stop: make dev-stop"
+	@echo "  Docker Dev: ./scripts/docker.sh up --tools"
+
+# Docker development environment
+docker-dev:
+	@echo "Starting Docker development environment..."
+	@./scripts/docker.sh up --tools
+
+docker-dev-detached:
+	@echo "Starting Docker development environment in background..."
+	@./scripts/docker.sh up --detach --tools
+
+docker-stop:
+	@echo "Stopping Docker development environment..."
+	@./scripts/docker.sh down
 
 dev-stop:
 	@echo "Stopping dev processes..."
 	@test -f $(DEV_DIR)/web.pid && kill $$(cat $(DEV_DIR)/web.pid) 2>/dev/null || true
 	@test -f $(DEV_DIR)/api.pid && kill $$(cat $(DEV_DIR)/api.pid) 2>/dev/null || true
 	@pkill -f "vite" || true
-	@pkill -f "go run ./cmd/server" || true
+	@pkill -f "go run ./cmd/webapp" || true
 	@sleep 2
 	@rm -f $(DEV_DIR)/api.pid $(DEV_DIR)/web.pid
 	@$(MAKE) stop >/dev/null 2>&1 || true

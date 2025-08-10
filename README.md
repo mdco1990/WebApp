@@ -1,15 +1,75 @@
-# WebApp – Personal Budget Tracker
+# WebApp
+Budget Web App - A modern full-stack application built with Go and React/TypeScript.
+
+## Quick Start
+
+### Development
+```bash
+# Start all services (SQLite + hot reloading)
+docker compose up
+
+# With development tools (SQLite admin)
+docker compose --profile tools up
+
+# Or run manually
+./scripts/dev.sh    # Start Go API
+cd web && npm run dev  # Start React frontend
+
+# Using Makefile
+make dev              # Start both API and frontend
+make docker-dev       # Start with Docker + tools
+```
+
+### Production
+Production deployments use **Kubernetes with Helm charts**. 
+
+For local production testing, use the development setup with appropriate environment variables.
+
+### Build
+```bash
+./scripts/build.sh
+# OR
+make build
+```
+
+### Test
+```bash
+./scripts/test.sh  
+# OR
+make test
+```
+
+## Architecture
+
+This application follows Clean Architecture principles with a clear separation of concerns:
+
+- **Backend**: Go with Chi router, following standard project layout
+- **Frontend**: React/TypeScript with Vite and Bootstrap
+- **Database**: SQLite (development) / MySQL (production via Kubernetes)
+- **Development**: Docker Compose for local development
+- **Production**: Kubernetes with Helm charts
+
+## Documentation
+
+- [Development Guide](docs/DEVELOPMENT.md) - Local development setup and workflows  
+- [Project Layout](docs/PROJECT_LAYOUT.md) - Detailed architecture and structure
+- [API Documentation](docs/swagger.yaml) - OpenAPI specification
+- [Security](docs/SECURITY.md) - Security considerations
+- [Cleanup Summary](docs/CLEANUP_SUMMARY.md) - Recent Docker cleanup changes
+- [TODO](docs/TODO.md) - Development roadmap
 
 A modern full-stack web app for tracking monthly budget, salary, and expenses. The codebase is split into two components:
 
-- Backend API (Go): `cmd/server`, `internal/*`
-- Frontend UI (React+TS+Vite): `web/`
+- **Backend API** (Go): `cmd/webapp`, `internal/*`
+- **Frontend UI** (React+TS+Vite): `web/`
 
+**Technology Stack:**
 - Backend: Go (chi HTTP, SQLite via modernc), structured per Go Project Layout
-- Frontend: React + TypeScript + Vite + Bootstrap
-- Storage: DB as a service (MySQL in Docker) or local SQLite (dev)
+- Frontend: React + TypeScript + Vite + Bootstrap  
+- Development: Docker Compose with SQLite
+- Production: Kubernetes with MySQL
 
-This project is designed for personal use and small datasets, with a clean separation of layers to allow future extraction into separate services.
+This project is designed for personal use and small datasets, with a clean separation of layers to allow future scaling.
 
 ## Features
 - Record monthly salary and budget targets
@@ -23,19 +83,19 @@ This project is designed for personal use and small datasets, with a clean separ
 - Optional API key header for simple protection
 
 ## Project Layout
-- cmd/server: entrypoint
-- internal/config: configuration loading
-- internal/db: DB connection and schema
-- internal/domain: types/models
-- internal/repository: data access
-- internal/service: business logic
-- internal/transport/http: HTTP router and handlers
-- internal/middleware: security middleware
-- web: Vite React + TypeScript frontend
-- configs: environment examples
-- docs: security notes
+- `cmd/webapp`: Application entrypoint
+- `internal/config`: Configuration loading
+- `internal/platform/database`: DB connection and schema
+- `internal/domain`: Types/models and business logic
+- `internal/repository`: Data access layer
+- `internal/service`: Business logic layer
+- `internal/handler`: HTTP router and handlers
+- `internal/middleware`: Security middleware
+- `web/`: Vite React + TypeScript frontend
+- `configs/`: Environment configuration examples
+- `docs/`: Documentation and API specifications
 
-Refer: https://github.com/golang-standards/project-layout
+**Reference**: https://github.com/golang-standards/project-layout
 
 ## Quick start
 
@@ -46,7 +106,7 @@ Refer: https://github.com/golang-standards/project-layout
 ```bash
 # in project root
 go mod tidy
-go run ./cmd/server
+go run ./cmd/webapp
 ```
 
 Server listens on 127.0.0.1:8082 by default and creates a local DB at data/app.db (when DB_DRIVER=sqlite).
@@ -124,7 +184,11 @@ The Docker Compose setup provides a secure, isolated development environment whe
 docker compose up --build
 # Frontend: http://localhost:5173 (includes API proxy)
 # API: Isolated within Docker network (secure)
-# DB: MySQL service (non-exposed), initialized via /internal/db/mysql_init
+# DB: SQLite within API container
+
+# With development tools
+docker compose --profile tools up --build
+# Adds: SQLite Admin on http://localhost:8080
 ```
 
 ### Option B: Local Development (Direct Access)
@@ -132,17 +196,21 @@ docker compose up --build
 For local development outside Docker:
 
 1. **Backend**: Copy `configs/.env.local` to project root as `.env`
-2. **Start API**: `go run ./cmd/server` (will bind to 127.0.0.1:8082)
+2. **Start API**: `go run ./cmd/webapp` (will bind to 127.0.0.1:8082)
 3. **Start Frontend**: `cd web && npm install && npm run dev`
 
-### Option C: Makefile (Local Dev)
+### Option C: Makefile (Recommended)
 
-1. Start both:
-	- `make dev` (API on 127.0.0.1:8082, Web on http://localhost:5173)
-2. Tail logs:
-	- `make dev-logs` (Ctrl+C to stop tail)
-3. Stop both:
-	- `make dev-stop`
+```bash
+# Local development (no Docker)
+make dev              # Start API + frontend locally
+make dev-logs         # View logs (Ctrl+C to stop)
+make dev-stop         # Stop both services
+
+# Docker development  
+make docker-dev       # Start with Docker + tools
+make docker-stop      # Stop Docker services
+```
 
 ## Security
 
@@ -160,8 +228,8 @@ The Docker Compose setup implements security best practices:
 - **Exposed**: Frontend (5173) - User interface and API proxy
 - **Isolated**: API (8082) - Only accessible within Docker network
 - **Protected**: Database - SQLite file within API container
+- **Development Tools**: SQLite Admin (8080) - When using `--profile tools`
 
-### Configuration
 ### Configuration Files
 Environment variables (see configs/ directory):
 - `configs/.env.docker`: Docker Compose setup (isolated API)
