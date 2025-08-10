@@ -37,7 +37,8 @@ if [[ -n "$status" ]]; then
   exit 1
 fi
 
-if git rev-parse --verify origin >/dev/null 2>&1; then
+# Detect if 'origin' remote exists
+if git remote get-url origin >/dev/null 2>&1; then
   :
 else
   echo "Note: no 'origin' remote found. Skipping push step." >&2
