@@ -26,9 +26,19 @@ if [[ ! -f .gitignore ]]; then
 fi
 
 PUSH=false
-if [[ ${1:-} == "--push" ]]; then
-  PUSH=true
-fi
+PUBLISH_BACKUP=false
+
+# Parse flags
+for arg in "$@"; do
+  case "$arg" in
+    --push)
+      PUSH=true
+      ;;
+    --publish-backup)
+      PUBLISH_BACKUP=true
+      ;;
+  esac
+done
 
 current_branch=$(git rev-parse --abbrev-ref HEAD)
 status=$(git status --porcelain)
@@ -52,9 +62,15 @@ BACKUP_BRANCH="backup/pre-purge-$timestamp"
 echo "[0/6] Fetching all refs and tags from origin (so they are included in the rewrite)"
 git fetch --all --tags --prune
 
-echo "[1/6] Creating backup tag $BACKUP_TAG and branch $BACKUP_BRANCH"
+echo "[1/6] Creating backup tag $BACKUP_TAG and branch $BACKUP_BRANCH (local-only by default)"
 git tag -a "$BACKUP_TAG" -m "Backup before purging .gitignored files from history"
 git branch "$BACKUP_BRANCH"
+
+if $PUBLISH_BACKUP; then
+  echo "Publishing backup refs to origin (requested via --publish-backup)"
+  git push origin "$BACKUP_BRANCH":"$BACKUP_BRANCH" || true
+  git push origin "$BACKUP_TAG" || true
+fi
 
 echo "[2/6] Building path-globs from .gitignore"
 mapfile -t GLOBS < <(
