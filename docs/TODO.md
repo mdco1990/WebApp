@@ -8,3 +8,4 @@
 - (/) Items of "Manual Budget (Bank and Planned Deductions)" Not saved that gon when reload the page. Items could be positive benefits or expenses
 - (/) Manual Budget (Bank and Planned Deductions) default values (All items must be 0)
 - (/) Review and enhance UI/UX based on PDF and Web Preview
+- (x) Improve project layout

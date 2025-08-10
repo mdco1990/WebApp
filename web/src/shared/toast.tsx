@@ -40,15 +40,26 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           gap: 8,
         }}
       >
-        {toasts.map((t) => (
-          <div
-            key={t.id}
-            className={`alert alert-${t.type === 'error' ? 'danger' : t.type === 'success' ? 'success' : 'secondary'} py-2 px-3`}
-            role="alert"
-          >
-            {t.message}
-          </div>
-        ))}
+        {toasts.map((t) => {
+          let alertType: 'danger' | 'success' | 'secondary' = 'secondary';
+          switch (t.type) {
+            case 'error':
+              alertType = 'danger';
+              break;
+            case 'success':
+              alertType = 'success';
+              break;
+          }
+          return (
+            <div
+              key={t.id}
+              className={`alert alert-${alertType} py-2 px-3`}
+              role="alert"
+            >
+              {t.message}
+            </div>
+          );
+        })}
       </div>
     </ToastCtx.Provider>
   );
