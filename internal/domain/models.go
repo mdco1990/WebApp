@@ -101,6 +101,22 @@ type MonthlyData struct {
 	Remaining     Money          `json:"remaining_cents"`
 }
 
+// ManualBudget models a user's month-specific manual budget plan (bank + ad-hoc items)
+type ManualBudget struct {
+	ID              int64 `json:"id"`
+	UserID          int64 `json:"user_id"`
+	YearMonth       `json:"-"`
+	BankAmountCents Money              `json:"bank_amount_cents"`
+	Items           []ManualBudgetItem `json:"items"`
+}
+
+type ManualBudgetItem struct {
+	ID          int64  `json:"id"`
+	BudgetID    int64  `json:"-"`
+	Name        string `json:"name"`
+	AmountCents Money  `json:"amount_cents"`
+}
+
 // Request/Response models
 type LoginRequest struct {
 	Username string `json:"username"`

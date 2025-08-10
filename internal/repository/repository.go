@@ -439,6 +439,122 @@ func (r *Repository) DeleteBudgetSource(ctx context.Context, id int64, userID in
 	return err
 }
 
+// Manual Budget methods
+func (r *Repository) GetManualBudget(ctx context.Context, userID int64, ym domain.YearMonth) (*domain.ManualBudget, error) {
+	var (
+		id   int64
+		bank int64
+	)
+	err := r.db.QueryRowContext(ctx,
+		`SELECT id, bank_amount_cents FROM manual_budgets WHERE user_id = ? AND year = ? AND month = ?`,
+		userID, ym.Year, ym.Month,
+	).Scan(&id, &bank)
+	if err == sql.ErrNoRows {
+		// Return empty structure
+		return &domain.ManualBudget{UserID: userID, YearMonth: ym, BankAmountCents: 0, Items: []domain.ManualBudgetItem{}}, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT id, name, amount_cents FROM manual_budget_items WHERE budget_id = ? ORDER BY id`, id)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	items := []domain.ManualBudgetItem{}
+	for rows.Next() {
+		var it domain.ManualBudgetItem
+		var amount int64
+		if err := rows.Scan(&it.ID, &it.Name, &amount); err != nil {
+			return nil, err
+		}
+		it.BudgetID = id
+		it.AmountCents = domain.Money(amount)
+		items = append(items, it)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return &domain.ManualBudget{
+		ID:              id,
+		UserID:          userID,
+		YearMonth:       ym,
+		BankAmountCents: domain.Money(bank),
+		Items:           items,
+	}, nil
+}
+
+// UpsertManualBudget replaces the manual budget and its items for a given user/month atomically
+func (r *Repository) UpsertManualBudget(ctx context.Context, userID int64, ym domain.YearMonth, bank domain.Money, items []domain.ManualBudgetItem) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err != nil {
+			_ = tx.Rollback()
+		}
+	}()
+
+	// Upsert budget row
+	var budgetID int64
+	// Try update first
+	res, err := tx.ExecContext(ctx,
+		`UPDATE manual_budgets SET bank_amount_cents = ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND year = ? AND month = ?`,
+		int64(bank), userID, ym.Year, ym.Month,
+	)
+	if err != nil {
+		return err
+	}
+	rowsAff, _ := res.RowsAffected()
+	if rowsAff == 0 {
+		// Insert
+		result, err2 := tx.ExecContext(ctx,
+			`INSERT INTO manual_budgets(user_id, year, month, bank_amount_cents) VALUES(?, ?, ?, ?)`,
+			userID, ym.Year, ym.Month, int64(bank),
+		)
+		if err2 != nil {
+			err = err2
+			return err
+		}
+		budgetID, err = result.LastInsertId()
+		if err != nil {
+			return err
+		}
+	} else {
+		// Get id for existing
+		if err = tx.QueryRowContext(ctx,
+			`SELECT id FROM manual_budgets WHERE user_id = ? AND year = ? AND month = ?`, userID, ym.Year, ym.Month,
+		).Scan(&budgetID); err != nil {
+			return err
+		}
+	}
+
+	// Replace items
+	if _, err = tx.ExecContext(ctx, `DELETE FROM manual_budget_items WHERE budget_id = ?`, budgetID); err != nil {
+		return err
+	}
+	if len(items) > 0 {
+		stmt, err2 := tx.PrepareContext(ctx, `INSERT INTO manual_budget_items(budget_id, name, amount_cents) VALUES(?, ?, ?)`)
+		if err2 != nil {
+			err = err2
+			return err
+		}
+		defer stmt.Close()
+		for _, it := range items {
+			if _, err = stmt.ExecContext(ctx, budgetID, it.Name, int64(it.AmountCents)); err != nil {
+				return err
+			}
+		}
+	}
+
+	return tx.Commit()
+}
+
 // Monthly data aggregation
 func (r *Repository) GetMonthlyData(ctx context.Context, userID int64, ym domain.YearMonth) (*domain.MonthlyData, error) {
 	incomeSources, err := r.ListIncomeSources(ctx, userID, ym)

@@ -14,6 +14,18 @@ import {
 } from 'chart.js';
 import { Bar, Pie, Line } from 'react-chartjs-2';
 import 'bootstrap/dist/css/bootstrap.min.css';
+import {
+  getMonthlyData,
+  seedDefaults,
+  createIncomeSource,
+  updateIncomeSource,
+  deleteIncomeSource,
+  createBudgetSource,
+  updateBudgetSource,
+  deleteBudgetSource,
+  getManualBudget,
+  saveManualBudget,
+} from './api';
 
 ChartJS.register(
   CategoryScale,
@@ -185,29 +197,7 @@ const App: React.FC = () => {
     const parsed = parseFloat(normalized);
     return isNaN(parsed) ? 0 : parsed;
   };
-  const apiCall = async (endpoint: string, options: RequestInit = {}) => {
-    const headers: HeadersInit = {
-      'Content-Type': 'application/json',
-      'X-API-Key': apiKey,
-      ...(options.headers as Record<string, string>)
-    };
-
-    if (sessionId) {
-      headers['Authorization'] = `Bearer ${sessionId}`;
-    }
-
-    const url = endpoint.startsWith('/api') ? endpoint : `${baseURL}${endpoint}`;
-    const response = await fetch(url, {
-      ...options,
-      headers
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    return response.json();
-  };
+  // Centralized API is in src/api.ts
 
   // Authentication functions
   const login = async (username: string, password: string) => {
@@ -317,9 +307,9 @@ const App: React.FC = () => {
     if (!sessionId) return;
 
     try {
-      const { year, month } = getCurrentYearMonth();
-      // Load consolidated monthly data in one request
-      const data: MonthlyData = await apiCall(`/api/v1/monthly-data?year=${year}&month=${month}`);
+  const { year, month } = getCurrentYearMonth();
+  // Load consolidated monthly data in one request
+  const data: MonthlyData = await getMonthlyData({ year, month });
 
       const totalIncome = data?.total_income_cents || 0;
       const totalOutcome = data?.total_budget_cents || 0;
@@ -344,10 +334,7 @@ const App: React.FC = () => {
   const addDefaultData = async () => {
     try {
       const { year, month } = getCurrentYearMonth();
-      await apiCall('/api/v1/seed-defaults', {
-        method: 'POST',
-        body: JSON.stringify({ year, month })
-      });
+  await seedDefaults({ year, month });
       await loadData();
     } catch (error) {
       console.error('Failed to add default data:', error);
@@ -359,23 +346,9 @@ const App: React.FC = () => {
     try {
       const { year, month } = getCurrentYearMonth();
       if (source.id) {
-        await apiCall(`/api/v1/income-sources/${source.id}`, {
-          method: 'PUT',
-          body: JSON.stringify({
-            name: source.name,
-            amount_cents: source.amount_cents
-          })
-        });
+        await updateIncomeSource(source.id, { name: source.name, amount_cents: source.amount_cents });
       } else {
-        await apiCall('/api/v1/income-sources', {
-          method: 'POST',
-          body: JSON.stringify({
-            name: source.name,
-            year,
-            month,
-            amount_cents: source.amount_cents
-          })
-        });
+        await createIncomeSource({ name: source.name, year, month, amount_cents: source.amount_cents });
       }
       loadData();
     } catch (error) {
@@ -387,23 +360,9 @@ const App: React.FC = () => {
     try {
       const { year, month } = getCurrentYearMonth();
       if (source.id) {
-        await apiCall(`/api/v1/budget-sources/${source.id}`, {
-          method: 'PUT',
-          body: JSON.stringify({
-            name: source.name,
-            amount_cents: source.amount_cents
-          })
-        });
+        await updateBudgetSource(source.id, { name: source.name, amount_cents: source.amount_cents });
       } else {
-        await apiCall('/api/v1/budget-sources', {
-          method: 'POST',
-          body: JSON.stringify({
-            name: source.name,
-            year,
-            month,
-            amount_cents: source.amount_cents
-          })
-        });
+        await createBudgetSource({ name: source.name, year, month, amount_cents: source.amount_cents });
       }
       loadData();
     } catch (error) {
@@ -490,13 +449,9 @@ const App: React.FC = () => {
     // debounce to reduce network chatter
     if (manualBudgetSaveTimer.current) window.clearTimeout(manualBudgetSaveTimer.current);
     manualBudgetSaveTimer.current = window.setTimeout(async () => {
-      try {
-        await apiCall('/api/v1/manual-budget', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-      } catch {
+          try {
+            await saveManualBudget(payload);
+          } catch {
         // ignore - backend may not implement this yet; localStorage remains the fallback
       }
     }, 400);
@@ -511,7 +466,7 @@ const App: React.FC = () => {
       try {
         const year = currentDate.getFullYear();
         const month = currentDate.getMonth() + 1;
-        const data = await apiCall(`/api/v1/manual-budget?year=${year}&month=${month}`);
+        const data = await getManualBudget({ year, month });
         if (data && typeof data.bank_amount_cents === 'number' && Array.isArray(data.items)) {
           const fromServer: ManualBudgetState = {
             bankAmount: (data.bank_amount_cents || 0) / 100,
@@ -1016,7 +971,7 @@ const App: React.FC = () => {
                                   }
 
                                   try {
-                                    await apiCall(`/api/v1/income-sources/${source.id}`, { method: 'DELETE' });
+                                    await deleteIncomeSource(source.id);
                                     loadData(); // Refresh data from server
                                   } catch (error) {
                                     console.error('Error deleting income source:', error);
@@ -1096,7 +1051,7 @@ const App: React.FC = () => {
                                   }
 
                                   try {
-                                    await apiCall(`/api/v1/budget-sources/${source.id}`, { method: 'DELETE' });
+                                    await deleteBudgetSource(source.id);
                                     loadData(); // Refresh data from server
                                   } catch (error) {
                                     console.error('Error deleting outcome source:', error);

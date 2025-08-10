@@ -635,6 +635,55 @@ func NewRouter(cfg config.Config, db *sql.DB) http.Handler {
 				respondJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 			})
 		})
+
+		// Manual Budget endpoints
+		api.Route("/manual-budget", func(mb chi.Router) {
+			mb.Get("/", func(w http.ResponseWriter, r *http.Request) {
+				userID := getUserIDFromContext(r.Context())
+				tym, err := parseYM(r)
+				if err != nil {
+					respondErr(w, http.StatusBadRequest, err.Error())
+					return
+				}
+				data, err := repo.GetManualBudget(r.Context(), userID, tym)
+				if err != nil {
+					respondErr(w, http.StatusInternalServerError, "failed to get manual budget")
+					return
+				}
+				respondJSON(w, http.StatusOK, map[string]any{
+					"bank_amount_cents": int64(data.BankAmountCents),
+					"items":             data.Items,
+				})
+			})
+
+			mb.Put("/", func(w http.ResponseWriter, r *http.Request) {
+				userID := getUserIDFromContext(r.Context())
+				var req struct {
+					Year            int                       `json:"year"`
+					Month           int                       `json:"month"`
+					BankAmountCents int64                     `json:"bank_amount_cents"`
+					Items           []domain.ManualBudgetItem `json:"items"`
+				}
+				if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+					respondErr(w, http.StatusBadRequest, invalidBodyMsg)
+					return
+				}
+				if req.Year == 0 || req.Month == 0 {
+					respondErr(w, http.StatusBadRequest, "year and month required")
+					return
+				}
+				// Sanitize items: keep name, amount_cents
+				items := make([]domain.ManualBudgetItem, 0, len(req.Items))
+				for _, it := range req.Items {
+					items = append(items, domain.ManualBudgetItem{Name: strings.TrimSpace(it.Name), AmountCents: domain.Money(it.AmountCents)})
+				}
+				if err := repo.UpsertManualBudget(r.Context(), userID, domain.YearMonth{Year: req.Year, Month: req.Month}, domain.Money(req.BankAmountCents), items); err != nil {
+					respondErr(w, http.StatusInternalServerError, "failed to save manual budget")
+					return
+				}
+				respondJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+			})
+		})
 	})
 
 	return r

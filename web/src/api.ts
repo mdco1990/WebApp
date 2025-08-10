@@ -2,8 +2,14 @@ export type YearMonth = { year: number; month: number }
 export type Expense = { id: number; year: number; month: number; category?: string; description: string; amount_cents: number }
 export type Summary = { year: number; month: number; salary_cents: number; budget_cents: number; expense_cents: number; remaining_cents: number }
 
-const apiKey = localStorage.getItem('api_key') || ''
-const headers = { 'Content-Type': 'application/json', ...(apiKey ? { 'X-API-Key': apiKey } : {}) }
+function baseHeaders() {
+  const apiKey = localStorage.getItem('api_key') || ''
+  const sessionId = localStorage.getItem('session_id') || ''
+  const h: Record<string, string> = { 'Content-Type': 'application/json' }
+  if (apiKey) h['X-API-Key'] = apiKey
+  if (sessionId) h['Authorization'] = `Bearer ${sessionId}`
+  return h
+}
 
 // Helper function to handle fetch with timeout and better error messages
 async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs: number = 5000) {
@@ -14,7 +20,7 @@ async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutM
     const response = await fetch(url, {
       ...options,
       signal: controller.signal,
-      headers: { ...headers, ...(options.headers || {}) }
+      headers: { ...baseHeaders(), ...(options.headers || {}) }
     })
     
     clearTimeout(timeoutId)
@@ -75,6 +81,70 @@ export async function setBudget(ym: YearMonth, amount_cents: number) {
     body: JSON.stringify({ ...ym, amount_cents }) 
   })
   return res
+}
+
+// Enhanced API
+export async function getMonthlyData(ym: YearMonth) {
+  const u = new URL('/api/v1/monthly-data', location.origin)
+  u.searchParams.set('year', String(ym.year))
+  u.searchParams.set('month', String(ym.month))
+  const res = await fetchWithTimeout(u.toString())
+  return res.json()
+}
+
+export async function seedDefaults(ym: YearMonth) {
+  return fetchWithTimeout('/api/v1/seed-defaults', {
+    method: 'POST',
+    body: JSON.stringify(ym)
+  })
+}
+
+// Income sources
+export async function listIncomeSources(ym: YearMonth) {
+  const u = new URL('/api/v1/income-sources/', location.origin)
+  u.searchParams.set('year', String(ym.year))
+  u.searchParams.set('month', String(ym.month))
+  const res = await fetchWithTimeout(u.toString())
+  return res.json()
+}
+export async function createIncomeSource(payload: { name: string; year: number; month: number; amount_cents: number }) {
+  return fetchWithTimeout('/api/v1/income-sources/', { method: 'POST', body: JSON.stringify(payload) })
+}
+export async function updateIncomeSource(id: number, payload: { name: string; amount_cents: number }) {
+  return fetchWithTimeout(`/api/v1/income-sources/${id}`, { method: 'PUT', body: JSON.stringify(payload) })
+}
+export async function deleteIncomeSource(id: number) {
+  return fetchWithTimeout(`/api/v1/income-sources/${id}`, { method: 'DELETE' })
+}
+
+// Budget sources
+export async function listBudgetSources(ym: YearMonth) {
+  const u = new URL('/api/v1/budget-sources/', location.origin)
+  u.searchParams.set('year', String(ym.year))
+  u.searchParams.set('month', String(ym.month))
+  const res = await fetchWithTimeout(u.toString())
+  return res.json()
+}
+export async function createBudgetSource(payload: { name: string; year: number; month: number; amount_cents: number }) {
+  return fetchWithTimeout('/api/v1/budget-sources/', { method: 'POST', body: JSON.stringify(payload) })
+}
+export async function updateBudgetSource(id: number, payload: { name: string; amount_cents: number }) {
+  return fetchWithTimeout(`/api/v1/budget-sources/${id}`, { method: 'PUT', body: JSON.stringify(payload) })
+}
+export async function deleteBudgetSource(id: number) {
+  return fetchWithTimeout(`/api/v1/budget-sources/${id}`, { method: 'DELETE' })
+}
+
+// Manual budget
+export async function getManualBudget(ym: YearMonth) {
+  const u = new URL('/api/v1/manual-budget', location.origin)
+  u.searchParams.set('year', String(ym.year))
+  u.searchParams.set('month', String(ym.month))
+  const res = await fetchWithTimeout(u.toString())
+  return res.json()
+}
+export async function saveManualBudget(payload: { year: number; month: number; bank_amount_cents: number; items: Array<{ id?: string | number; name: string; amount_cents: number }> }) {
+  return fetchWithTimeout('/api/v1/manual-budget', { method: 'PUT', body: JSON.stringify(payload) })
 }
 
 export async function listExpenses(ym: YearMonth): Promise<Expense[]> {
