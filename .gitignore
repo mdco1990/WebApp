@@ -27,10 +27,9 @@ Thumbs.db
 *.swp
 *.swo
 
-# Environment files
+# Environment files (do not commit secrets)
 .env
 .env.*
-!.env.dev
 configs/.env
 configs/.env.*
 web/.env
