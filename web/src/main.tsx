@@ -4,6 +4,7 @@ import App from './App'
 // Initialize i18n before rendering the app
 import './i18n'
 import { ErrorBoundary } from './shared/ErrorBoundary'
+import { ToastProvider } from './shared/toast'
 import 'bootstrap/dist/css/bootstrap.min.css'
 // import 'bootstrap-icons/font/bootstrap-icons.css'
 import './styles.css'
@@ -16,7 +17,9 @@ if (!root) {
 createRoot(root).render(
   <React.StrictMode>
     <ErrorBoundary>
-      <App />
+      <ToastProvider>
+        <App />
+      </ToastProvider>
     </ErrorBoundary>
   </React.StrictMode>
 )

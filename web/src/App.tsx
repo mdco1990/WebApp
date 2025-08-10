@@ -26,6 +26,11 @@ import {
   getManualBudget,
   saveManualBudget,
 } from './api';
+import IncomeSources from './components/IncomeSources';
+import OutcomeSources from './components/OutcomeSources';
+import PlanningSection from './components/PlanningSection';
+import ManualBudgetSection from './components/ManualBudgetSection';
+import { useToast } from './shared/toast';
 
 ChartJS.register(
   CategoryScale,
@@ -114,6 +119,7 @@ interface MonthlyData {
 }
 
 const App: React.FC = () => {
+  const { push } = useToast()
   // State management
   const [activeSection, setActiveSection] = useState<'planning' | 'tracking' | 'analytics'>('planning');
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -217,11 +223,11 @@ const App: React.FC = () => {
         setShowLogin(false);
         loadData();
       } else {
-        alert(data.message || t('auth.error.login'));
+        push(data.message || t('auth.error.login'), 'error');
       }
     } catch (error) {
       console.error('Login error:', error);
-      alert(t('auth.error.login'));
+      push(t('auth.error.login'), 'error');
     }
   };
 
@@ -255,16 +261,16 @@ const App: React.FC = () => {
       });
 
       if (response.ok) {
-        alert(t('btn.updatePassword') + ' ✓');
+        push(t('btn.updatePassword') + ' ✓', 'success');
         setShowPasswordForm(false);
         setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
       } else {
         const error = await response.text();
-        alert(`Password update failed: ${error}`);
+        push(`Password update failed: ${error}`,'error');
       }
     } catch (error) {
       console.error('Password update error:', error);
-      alert('Password update failed. Please try again.');
+      push('Password update failed. Please try again.','error');
     }
   };
 
@@ -277,26 +283,26 @@ const App: React.FC = () => {
       });
 
       if (response.ok) {
-        alert(t('auth.success.register'));
+        push(t('auth.success.register'), 'success');
         setShowRegister(false);
       } else {
         const error = await response.json();
-        alert(error.error || 'Registration failed');
+        push(error.error || 'Registration failed','error');
       }
     } catch (error) {
       console.error('Registration error:', error);
-      alert('Registration failed. Please try again.');
+      push('Registration failed. Please try again.','error');
     }
   };
 
   const handlePasswordUpdate = (e: React.FormEvent) => {
     e.preventDefault();
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      alert('New passwords do not match!');
+      push('New passwords do not match!','error');
       return;
     }
     if (passwordForm.newPassword.length < 6) {
-      alert('New password must be at least 6 characters long!');
+      push('New password must be at least 6 characters long!','error');
       return;
     }
     updatePassword(passwordForm.currentPassword, passwordForm.newPassword);
@@ -909,321 +915,68 @@ const App: React.FC = () => {
         {/* Anchor: Planning */}
         <div id="planning" className="section-anchor"></div>
 
-        <div className="row">
-          {/* Predicted Budget Section */}
-          <div className="col-lg-12 mb-4">
-            <div className={`card h-100 ${isDarkMode ? 'bg-secondary text-light' : 'bg-white'}`}>
-              <div className="card-header">
-                <h3>{t('section.predictedBudget', { month: getMonthName(currentDate.getMonth() + 1), year: currentDate.getFullYear() })}</h3>
-              </div>
-              <div className="card-body">
-                <div className="row">
-                  {/* Income Sources */}
-                  <div className="col-lg-6 mb-4">
-                    <h5>{t('section.predictedIncome')}</h5>
-                    <p className="text-muted small mb-3">{t('section.predictedIncome.desc')}</p>
-                    <div className="row g-2">
-                      {predictedBudget.incomeSources.map((source, index) => (
-                        <div key={source.id || index} className="col-12">
-                          <div className="row g-2">
-                            <div className="col-sm-6 col-12">
-                              <input
-                                type="text"
-                                className={`form-control form-control-sm ${isDarkMode ? 'bg-dark text-light border-secondary' : ''}`}
-                                value={source.name}
-                                placeholder="Income source name"
-                                onChange={(e) => {
-                                  const updated = [...predictedBudget.incomeSources];
-                                  const updatedSource = { ...source, name: e.target.value };
-                                  updated[index] = updatedSource as IncomeSource;
-                                  setPredictedBudget(prev => ({ ...prev, incomeSources: updated }));
-                                }}
-                                onBlur={() => autoSaveIncomeSource({ ...predictedBudget.incomeSources[index] })}
-                              />
-                            </div>
-                            <div className="col-sm-4 col-8">
-                              <input
-                                type="number"
-                                className={`form-control form-control-sm ${isDarkMode ? 'bg-dark text-light border-secondary' : ''}`}
-                                value={source.amount_cents / 100}
-                                onChange={(e) => {
-                                  const updated = [...predictedBudget.incomeSources];
-                                  const updatedSource = { ...source, amount_cents: Math.round(parseLocaleAmount(e.target.value || '0') * 100) };
-                                  updated[index] = updatedSource as IncomeSource;
-                                  setPredictedBudget(prev => ({ ...prev, incomeSources: updated }));
-                                }}
-                                onBlur={() => autoSaveIncomeSource({ ...predictedBudget.incomeSources[index] })}
-                              />
-                            </div>
-                            <div className="col-sm-2 col-4">
-                              <button
-                                className="btn btn-sm btn-outline-danger w-100"
-                                onClick={async () => {
-                                  if (!source.id) {
-                                    // Remove unsaved item from local state
-                                    const updated = predictedBudget.incomeSources.filter((_, i) => i !== index);
-                                    setPredictedBudget(prev => ({ ...prev, incomeSources: updated }));
-                                    return;
-                                  }
-
-                                  if (!confirm(`Are you sure you want to delete "${source.name}"?`)) {
-                                    return;
-                                  }
-
-                                  try {
-                                    await deleteIncomeSource(source.id);
-                                    loadData(); // Refresh data from server
-                                  } catch (error) {
-                                    console.error('Error deleting income source:', error);
-                                    alert('Failed to delete income source. Please try again.');
-                                  }
-                                }}
-                                title="Delete this income source"
-                              >
-                                ✕
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                    <button
-                      className="btn btn-sm btn-outline-primary mt-2"
-                      onClick={() => {
-                        const updated = [...predictedBudget.incomeSources, { id: 0, name: '', amount_cents: 0 }];
-                        setPredictedBudget(prev => ({ ...prev, incomeSources: updated }));
-                      }}
-                    >
-                      + Add Income Source
-                    </button>
-                  </div>
-
-                  {/* Outcome Sources */}
-                  <div className="col-lg-6 mb-4">
-                    <h5>{t('section.predictedOutcome')}</h5>
-                    <p className="text-muted small mb-3">{t('section.predictedOutcome.desc')}</p>
-                    <div className="row g-2">
-                      {predictedBudget.outcomeSources.map((source, index) => (
-                        <div key={source.id || index} className="col-12">
-                          <div className="row g-2">
-                            <div className="col-sm-6 col-12">
-                              <input
-                                type="text"
-                                className={`form-control form-control-sm ${isDarkMode ? 'bg-dark text-light border-secondary' : ''}`}
-                                value={source.name}
-                                placeholder="Outcome source name"
-                                onChange={(e) => {
-                                  const updated = [...predictedBudget.outcomeSources];
-                                  const updatedSource = { ...source, name: e.target.value };
-                                  updated[index] = updatedSource as OutcomeSource;
-                                  setPredictedBudget(prev => ({ ...prev, outcomeSources: updated }));
-                                }}
-                                onBlur={() => autoSaveOutcomeSource({ ...predictedBudget.outcomeSources[index] })}
-                              />
-                            </div>
-                            <div className="col-sm-4 col-8">
-                              <input
-                                type="number"
-                                className={`form-control form-control-sm ${isDarkMode ? 'bg-dark text-light border-secondary' : ''}`}
-                                value={source.amount_cents / 100}
-                                onChange={(e) => {
-                                  const updated = [...predictedBudget.outcomeSources];
-                                  const updatedSource = { ...source, amount_cents: Math.round(parseLocaleAmount(e.target.value || '0') * 100) };
-                                  updated[index] = updatedSource as OutcomeSource;
-                                  setPredictedBudget(prev => ({ ...prev, outcomeSources: updated }));
-                                }}
-                                onBlur={() => autoSaveOutcomeSource({ ...predictedBudget.outcomeSources[index] })}
-                              />
-                            </div>
-                            <div className="col-sm-2 col-4">
-                              <button
-                                className="btn btn-sm btn-outline-danger w-100"
-                                onClick={async () => {
-                                  if (!source.id) {
-                                    // Remove unsaved item from local state
-                                    const updated = predictedBudget.outcomeSources.filter((_, i) => i !== index);
-                                    setPredictedBudget(prev => ({ ...prev, outcomeSources: updated }));
-                                    return;
-                                  }
-
-                                  if (!confirm(`Are you sure you want to delete "${source.name}"?`)) {
-                                    return;
-                                  }
-
-                                  try {
-                                    await deleteBudgetSource(source.id);
-                                    loadData(); // Refresh data from server
-                                  } catch (error) {
-                                    console.error('Error deleting outcome source:', error);
-                                    alert('Failed to delete outcome source. Please try again.');
-                                  }
-                                }}
-                                title="Delete this outcome source"
-                              >
-                                ✕
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                    <button
-                      className="btn btn-sm btn-outline-primary mt-2"
-                      onClick={() => {
-                        const updated = [...predictedBudget.outcomeSources, { id: 0, name: '', amount_cents: 0 }];
-                        setPredictedBudget(prev => ({ ...prev, outcomeSources: updated }));
-                      }}
-                    >
-                      + Add Outcome Source
-                    </button>
-                  </div>
-                </div>
-
-                {/* Summary */}
-                <div className="row g-2">
-                  <div className="col-md-4 col-12">
-                    <div className="text-center">
-                        <strong>{t('label.totalIncomes')}</strong>
-                        <div className="h5 text-success">{formatCurrency(predictedBudget.totalIncome)}</div>
-                      </div>
-                    </div>
-                    <div className="col-md-4 col-12">
-                      <div className="text-center">
-                        <strong>{t('label.totalOutcomes')}</strong>
-                        <div className="h5 text-warning">{formatCurrency(predictedBudget.totalOutcome)}</div>
-                      </div>
-                    </div>
-                    <div className="col-md-4 col-12">
-                      <div className="text-center">
-                        <strong>{t('label.difference')}</strong>
-                        <div className={`h5 ${predictedBudget.difference >= 0 ? 'text-success' : 'text-danger'}`}>
-                          {formatCurrency(predictedBudget.difference)}
-                        </div>
-                      </div>
-                    </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+        <PlanningSection
+          isDarkMode={isDarkMode}
+          title={t('section.predictedBudget', { month: getMonthName(currentDate.getMonth() + 1), year: currentDate.getFullYear() })}
+          monthLabel={`${getMonthName(currentDate.getMonth() + 1)} ${currentDate.getFullYear()}`}
+          incomeSources={predictedBudget.incomeSources as any}
+          outcomeSources={predictedBudget.outcomeSources as any}
+          parseLocaleAmount={parseLocaleAmount}
+          formatCurrency={formatCurrency}
+          onIncomeUpdate={(index, next) => {
+            const updated = [...predictedBudget.incomeSources]
+            updated[index] = next as any
+            setPredictedBudget(prev => ({ ...prev, incomeSources: updated }))
+          }}
+          onIncomeBlurSave={(index) => autoSaveIncomeSource({ ...predictedBudget.incomeSources[index] })}
+          onIncomeRemoveUnsaved={(index) => {
+            const updated = predictedBudget.incomeSources.filter((_, i) => i !== index)
+            setPredictedBudget(prev => ({ ...prev, incomeSources: updated }))
+          }}
+          onIncomeDeletePersisted={async (id) => { await deleteIncomeSource(id); await loadData() }}
+          onIncomeAddEmpty={() => setPredictedBudget(prev => ({ ...prev, incomeSources: [...prev.incomeSources, { id: 0, name: '', amount_cents: 0 }] }))}
+          onOutcomeUpdate={(index, next) => {
+            const updated = [...predictedBudget.outcomeSources]
+            updated[index] = next as any
+            setPredictedBudget(prev => ({ ...prev, outcomeSources: updated }))
+          }}
+          onOutcomeBlurSave={(index) => autoSaveOutcomeSource({ ...predictedBudget.outcomeSources[index] })}
+          onOutcomeRemoveUnsaved={(index) => {
+            const updated = predictedBudget.outcomeSources.filter((_, i) => i !== index)
+            setPredictedBudget(prev => ({ ...prev, outcomeSources: updated }))
+          }}
+          onOutcomeDeletePersisted={async (id) => { await deleteBudgetSource(id); await loadData() }}
+          onOutcomeAddEmpty={() => setPredictedBudget(prev => ({ ...prev, outcomeSources: [...prev.outcomeSources, { id: 0, name: '', amount_cents: 0 }] }))}
+          totalIncome={predictedBudget.totalIncome}
+          totalOutcome={predictedBudget.totalOutcome}
+          difference={predictedBudget.difference}
+          totalIncomeLabel={t('label.totalIncomes')}
+          totalOutcomeLabel={t('label.totalOutcomes')}
+          differenceLabel={t('label.difference')}
+          incomeHelp={t('section.predictedIncome.desc')}
+          outcomeHelp={t('section.predictedOutcome.desc')}
+        />
 
         {/* Manual Current Month Budget (Bank and planned deductions) */}
         <div id="tracking" className="section-anchor"></div>
-        <div className="row">
-          <div className="col-lg-12 mb-4">
-            <div className={`card ${isDarkMode ? 'bg-secondary text-light' : 'bg-white'}`}>
-              <div className="card-header d-flex justify-content-between align-items-center">
-                <h3 className="mb-0">{t('section.manualBudget')}</h3>
-                <div className="d-flex align-items-center gap-2">
-                  <span className="badge bg-secondary">
-                    {getMonthName(currentDate.getMonth() + 1)} {currentDate.getFullYear()}
-                  </span>
-                  <div className="small text-muted me-2">{t('label.formula')}</div>
-                  <button
-                    type="button"
-                    className="btn btn-sm btn-outline-warning"
-                    onClick={() => setManualBudget({ bankAmount: 0, items: [] })}
-                    title={t('btn.reset') ?? 'Reset to zero'}
-                  >
-                    {t('btn.reset') ?? 'Reset'}
-                  </button>
-                </div>
-              </div>
-              <div className="card-body">
-                <div className="row g-3 mb-3">
-                  <div className="col-md-4">
-                    <label className="form-label">{t('label.bankAmount')}</label>
-                    <input
-                      type="text"
-                      className={`form-control ${isDarkMode ? 'bg-dark text-light border-secondary' : ''}`}
-                      value={manualBudget.bankAmount}
-                      onChange={(e) => setManualBudget({ ...manualBudget, bankAmount: parseLocaleAmount(e.target.value) })}
-                    />
-                  </div>
-                  <div className="col-md-8">
-                    <label className="form-label">{t('label.plannedExpenses')}</label>
-                    <div className="row g-2">
-                      {manualBudget.items.map((it, idx) => (
-                        <div className="col-12" key={it.id}>
-                          <div className="input-group input-group-sm">
-                            <input
-                              type="text"
-                              className={`form-control ${isDarkMode ? 'bg-dark text-light border-secondary' : ''}`}
-                              placeholder={t('placeholder.itemName')}
-                              value={it.name}
-                              onChange={(e) => {
-                                const items = [...manualBudget.items];
-                                items[idx] = { ...items[idx], name: e.target.value };
-                                setManualBudget({ ...manualBudget, items });
-                              }}
-                            />
-                            <span className="input-group-text">{currencySymbol}</span>
-                            <input
-                              type="text"
-                              className={`form-control ${isDarkMode ? 'bg-dark text-light border-secondary' : ''}`}
-                              placeholder={t('placeholder.amount')}
-                              value={it.amount}
-                              onChange={(e) => {
-                                const items = [...manualBudget.items];
-                                items[idx] = { ...items[idx], amount: parseLocaleAmount(e.target.value) };
-                                setManualBudget({ ...manualBudget, items });
-                              }}
-                            />
-                            <button
-                              type="button"
-                              className="btn btn-outline-secondary"
-                              title="Toggle sign"
-                              onClick={() => {
-                                const items = [...manualBudget.items];
-                                items[idx] = { ...items[idx], amount: (items[idx].amount || 0) * -1 };
-                                setManualBudget({ ...manualBudget, items });
-                              }}
-                            >
-                              ±
-                            </button>
-                            <button
-                              className="btn btn-outline-danger"
-                              onClick={() => {
-                                setManualBudget({ ...manualBudget, items: manualBudget.items.filter(x => x.id !== it.id) });
-                              }}
-                            >
-                              {t('btn.delete')}
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                    <button
-                      className="btn btn-sm btn-outline-primary mt-2"
-                      onClick={() => {
-                        setManualBudget({
-                          ...manualBudget,
-                          items: [...manualBudget.items, { id: Math.random().toString(36).slice(2), name: '', amount: 0 }]
-                        });
-                      }}
-                    >
-                      {t('btn.addItem')}
-                    </button>
-                  </div>
-                </div>
-
-                <div className="row g-3">
-                  <div className="col-md-4">
-                    <div className="text-center">
-                      <h5>{t('label.remaining')}</h5>
-                      <div className="text-muted small mb-1">{t('label.positiveNegativeHint') ?? 'Tip: positive values add to remaining; negative values subtract.'}</div>
-                      <h4 className={(
-                        manualBudget.bankAmount + manualBudget.items.reduce((s, i) => s + i.amount, 0)
-                      ) >= 0 ? 'text-success' : 'text-danger'}>
-                        {formatCurrency(Math.round((manualBudget.bankAmount + manualBudget.items.reduce((s, i) => s + i.amount, 0)) * 100))}
-                      </h4>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+        <ManualBudgetSection
+          isDarkMode={isDarkMode}
+          monthLabel={`${getMonthName(currentDate.getMonth() + 1)} ${currentDate.getFullYear()}`}
+          currencySymbol={currencySymbol}
+          manualBudget={manualBudget}
+          setManualBudget={setManualBudget}
+          parseLocaleAmount={parseLocaleAmount}
+          formatCurrency={formatCurrency}
+          resetLabel={t('btn.reset') ?? 'Reset'}
+          bankLabel={t('label.bankAmount')}
+          plannedLabel={t('label.plannedExpenses')}
+          formulaHint={t('label.formula')}
+          toggleTitle={t('btn.toggleSign') ?? 'Toggle sign'}
+          deleteLabel={t('btn.delete')}
+          addItemLabel={t('btn.addItem')}
+          remainingLabel={t('label.remaining')}
+          positiveNegativeHint={t('label.positiveNegativeHint') ?? 'Tip: positive values add to remaining; negative values subtract.'}
+        />
 
         {/* Additional Charts Row */}
         <div id="analytics" className="section-anchor"></div>
