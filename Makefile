@@ -234,14 +234,14 @@ lint-web-fix:
 
 # Frontend CSS linting
 lint-css:
- 	cd web && npm run lint:css
+	cd web && npm run lint:css
 
 lint-css-fix:
- 	cd web && npm run lint:css:fix
+	cd web && npm run lint:css:fix
 
 # Quick Vite build smoke test (useful in CI for catching TS/asset issues)
 lint-vite:
- 	cd web && npm run build --silent
+	cd web && npm run build --silent
 
 # Run all linters (Go + web + CSS)
 lint-all: lint lint-web lint-css

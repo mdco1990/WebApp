@@ -51,6 +51,7 @@ web/coverage/
 web/.eslintcache
 web/.cache
 web/*.tsbuildinfo
+web/.stylelintcache
 
 # Databases
 data/*.db
