@@ -1,7 +1,11 @@
 services:
   # Main API service - Development mode with live reloading
   api:
-    image: golang:1.24-alpine
+    build:
+      context: ..
+      dockerfile: deployments/Docker/Dockerfile.api
+      target: dev
+    image: webapp-api-dev:local
     container_name: webapp-api-dev
     platform: linux/arm64
     working_dir: /app
@@ -18,7 +22,7 @@ services:
       - LOG_LEVEL=debug
       - LOG_FORMAT=text
       - GOFLAGS=-buildvcs=false
-    command: ["sh", "-c", "apk add --no-cache git wget && go install github.com/air-verse/air@latest && go mod download && air -c .air.toml"]
+    command: ["air", "-c", ".air.toml"]
     depends_on:
       db:
         condition: service_started
@@ -50,7 +54,11 @@ services:
 
   # Frontend React/TypeScript application
   web:
-    image: node:18-alpine
+    build:
+      context: ..
+      dockerfile: deployments/Docker/Dockerfile.web
+      target: dev
+    image: webapp-web-dev:local
     container_name: webapp-web
     platform: linux/arm64
     working_dir: /app/web
@@ -62,7 +70,7 @@ services:
     environment:
       - NODE_ENV=development
       - VITE_PROXY_TARGET=http://api:8082
-    command: sh -c "npm ci && npm run dev -- --host 0.0.0.0 --port 5173"
+    command: ["sh", "-c", "npm ci || npm install && npm run dev -- --host 0.0.0.0 --port 5173"]
     ports:
       - "5173:5173"
     networks:
@@ -73,13 +81,16 @@ services:
 
   # SQLite Admin UI (always on in dev)
   sqlite-admin:
-    image: python:3.12-alpine
+    build:
+      context: ..
+      dockerfile: deployments/Docker/Dockerfile.sqlite-admin
+    image: webapp-sqlite-admin:local
     container_name: webapp-sqlite-admin
     platform: linux/arm64
     working_dir: /app
     volumes:
       - ../data:/db  # same host folder as API for persistence
-    command: sh -c "pip install --no-cache-dir sqlite-web && sqlite_web --host 0.0.0.0 --port 8080 /db/app.db"
+    command: ["sqlite_web", "--host", "0.0.0.0", "--port", "8080", "/db/app.db"]
     networks:
       - webapp-network
     depends_on:
