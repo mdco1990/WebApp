@@ -144,10 +144,46 @@ const HeaderControls: React.FC<HeaderControlsProps> = ({
             href="/api/"
             target="_blank"
             className="btn btn-outline-info btn-sm"
-            title="API Documentation"
+            title="API Doc"
             rel="noreferrer"
           >
             {t('nav.apiDocs', { defaultValue: 'API Docs' })}
+          </a>
+          <a
+            href="/openapi.json"
+            target="_blank"
+            className="btn btn-outline-info btn-sm"
+            title="Open API"
+            rel="noreferrer"
+          >
+            {t('nav.openApi', { defaultValue: 'API Docs' })}
+          </a>
+          <a
+            href="/scalar/"
+            target="_blank"
+            className="btn btn-outline-info btn-sm"
+            title="Scalar"
+            rel="noreferrer"
+          >
+            {t('nav.scalar', { defaultValue: 'API Docs' })}
+          </a>
+          <a
+            href="/redoc/"
+            target="_blank"
+            className="btn btn-outline-info btn-sm"
+            title="RE Doc"
+            rel="noreferrer"
+          >
+            {t('nav.reDocs', { defaultValue: 'API Docs' })}
+          </a>
+          <a
+            href="/rapidoc/"
+            target="_blank"
+            className="btn btn-outline-info btn-sm"
+            title="Rapi Doc"
+            rel="noreferrer"
+          >
+            {t('nav.RapiDocs', { defaultValue: 'API Docs' })}
           </a>
           <a
             href="/db-admin/"

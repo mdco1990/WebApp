@@ -1,7 +1,7 @@
 import { YearMonth, Expense } from '../types/budget';
 
 function baseHeaders() {
-  const apiKey = localStorage.getItem('api_key') || '';
+  const apiKey = sessionStorage.getItem('api_key') || '';
   const sessionId = localStorage.getItem('session_id') || '';
   const h: Record<string, string> = { 'Content-Type': 'application/json' };
   if (apiKey) h['X-API-Key'] = apiKey;
