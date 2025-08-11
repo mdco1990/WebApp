@@ -18,8 +18,8 @@ export class ErrorBoundary extends React.Component<Props, State> {
 
   componentDidCatch(error: Error, info: React.ErrorInfo) {
     // Log to console so you don't just see a blank page
-  // eslint-disable-next-line no-console
-  console.error('ErrorBoundary caught:', error, info);
+    // eslint-disable-next-line no-console
+    console.error('ErrorBoundary caught:', error, info);
   }
 
   render() {

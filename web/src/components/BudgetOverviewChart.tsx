@@ -1,5 +1,4 @@
 import React from 'react';
-// ...existing code...
 import { Bar } from 'react-chartjs-2';
 
 type Props = {

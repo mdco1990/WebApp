@@ -43,6 +43,30 @@ export default defineConfig(({ mode }) => {
           secure: false,
           timeout: 10000
         },
+        '/openapi.json': {
+          target,
+          changeOrigin: true,
+          secure: false,
+          rewrite: (path) => path
+        },
+        '/redoc': {
+          target,
+          changeOrigin: true,
+          secure: false,
+          rewrite: (path) => path
+        },
+        '/rapidoc': {
+          target,
+          changeOrigin: true,
+          secure: false,
+          rewrite: (path) => path
+        },
+        '/scalar': {
+          target,
+          changeOrigin: true,
+          secure: false,
+          rewrite: (path) => path
+        },
         '/auth': {
           target,
           changeOrigin: true,
@@ -85,7 +109,14 @@ export default defineConfig(({ mode }) => {
     },
     // Optimize dependencies
     optimizeDeps: {
-  include: ['react', 'react-dom', 'bootstrap', 'chart.js', 'react-chartjs-2', 'react-bootstrap']
+      include: [
+        'react',
+        'react-dom',
+        'bootstrap',
+        'chart.js',
+        'react-chartjs-2',
+        'react-bootstrap'
+      ]
     }
   }
-})
+});

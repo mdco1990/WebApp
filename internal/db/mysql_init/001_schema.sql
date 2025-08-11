@@ -54,12 +54,9 @@ CREATE TABLE IF NOT EXISTS expense (
   INDEX idx_expense_year_month (year, month)
 );
 
--- Seed admin user with known password
-INSERT INTO users (username, password_hash, email)
-VALUES ('admin', '$2a$10$d6drRj7UUyiGwqskDPuSSuOy4yMWKJdfXJfNtLA98rE2Pw0SIfxxa', 'admin@localhost')
-ON DUPLICATE KEY UPDATE email=VALUES(email);
+-- Seed admin user only if absent (do not overwrite password on re-runs)
+INSERT IGNORE INTO users (username, password_hash, email)
+VALUES ('admin', '$2a$10$d6drRj7UUyiGwqskDPuSSuOy4yMWKJdfXJfNtLA98rE2Pw0SIfxxa', 'admin@localhost');
 
 -- Promote admin user
 UPDATE users SET is_admin = 1 WHERE username = 'admin';
-
-

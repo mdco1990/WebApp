@@ -72,13 +72,18 @@ export const useManualBudget = (currentDate: Date) => {
         const month = currentDate.getMonth() + 1;
         const data = await getManualBudget({ year, month });
         if (data && typeof data.bank_amount_cents === 'number' && Array.isArray(data.items)) {
-          interface ServerItem { id?: string | number; client_id?: string | number; name?: unknown; amount_cents?: number }
+          interface ServerItem {
+            id?: string | number;
+            client_id?: string | number;
+            name?: unknown;
+            amount_cents?: number;
+          }
           const fromServer: ManualBudgetState = {
             bankAmount: (data.bank_amount_cents || 0) / 100,
             items: (data.items as ServerItem[]).map((it) => ({
               id: String(it.id ?? it.client_id ?? Math.random().toString(36).slice(2)),
-              name: String((it as ServerItem).name ?? ''),
-              amount: ((it.amount_cents || 0) as number) / 100,
+              name: String(it.name ?? ''),
+              amount: (it.amount_cents ?? 0) / 100,
             })),
           };
           setManualBudget(fromServer);

@@ -69,33 +69,36 @@ const OutcomeBreakdownChart = React.memo<Props>(({ isDarkMode, items, formatCurr
   return (
     <Pie
       data={data}
-      options={React.useMemo(() => ({
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: {
-            position: 'bottom',
-            labels: { color: isDarkMode ? '#fff' : '#333', padding: 10 },
-          },
-          tooltip: {
-            callbacks: {
-              label: (ctx) => {
-                const dataset = ctx.dataset;
-                const arr = Array.isArray(dataset.data) ? dataset.data : [];
-                const total =
-                  arr.reduce(
-                    (a, b) => (typeof a === 'number' ? a : 0) + (typeof b === 'number' ? b : 0),
-                    0
-                  ) || 1;
-                const value = ctx.parsed;
-                const pct = ((value / total) * 100).toFixed(1) + '%';
-                const label = ctx.label || '';
-                return `${label}: ${formatCurrency(Math.round(value * 100))} (${pct})`;
+      options={React.useMemo(
+        () => ({
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: { color: isDarkMode ? '#fff' : '#333', padding: 10 },
+            },
+            tooltip: {
+              callbacks: {
+                label: (ctx) => {
+                  const dataset = ctx.dataset;
+                  const arr = Array.isArray(dataset.data) ? dataset.data : [];
+                  const total =
+                    arr.reduce(
+                      (a, b) => (typeof a === 'number' ? a : 0) + (typeof b === 'number' ? b : 0),
+                      0
+                    ) || 1;
+                  const value = ctx.parsed;
+                  const pct = ((value / total) * 100).toFixed(1) + '%';
+                  const label = ctx.label || '';
+                  return `${label}: ${formatCurrency(Math.round(value * 100))} (${pct})`;
+                },
               },
             },
           },
-        },
-      }), [isDarkMode, formatCurrency])}
+        }),
+        [isDarkMode, formatCurrency]
+      )}
     />
   );
 });

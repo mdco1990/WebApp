@@ -71,7 +71,10 @@ const App: React.FC = () => {
 
   // Helper to merge server list with any unsaved client-only items (id missing or 0)
   const mergeSources = useCallback(
-    <T extends { id?: number; name: string; amount_cents: number }>(prevList: T[], incomingList: T[]) => {
+    <T extends { id?: number; name: string; amount_cents: number }>(
+      prevList: T[],
+      incomingList: T[]
+    ) => {
       const incoming = Array.isArray(incomingList) ? incomingList : [];
       const unsaved = (prevList || []).filter((s) => !s.id || s.id === 0);
       const dedupUnsaved = unsaved.filter(
@@ -83,13 +86,16 @@ const App: React.FC = () => {
   );
 
   // Helper functions
-  const formatCurrency = useCallback((cents: number) => {
-    const locale = i18n.language?.startsWith('fr') ? 'fr-FR' : 'en-US';
-    return new Intl.NumberFormat(locale, {
-      style: 'currency',
-      currency: theme.currency,
-    }).format(cents / 100);
-  }, [i18n.language, theme.currency]);
+  const formatCurrency = useCallback(
+    (cents: number) => {
+      const locale = i18n.language?.startsWith('fr') ? 'fr-FR' : 'en-US';
+      return new Intl.NumberFormat(locale, {
+        style: 'currency',
+        currency: theme.currency,
+      }).format(cents / 100);
+    },
+    [i18n.language, theme.currency]
+  );
   const currencySymbol = theme.currency === 'EUR' ? '€' : '$';
 
   const formatMonth = useCallback(
@@ -154,8 +160,8 @@ const App: React.FC = () => {
       budgetState.setPredictedBudget((prev) => {
         return {
           ...prev,
-    incomeSources: mergeSources(prev.incomeSources, monthly.income_sources || []),
-    outcomeSources: mergeSources(prev.outcomeSources, monthly.budget_sources || []),
+          incomeSources: mergeSources(prev.incomeSources, monthly.income_sources || []),
+          outcomeSources: mergeSources(prev.outcomeSources, monthly.budget_sources || []),
           totalIncome,
           totalOutcome,
           difference: totalIncome - totalOutcome,
@@ -170,7 +176,7 @@ const App: React.FC = () => {
     try {
       await addDefaultsHook();
     } catch {
-  push('Failed to add default data', 'error');
+      push('Failed to add default data', 'error');
     }
   }, [addDefaultsHook, push]);
 
@@ -179,7 +185,7 @@ const App: React.FC = () => {
     try {
       await saveIncomeHook(source, ym);
     } catch {
-  push('Failed to save income source', 'error');
+      push('Failed to save income source', 'error');
     }
   };
 
@@ -187,7 +193,7 @@ const App: React.FC = () => {
     try {
       await saveOutcomeHook(source, ym);
     } catch {
-  push('Failed to save budget source', 'error');
+      push('Failed to save budget source', 'error');
     }
   };
 
@@ -263,7 +269,7 @@ const App: React.FC = () => {
 
   // Main application UI
   return (
-    <div className={`min-vh-100 ${theme.isDarkMode ? 'bg-dark text-light' : 'bg-light text-dark'}`}>
+    <div className="min-vh-100">
       {/* Password Update Modal */}
       <PasswordModal
         show={showPasswordForm}
@@ -313,14 +319,14 @@ const App: React.FC = () => {
       <div className="page-header-tabs">
         <div className="container-xl">
           <ul className="nav nav-tabs nav-pills nav-fill" aria-label="Sections">
-      <li className="nav-item">
+            <li className="nav-item">
               <a
                 href="#planning"
                 className={`nav-link ${navigation.activeSection === 'planning' ? 'active' : ''}`}
                 role="tab"
                 aria-current={navigation.activeSection === 'planning' ? 'page' : undefined}
               >
-        {t('nav.planning', { defaultValue: 'Planning' })}
+                {t('nav.planning', { defaultValue: 'Planning' })}
               </a>
             </li>
             <li className="nav-item">
@@ -330,7 +336,7 @@ const App: React.FC = () => {
                 role="tab"
                 aria-current={navigation.activeSection === 'tracking' ? 'page' : undefined}
               >
-        {t('nav.tracking', { defaultValue: 'Tracking' })}
+                {t('nav.tracking', { defaultValue: 'Tracking' })}
               </a>
             </li>
             <li className="nav-item">
@@ -340,7 +346,7 @@ const App: React.FC = () => {
                 role="tab"
                 aria-current={navigation.activeSection === 'analytics' ? 'page' : undefined}
               >
-        {t('nav.analytics', { defaultValue: 'Analytics' })}
+                {t('nav.analytics', { defaultValue: 'Analytics' })}
               </a>
             </li>
           </ul>
@@ -420,7 +426,9 @@ const App: React.FC = () => {
         <div id="tracking" className="section-anchor"></div>
         <ManualBudgetSection
           isDarkMode={theme.isDarkMode}
-          title={t('section.manualBudget', { defaultValue: 'Manual Budget (Bank and Planned Deductions)' })}
+          title={t('section.manualBudget', {
+            defaultValue: 'Manual Budget (Bank and Planned Deductions)',
+          })}
           monthLabel={`${formatMonth(navigation.currentDate, 'long')} ${navigation.currentDate.getFullYear()}`}
           currencySymbol={currencySymbol}
           manualBudget={manualBudget.manualBudget}

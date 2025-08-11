@@ -97,9 +97,9 @@ CREATE TABLE IF NOT EXISTS manual_budget_items (
     FOREIGN KEY (budget_id) REFERENCES manual_budgets(id) ON DELETE CASCADE
 );
 
--- Admin user (password: 'password')
-INSERT OR REPLACE INTO users (id, username, password_hash, email) VALUES 
-(2, 'admin', '$2a$10$d6drRj7UUyiGwqskDPuSSuOy4yMWKJdfXJfNtLA98rE2Pw0SIfxxa', 'admin@localhost');
+-- Seed admin user only if it doesn't exist (do not overwrite password on subsequent migrations)
+INSERT OR IGNORE INTO users (username, password_hash, email) VALUES 
+('admin', '$2a$10$d6drRj7UUyiGwqskDPuSSuOy4yMWKJdfXJfNtLA98rE2Pw0SIfxxa', 'admin@localhost');
 
 
 -- Indexes

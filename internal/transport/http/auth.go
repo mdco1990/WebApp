@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/mdco1990/webapp/internal/domain"
@@ -26,6 +27,7 @@ func registerAuthRoutes(r chi.Router, repo *repository.Repository) {
 		auth.Post("/logout", handleLogout(repo))
 		auth.Post("/update-password", handleUpdatePassword(repo))
 		auth.Post("/register", handleRegister(repo))
+		auth.Get("/me", handleMe(repo))
 	})
 }
 
@@ -71,20 +73,7 @@ func handleLogin(repo *repository.Repository) http.HandlerFunc {
 		_ = repo.UpdateLastLogin(r.Context(), user.ID)
 
 		// Also set a session cookie so browser navigation to admin routes works
-		cookie := &http.Cookie{
-			Name:     "session_id",
-			Value:    session.ID,
-			Path:     "/",
-			HttpOnly: true,
-			SameSite: http.SameSiteLaxMode,
-			// MaxAge 24h to match server-side session duration
-			MaxAge: 24 * 60 * 60,
-		}
-		// Mark secure when behind TLS or forwarded as HTTPS
-		if r.TLS != nil || strings.EqualFold(r.Header.Get("X-Forwarded-Proto"), "https") {
-			cookie.Secure = true
-		}
-		http.SetCookie(w, cookie)
+		http.SetCookie(w, buildSessionCookie(r, session.ID, 24*60*60))
 
 		respondJSON(w, http.StatusOK, map[string]any{
 			"success":    true,
@@ -102,13 +91,8 @@ func handleLogout(repo *repository.Repository) http.HandlerFunc {
 		if sessionID != "" {
 			_ = repo.DeleteSession(r.Context(), sessionID)
 		}
-		// Expire the session cookie in the browser
-		http.SetCookie(w, &http.Cookie{
-			Name:   "session_id",
-			Value:  "",
-			Path:   "/",
-			MaxAge: -1,
-		})
+		// Expire the session cookie in the browser (match attributes)
+		http.SetCookie(w, buildSessionCookie(r, "", -1))
 		respondJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 	}
 }
@@ -235,4 +219,68 @@ func handleRegister(repo *repository.Repository) http.HandlerFunc {
 
 		respondJSON(w, http.StatusCreated, user)
 	}
+}
+
+// handleMe returns the current authenticated user details
+func handleMe(repo *repository.Repository) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		sessionID := getSessionFromRequest(r)
+		if sessionID == "" {
+			respondErr(w, http.StatusUnauthorized, errNotAuthenticated)
+			return
+		}
+		session, err := repo.GetSession(r.Context(), sessionID)
+		if err != nil {
+			respondErr(w, http.StatusUnauthorized, errInvalidSession)
+			return
+		}
+
+		user, _, err := repo.GetUserByID(r.Context(), session.UserID)
+		if err != nil || user == nil {
+			respondErr(w, http.StatusInternalServerError, "failed to load user")
+			return
+		}
+
+		// Refresh cookie to keep browser session fresh
+		http.SetCookie(w, buildSessionCookie(r, sessionID, 24*60*60))
+
+		respondJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"user":    user,
+		})
+	}
+}
+
+// buildSessionCookie builds a session cookie with attributes tuned to the request context.
+// When maxAgeSeconds > 0, sets an expiration in the future; when -1, expires immediately.
+func buildSessionCookie(r *http.Request, value string, maxAgeSeconds int) *http.Cookie {
+	c := &http.Cookie{
+		Name:     "session_id",
+		Value:    value,
+		Path:     "/",
+		HttpOnly: true,
+		// Default to Lax, but use None for cross-site frontends so cookie can be received via XHR.
+		SameSite: http.SameSiteLaxMode,
+		MaxAge:   maxAgeSeconds,
+	}
+	// Detect HTTPS via direct TLS or forwarded proto
+	if r.TLS != nil || strings.EqualFold(r.Header.Get("X-Forwarded-Proto"), "https") {
+		c.Secure = true
+	}
+	// If Origin host differs from request host, treat as cross-site and relax SameSite
+	if origin := r.Header.Get("Origin"); origin != "" {
+		// Quick check without full parse: require scheme separator and host mismatch
+		// Only relax when truly cross-site to avoid accidental third-party exposure.
+		if !strings.Contains(origin, r.Host) {
+			c.SameSite = http.SameSiteNoneMode
+			// Per spec, SameSite=None requires Secure=true in modern browsers
+			c.Secure = true
+		}
+	}
+	if maxAgeSeconds > 0 {
+		c.Expires = time.Now().Add(time.Duration(maxAgeSeconds) * time.Second)
+	} else if maxAgeSeconds < 0 {
+		c.Expires = time.Unix(0, 0)
+	}
+	return c
 }

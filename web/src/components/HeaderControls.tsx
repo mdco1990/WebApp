@@ -100,18 +100,18 @@ const HeaderControls: React.FC<HeaderControlsProps> = ({
       {/* Currency switcher */}
       <div className="btn-group btn-group-sm" aria-label="Currency Switcher">
         <button
-          className={`btn btn-outline-secondary ${currency === 'EUR' ? 'active' : ''}`}
-          onClick={() => onSetCurrency('EUR')}
-          aria-label="Switch to EUR"
-        >
-          € EUR
-        </button>
-        <button
           className={`btn btn-outline-secondary ${currency === 'USD' ? 'active' : ''}`}
           onClick={() => onSetCurrency('USD')}
           aria-label="Switch to USD"
         >
           $ USD
+        </button>
+        <button
+          className={`btn btn-outline-secondary ${currency === 'EUR' ? 'active' : ''}`}
+          onClick={() => onSetCurrency('EUR')}
+          aria-label="Switch to EUR"
+        >
+          € EUR
         </button>
       </div>
 
@@ -137,14 +137,6 @@ const HeaderControls: React.FC<HeaderControlsProps> = ({
         {t('nav.password')}
       </button>
 
-      <button
-        className="btn btn-outline-danger btn-sm"
-        onClick={onLogout}
-        aria-label={t('nav.logout', { defaultValue: 'Log out' })}
-      >
-        {t('nav.logout')} {user?.username ? `(${user.username})` : ''}
-      </button>
-
       {/* Admin links */}
       {user?.is_admin ? (
         <>
@@ -168,6 +160,14 @@ const HeaderControls: React.FC<HeaderControlsProps> = ({
           </a>
         </>
       ) : null}
+
+      <button
+        className="btn btn-outline-danger btn-sm"
+        onClick={onLogout}
+        aria-label={t('nav.logout', { defaultValue: 'Log out' })}
+      >
+        {t('nav.logout')} {user?.username ? `(${user.username})` : ''}
+      </button>
     </div>
   );
 };

@@ -51,11 +51,7 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               break;
           }
           return (
-            <div
-              key={t.id}
-              className={`alert alert-${alertType} py-2 px-3`}
-              role="alert"
-            >
+            <div key={t.id} className={`alert alert-${alertType} py-2 px-3`} role="alert">
               {t.message}
             </div>
           );

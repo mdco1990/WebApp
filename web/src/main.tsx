@@ -5,6 +5,7 @@ import App from './App';
 import './i18n';
 import { ErrorBoundary } from './shared/ErrorBoundary';
 import { ToastProvider } from './shared/toast';
+import { ThemeProvider } from './hooks/useTheme';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import 'bootstrap/dist/js/bootstrap.bundle.min.js';
 import 'bootstrap-icons/font/bootstrap-icons.css';
@@ -19,7 +20,9 @@ createRoot(root).render(
   <React.StrictMode>
     <ErrorBoundary>
       <ToastProvider>
-        <App />
+        <ThemeProvider>
+          <App />
+        </ThemeProvider>
       </ToastProvider>
     </ErrorBoundary>
   </React.StrictMode>

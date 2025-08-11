@@ -7,9 +7,10 @@ PORT ?= 8082
 PORT_WEB ?= 5173
 DEV_DIR := .dev
 
+
 .PHONY: all tidy build run stop free-port test fmt vet clean web-setup web-dev web-build health dev dev-stop dev-logs \
-	lint lint-install lint-fix format format-check check-all lint-web format-web lint-verify lint-linters \
-	docker-dev docker-dev-detached docker-stop
+	lint lint-install lint-fix format format-check check-all lint-web lint-web-fix format-web lint-verify lint-linters \
+	lint-css lint-css-fix lint-vite lint-all docker-dev docker-dev-detached docker-stop
 
 all: build
 
@@ -50,7 +51,12 @@ help:
 	@echo "  web-setup            Install frontend dependencies"
 	@echo "  web-dev              Run frontend dev server"
 	@echo "  web-build            Build frontend for production"
-	@echo "  lint-web             Lint frontend code"
+	@echo "  lint-web             Lint frontend code (ESLint)"
+	@echo "  lint-web-fix         Auto-fix frontend lint issues (ESLint)"
+	@echo "  lint-css             Lint frontend styles (Stylelint)"
+	@echo "  lint-css-fix         Auto-fix frontend styles where possible"
+	@echo "  lint-vite            Validate Vite build (quick smoke)"
+	@echo "  lint-all             Run Go + Web + CSS linters"
 	@echo "  format-web           Format frontend code"
 	@echo ""
 	@echo "🧹 Cleanup:"
@@ -222,6 +228,23 @@ check-all: format-check lint test
 # Frontend linting
 lint-web:
 	cd web && npm run lint
+
+lint-web-fix:
+	cd web && npm run lint:fix
+
+# Frontend CSS linting
+lint-css:
+ 	cd web && npm run lint:css
+
+lint-css-fix:
+ 	cd web && npm run lint:css:fix
+
+# Quick Vite build smoke test (useful in CI for catching TS/asset issues)
+lint-vite:
+ 	cd web && npm run build --silent
+
+# Run all linters (Go + web + CSS)
+lint-all: lint lint-web lint-css
 
 # Frontend formatting
 format-web:

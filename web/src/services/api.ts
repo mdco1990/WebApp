@@ -18,6 +18,7 @@ async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutM
     const response = await fetch(url, {
       ...options,
       signal: controller.signal,
+      credentials: 'include',
       headers: { ...baseHeaders(), ...(options.headers || {}) },
     });
 

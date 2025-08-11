@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { User, LoginData } from '../types/budget';
 import { useToast } from '../shared/toast';
@@ -12,11 +12,40 @@ export const useAuth = () => {
   const [showLogin, setShowLogin] = useState(!sessionId);
   const [authLoading, setAuthLoading] = useState(false);
 
+  // Hydrate user from server on mount or when sessionId changes (e.g., HMR/reload)
+  useEffect(() => {
+    let active = true;
+    const load = async () => {
+      if (!sessionId) return;
+      try {
+        const res = await fetch('/auth/me', {
+          credentials: 'include',
+          headers: { Authorization: `Bearer ${sessionId}` },
+        });
+        if (!res.ok) {
+          return;
+        }
+        const data = await res.json();
+        if (active && data?.user) {
+          setUser(data.user);
+          setShowLogin(false);
+        }
+      } catch {
+        /* ignore */
+      }
+    };
+    load();
+    return () => {
+      active = false;
+    };
+  }, [sessionId]);
+
   const login = async (username: string, password: string) => {
     try {
       setAuthLoading(true);
       const response = await fetch(`/auth/login`, {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password }),
       });
@@ -48,6 +77,7 @@ export const useAuth = () => {
       if (sessionId) {
         await fetch(`/auth/logout`, {
           method: 'POST',
+          credentials: 'include',
           headers: { Authorization: `Bearer ${sessionId}` },
         });
       }
@@ -67,6 +97,7 @@ export const useAuth = () => {
       setAuthLoading(true);
       const response = await fetch(`/auth/register`, {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password, email }),
       });
@@ -93,6 +124,7 @@ export const useAuth = () => {
     try {
       const response = await fetch(`/auth/update-password`, {
         method: 'POST',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${sessionId}`,

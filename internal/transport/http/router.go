@@ -140,6 +140,9 @@ func RequireSession(repo *repository.Repository) func(http.Handler) http.Handler
 				respondErr(w, http.StatusUnauthorized, "invalid session")
 				return
 			}
+			// Refresh the session cookie on each authenticated request to extend browser validity.
+			// Server-side session validity window is enforced by the repository layer.
+			http.SetCookie(w, buildSessionCookie(r, sessionID, 24*60*60))
 			ctx := context.WithValue(r.Context(), userIDKey, session.UserID)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
@@ -169,6 +172,8 @@ func AdminOnly(repo *repository.Repository) func(http.Handler) http.Handler {
 				respondErr(w, http.StatusForbidden, "forbidden")
 				return
 			}
+			// Also refresh cookie for admin-only paths
+			http.SetCookie(w, buildSessionCookie(r, sessionID, 24*60*60))
 			next.ServeHTTP(w, r)
 		})
 	}
