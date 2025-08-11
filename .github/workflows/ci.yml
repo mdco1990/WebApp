@@ -80,6 +80,8 @@ jobs:
   web-lint:
     name: Web Lint
     runs-on: ubuntu-latest
+    env:
+      VITE_ALLOWED_HOSTS: ${{ vars.VITE_ALLOWED_HOSTS || 'localhost,127.0.0.1' }}
     defaults:
       run:
         working-directory: web
@@ -104,6 +106,8 @@ jobs:
     name: Web Build
     runs-on: ubuntu-latest
     needs: web-lint
+    env:
+      VITE_ALLOWED_HOSTS: ${{ vars.VITE_ALLOWED_HOSTS || 'localhost,127.0.0.1' }}
     defaults:
       run:
         working-directory: web

@@ -54,6 +54,8 @@ services:
     container_name: webapp-web
     platform: linux/arm64
     working_dir: /app/web
+    env_file:
+      - ../web/.env.dev
     volumes:
       - ../web:/app/web
       - webapp_node_modules:/app/web/node_modules
