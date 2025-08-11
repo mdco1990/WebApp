@@ -1,9 +1,120 @@
-node_modules
-web/node_modules
-web/dist
-bin
-.dev
-.data
-.git
-.gitignore
+# Dependencies
+node_modules/
+web/node_modules/
+**/node_modules/
+
+# Build outputs
+web/dist/
+web/build/
+web/.vite/
+**/dist/
+**/build/
+
+# Go build artifacts
+bin/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+coverage.out
+
+# Development and IDE files
+.dev/
+.vscode/
+.idea/
+.sonarlint/
+*.swp
+*.swo
 .DS_Store
+Thumbs.db
+
+# Git and version control
+.git/
+.gitignore
+.gitattributes
+
+# Environment and config files
+.env
+.env.*
+*.local.yml
+docker-compose.override.yml
+
+# Logs and temporary files
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+tmp/
+.tmp/
+
+# Cache directories
+.cache/
+.eslintcache
+.stylelintcache
+*.tsbuildinfo
+
+# Database files
+data/*.db
+data/*.sqlite
+*.db
+*.sqlite
+
+# Test and coverage files
+coverage/
+web/coverage/
+**/coverage/
+
+# Air configuration (Go live reload)
+.air.toml
+
+# Linting and formatting configs
+.golangci.yml
+.prettierrc.json
+.prettierignore
+eslint.config.ts
+stylelint.config.js
+
+# SonarQube
+sonar-project.properties
+.sonarlint/
+
+# Package manager files (keep only what's needed)
+# package-lock.json and go.sum are needed for dependency resolution
+# but we can exclude other package manager files
+yarn.lock
+pnpm-lock.yaml
+package-lock.json.bak
+
+# OS specific files
+.dockerignore
+Dockerfile*
+docker-compose*.yml
+
+# Additional Docker optimizations
+.dockerignore
+.dockerignore.bak
+*.dockerignore
+
+# Backup and temporary files
+*.bak
+*.tmp
+*.temp
+*~
+
+# Archive files
+*.tar
+*.tar.gz
+*.zip
+*.rar
+
+# Large binary files
+*.iso
+*.img
+*.bin
+
+# Local development overrides
+docker-compose.override.yml
+docker-compose.local.yml

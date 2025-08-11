@@ -1,4 +1,6 @@
-# Binaries
+# =============================================================================
+# BINARIES AND BUILD OUTPUTS
+# =============================================================================
 /bin/
 /dist/
 /build/
@@ -7,27 +9,80 @@
 *.dll
 *.so
 *.dylib
-.dev/
+*.a
+*.o
+*.out
 
-# Go
-/data/
+# =============================================================================
+# GO SPECIFIC
+# =============================================================================
+# Go build artifacts
 *.test
 coverage.out
+*.prof
+*.trace
+go.work
+go.work.sum
 
-# Node
+# Go workspace
+.workspace/
+
+# =============================================================================
+# NODE.JS / FRONTEND
+# =============================================================================
+# Dependencies
 web/node_modules/
-web/dist/
-web/.vite/
+**/node_modules/
 
-# OS/Editor
-.DS_Store
-Thumbs.db
+# Build outputs
+web/dist/
+web/build/
+web/.vite/
+**/dist/
+**/build/
+
+# Frontend caches
+web/.eslintcache
+web/.cache
+web/*.tsbuildinfo
+web/.stylelintcache
+.eslintcache
+.stylelintcache
+*.tsbuildinfo
+
+# Package manager
+web/package-lock.json.bak
+yarn.lock
+pnpm-lock.yaml
+.npm
+.yarn-integrity
+
+# =============================================================================
+# DEVELOPMENT AND IDE
+# =============================================================================
+.dev/
 .vscode/
-.sonarlint/
 .idea/
+.sonarlint/
 *.swp
 *.swo
+*~
 
+# =============================================================================
+# OPERATING SYSTEM
+# =============================================================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# =============================================================================
+# ENVIRONMENT AND CONFIGURATION
+# =============================================================================
 # Environment files (do not commit secrets)
 .env
 .env.*
@@ -35,29 +90,134 @@ configs/.env
 configs/.env.*
 web/.env
 web/.env.*
+*.env.local
+*.env.development.local
+*.env.test.local
+*.env.production.local
 
+# Local configuration overrides
+docker-compose.override.yml
+*.local.yml
+*.local.yaml
+
+# =============================================================================
+# LOGS AND TEMPORARY FILES
+# =============================================================================
 # Logs
 *.log
 logs/
 npm-debug.log*
 yarn-debug.log*
 pnpm-debug.log*
+lerna-debug.log*
 
-# Coverage
+# Temporary files
+tmp/
+.tmp/
+*.tmp
+*.temp
+*.bak
+*.backup
+
+# =============================================================================
+# TESTING AND COVERAGE
+# =============================================================================
+# Coverage reports
 coverage/
 web/coverage/
+**/coverage/
+*.lcov
+.nyc_output/
 
-# Frontend caches
-web/.eslintcache
-web/.cache
-web/*.tsbuildinfo
-web/.stylelintcache
+# Test outputs
+test-results/
+test-results.xml
+junit.xml
 
-# Databases
+# =============================================================================
+# DATABASES
+# =============================================================================
 data/*.db
 data/*.sqlite
+data/*.sqlite3
 *.db
+*.sqlite
+*.sqlite3
 
-# Docker/local overrides
-docker-compose.override.yml
-*.local.yml
+# =============================================================================
+# DOCKER
+# =============================================================================
+.dockerignore.bak
+*.dockerignore
+
+# =============================================================================
+# ARCHIVES AND COMPRESSED FILES
+# =============================================================================
+*.tar
+*.tar.gz
+*.tar.bz2
+*.zip
+*.rar
+*.7z
+*.gz
+*.bz2
+
+# =============================================================================
+# LARGE BINARY FILES
+# =============================================================================
+*.iso
+*.img
+*.bin
+*.dmg
+*.pkg
+
+# =============================================================================
+# AIR (Go live reload)
+# =============================================================================
+.air.toml.bak
+tmp/
+
+# =============================================================================
+# ADDITIONAL TOOLS
+# =============================================================================
+# SonarQube
+.sonarlint/
+
+# Prettier
+.prettierrc.json.bak
+
+# ESLint
+.eslintrc.js.bak
+eslint.config.js.bak
+
+# Stylelint
+.stylelintrc.js.bak
+stylelint.config.js.bak
+
+# =============================================================================
+# SECURITY
+# =============================================================================
+# SSH keys
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Certificates
+*.crt
+*.cer
+*.der
+
+# =============================================================================
+# BACKUP AND VERSION CONTROL
+# =============================================================================
+# Git
+.git/
+.gitignore.bak
+
+# Mercurial
+.hg/
+.hgignore
+
+# SVN
+.svn/
