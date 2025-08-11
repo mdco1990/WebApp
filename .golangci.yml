@@ -1,0 +1,57 @@
+version: "2"
+
+run:
+  timeout: 5m
+  tests: true
+
+linters:
+  default: all
+  disable:
+    - wsl
+    - wsl_v5
+    - nlreturn
+    - varnamelen
+    - wrapcheck
+    - funcorder
+    - godot
+    - exhaustruct
+    - embeddedstructfieldcheck
+    - depguard
+    - dupl
+    - lll
+    - mnd
+    - noinlineerr
+    - testpackage
+    - err113
+    - errchkjson
+    - funlen
+    - goconst
+    - gocritic
+    - intrange
+    - nestif
+    - noctx
+    - paralleltest
+    - unconvert
+  settings:
+    govet:
+      enable:
+        - nilness
+        - printf
+        - lostcancel
+        - sortslice
+    tagliatelle:
+      case:
+        rules:
+          json: snake
+
+formatters:
+  enable:
+  - goimports
+  - gofmt
+  - gofumpt
+  - gci
+  - golines
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
