@@ -22,8 +22,6 @@ jobs:
   go-lint:
     name: Go Lint
     runs-on: ubuntu-latest
-    env:
-      GOTOOLCHAIN: go1.24.5
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -31,7 +29,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.24.5'
+          go-version-file: go.mod
 
       - name: Go module cache
         uses: actions/cache@v4
@@ -53,8 +51,6 @@ jobs:
     name: Go Test
     runs-on: ubuntu-latest
     needs: go-lint
-    env:
-      GOTOOLCHAIN: go1.24.5
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -62,7 +58,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.24.5'
+          go-version-file: go.mod
 
       - name: Go module cache
         uses: actions/cache@v4

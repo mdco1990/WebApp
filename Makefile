@@ -10,7 +10,8 @@ DEV_DIR := .dev
 
 .PHONY: all tidy build run stop free-port test fmt vet clean web-setup web-dev web-build health dev dev-stop dev-logs \
 	lint lint-install lint-fix format format-check check-all lint-web lint-web-fix format-web lint-verify lint-linters \
-	lint-css lint-css-fix lint-vite lint-all docker-dev docker-dev-detached docker-stop
+	lint-css lint-css-fix lint-vite lint-all docker-dev docker-dev-detached docker-stop security web-security sonar \
+	go-audit web-audit
 
 all: build
 
@@ -58,6 +59,13 @@ help:
 	@echo "  lint-vite            Validate Vite build (quick smoke)"
 	@echo "  lint-all             Run Go + Web + CSS linters"
 	@echo "  format-web           Format frontend code"
+	@echo ""
+	@echo "🔒 Security:"
+	@echo "  security             Run security checks"
+	@echo "  web-security         Run frontend security checks"
+	@echo "  go-audit             Run Go audit checks"
+	@echo "  web-audit            Run frontend audit checks"
+	@echo "  sonar                Run Sonar checks"
 	@echo ""
 	@echo "🧹 Cleanup:"
 	@echo "  clean                Remove build artifacts"
@@ -250,18 +258,41 @@ lint-all: lint lint-web lint-css
 format-web:
 	cd web && npm run format
 
+# Clean up
 clean:
 	rm -rf $(BIN_DIR) data/app.db
 
-# Frontend tasks
+# Frontend setup
 web-setup:
 	cd web && npm install
 
+# Frontend development
 web-dev:
 	cd web && npm run dev
 
+# Frontend build
 web-build:
 	cd web && npm run build
+
+# Security checks
+security:
+	go list -m -u all
+
+# Frontend security checks
+web-security:
+	cd web && npm audit || true
+
+# Go audit checks
+go-audit:
+	go-audit -v
+
+# Frontend audit checks
+web-audit:
+	cd web && npm audit
+
+# Sonar checks
+sonar:
+	sonar-scanner -Dsonar.projectKey=WebApp -Dsonar.sources=. -Dsonar.host.url=http://localhost:9000 -Dsonar.login=admin -Dsonar.password=admin
 
 # Quick health probe (requires server running with matching PORT)
 health:
@@ -293,14 +324,17 @@ docker-dev:
 	@echo "Starting Docker development environment..."
 	@./scripts/docker.sh up --tools
 
+# Start Docker development environment in background
 docker-dev-detached:
 	@echo "Starting Docker development environment in background..."
 	@./scripts/docker.sh up --detach --tools
 
+# Stop Docker development environment
 docker-stop:
 	@echo "Stopping Docker development environment..."
 	@./scripts/docker.sh down
 
+# Stop dev processes
 dev-stop:
 	@echo "Stopping dev processes..."
 	@test -f $(DEV_DIR)/web.pid && kill $$(cat $(DEV_DIR)/web.pid) 2>/dev/null || true
@@ -312,6 +346,7 @@ dev-stop:
 	@$(MAKE) stop >/dev/null 2>&1 || true
 	@echo "All dev processes stopped."
 
+# Tail dev logs
 dev-logs:
 	@echo "Tailing logs (Ctrl+C to stop)"
 	@tail -n +1 -f $(DEV_DIR)/api.log $(DEV_DIR)/web.log
