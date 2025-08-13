@@ -8,10 +8,13 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"os"
+	"strconv"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/mdco1990/webapp/internal/repository"
-	yaml "gopkg.in/yaml.v3"
+	"github.com/mdco1990/webapp/internal/security"
+	"gopkg.in/yaml.v3"
 )
 
 const pathDBAdmin = "/db-admin"
@@ -289,6 +292,82 @@ func registerAdminRoutes(r chi.Router, repo *repository.Repository) {
 			w.Header().Set(headerContentType, contentTypeHTML)
 			w.WriteHeader(http.StatusOK)
 			_, _ = w.Write([]byte(swaggerHTML))
+		})
+		// Admin user management API under /api/v1/admin/
+		g.Route("/api/v1/admin", func(a chi.Router) {
+			// list all users
+			a.Get("/users", func(w http.ResponseWriter, r *http.Request) {
+				status := strings.TrimSpace(r.URL.Query().Get("status"))
+				users, err := repo.ListUsers(r.Context(), status)
+				if err != nil {
+					respondErr(w, http.StatusInternalServerError, "failed to list users")
+					return
+				}
+				respondJSON(w, http.StatusOK, users)
+			})
+			// list pending users shortcut
+			a.Get("/users/pending", func(w http.ResponseWriter, r *http.Request) {
+				users, err := repo.ListUsers(r.Context(), "pending")
+				if err != nil {
+					respondErr(w, http.StatusInternalServerError, "failed to list pending users")
+					return
+				}
+				respondJSON(w, http.StatusOK, users)
+			})
+			// approve user with OWASP security validation
+			a.Post("/users/{id}/approve", func(w http.ResponseWriter, r *http.Request) {
+				idStr := chi.URLParam(r, "id")
+
+				id, err := strconv.ParseInt(idStr, 10, 64)
+				if err != nil || id <= 0 {
+					respondErr(w, http.StatusBadRequest, "invalid id")
+					return
+				}
+
+				// Enhanced validation using security package
+				if err := security.ValidateID(id, "id"); err != nil {
+					respondErr(w, http.StatusBadRequest, "invalid id")
+					return
+				}
+
+				if err := repo.UpdateUserStatus(r.Context(), id, "approved"); err != nil {
+					respondErr(w, http.StatusInternalServerError, "failed to approve")
+					return
+				}
+				respondJSON(w, http.StatusOK, map[string]string{"status": "approved"})
+			})
+			// reject user
+			a.Post("/users/{id}/reject", func(w http.ResponseWriter, r *http.Request) {
+				idStr := chi.URLParam(r, "id")
+				id, err := strconv.ParseInt(idStr, 10, 64)
+				if err != nil || id <= 0 {
+					respondErr(w, http.StatusBadRequest, "invalid id")
+					return
+				}
+				if err := repo.UpdateUserStatus(r.Context(), id, "rejected"); err != nil {
+					respondErr(w, http.StatusInternalServerError, "failed to reject")
+					return
+				}
+				respondJSON(w, http.StatusOK, map[string]string{"status": "rejected"})
+			})
+			// delete user
+			a.Delete("/users/{id}", func(w http.ResponseWriter, r *http.Request) {
+				idStr := chi.URLParam(r, "id")
+				id, err := strconv.ParseInt(idStr, 10, 64)
+				if err != nil || id <= 0 {
+					respondErr(w, http.StatusBadRequest, "invalid id")
+					return
+				}
+				if err := repo.DeleteUser(r.Context(), id); err != nil {
+					respondErr(w, http.StatusInternalServerError, "failed to delete")
+					return
+				}
+				respondJSON(w, http.StatusOK, map[string]string{"status": "deleted"})
+			})
+			// logs stub
+			a.Get("/logs", func(w http.ResponseWriter, _ *http.Request) {
+				respondJSON(w, http.StatusOK, map[string]any{"logs": []string{}})
+			})
 		})
 	})
 

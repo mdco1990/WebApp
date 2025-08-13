@@ -18,6 +18,7 @@ type Repository struct {
 	db *sql.DB
 	// feature flags detected from DB schema
 	hasIsAdmin bool
+	hasStatus  bool
 }
 
 // New creates a new Repository.
@@ -30,6 +31,10 @@ func New(db *sql.DB) *Repository {
 	if err := r.db.QueryRow(`SELECT COUNT(1) FROM pragma_table_info('users') WHERE name='is_admin'`).Scan(&exists); err == nil &&
 		exists > 0 {
 		r.hasIsAdmin = true
+	}
+	exists = 0
+	if err := r.db.QueryRow(`SELECT COUNT(1) FROM pragma_table_info('users') WHERE name='status'`).Scan(&exists); err == nil && exists > 0 {
+		r.hasStatus = true
 	}
 	return r
 }
@@ -159,7 +164,12 @@ func (r *Repository) CreateUser(
 	}
 
 	result, err := r.db.ExecContext(ctx,
-		`INSERT INTO users (username, password_hash, email) VALUES (?, ?, ?)`,
+		func() string {
+			if r.hasStatus {
+				return `INSERT INTO users (username, password_hash, email, status) VALUES (?, ?, ?, 'pending')`
+			}
+			return `INSERT INTO users (username, password_hash, email) VALUES (?, ?, ?)`
+		}(),
 		username, string(hashedPassword), nullify(email))
 	if err != nil {
 		return nil, err
@@ -835,4 +845,83 @@ func generateSessionID() string {
 	bytes := make([]byte, 32)
 	_, _ = rand.Read(bytes) // ignore error; non-crypto ID sufficient for sessions here
 	return hex.EncodeToString(bytes)
+}
+
+// --- User management extensions ---
+
+// ListUsers lists users optionally filtered by status (pending/approved/rejected) if status column exists.
+func (r *Repository) ListUsers(ctx context.Context, status string) ([]domain.User, error) {
+	base := "SELECT id, username, email, created_at, last_login"
+	if r.hasIsAdmin {
+		base += ", is_admin"
+	}
+	if r.hasStatus {
+		base += ", status"
+	}
+	base += " FROM users"
+	args := []any{}
+	if status != "" && r.hasStatus {
+		base += " WHERE status = ?"
+		args = append(args, status)
+	}
+	base += " ORDER BY created_at DESC"
+	rows, err := r.db.QueryContext(ctx, base, args...)
+	if err != nil {
+		return []domain.User{}, err
+	}
+	defer rows.Close()
+	users := []domain.User{}
+	for rows.Next() {
+		var u domain.User
+		var email sql.NullString
+		var last sql.NullTime
+		var isAdmin sql.NullInt64
+		var st sql.NullString
+		scan := []any{&u.ID, &u.Username, &email, &u.CreatedAt, &last}
+		if r.hasIsAdmin {
+			scan = append(scan, &isAdmin)
+		}
+		if r.hasStatus {
+			scan = append(scan, &st)
+		}
+		if err := rows.Scan(scan...); err != nil {
+			return []domain.User{}, err
+		}
+		u.Email = email.String
+		if last.Valid {
+			u.LastLogin = &last.Time
+		}
+		if r.hasIsAdmin {
+			u.IsAdmin = isAdmin.Valid && isAdmin.Int64 != 0
+		}
+		if r.hasStatus {
+			u.Status = st.String
+		}
+		users = append(users, u)
+	}
+	if err := rows.Err(); err != nil {
+		return []domain.User{}, err
+	}
+	return users, nil
+}
+
+// UpdateUserStatus updates status if supported.
+func (r *Repository) UpdateUserStatus(ctx context.Context, userID int64, status string) error {
+	if !r.hasStatus {
+		return errors.New("status column not present")
+	}
+	switch status {
+	case "pending", "approved", "rejected":
+		// ok
+	default:
+		return errors.New("invalid status value")
+	}
+	_, err := r.db.ExecContext(ctx, `UPDATE users SET status = ? WHERE id = ?`, status, userID)
+	return err
+}
+
+// DeleteUser removes a user by ID.
+func (r *Repository) DeleteUser(ctx context.Context, userID int64) error {
+	_, err := r.db.ExecContext(ctx, `DELETE FROM users WHERE id = ?`, userID)
+	return err
 }

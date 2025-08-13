@@ -6,7 +6,6 @@ import type { IncomeSource as IncomeItem, OutcomeSource as OutcomeItem } from '.
 
 interface Props {
   isDarkMode: boolean;
-  title: string;
   monthLabel: string;
   // Lists
   incomeSources: IncomeItem[];
@@ -39,7 +38,6 @@ interface Props {
 
 const PlanningSection: React.FC<Props> = ({
   isDarkMode,
-  title,
   monthLabel,
   incomeSources,
   outcomeSources,
@@ -66,68 +64,63 @@ const PlanningSection: React.FC<Props> = ({
 }) => {
   const { t } = useTranslation();
   return (
-    <div className="row">
-      <div className="col-lg-12 mb-4">
-        <div className={`card h-100 ${isDarkMode ? 'bg-secondary text-light' : 'bg-white'}`}>
-          <div className="card-header d-flex align-items-center justify-content-between">
-            <h3 className="mb-0">{title}</h3>
-            <span className="badge bg-secondary">{monthLabel}</span>
+    <div className="planning-cards d-flex flex-wrap gap-3">
+      {/* Incomes Card */}
+  <div className="card flex-grow-1 flex-shrink-0 planning-card-wide">
+        <div className="card-header py-1">
+          <h4 className="card-title h6 mb-0">{t('section.incomes', { defaultValue: 'Incomes' })}</h4>
+        </div>
+        <div className="card-body p-1 small">
+          <IncomeSources
+            title=""
+            helpText={incomeHelp || t('section.predictedIncome.desc', { defaultValue: 'Manage your expected monthly income streams' })}
+            sources={incomeSources}
+            isDarkMode={isDarkMode}
+            parseLocaleAmount={parseLocaleAmount}
+            onUpdate={onIncomeUpdate}
+            onBlurSave={onIncomeBlurSave}
+            onRemoveUnsaved={onIncomeRemoveUnsaved}
+            onDeletePersisted={onIncomeDeletePersisted}
+            onAddEmpty={onIncomeAddEmpty}
+            addButtonText={t('btn.addIncomeSource', { defaultValue: '+ Income' })}
+          />
+        </div>
+      </div>
+      {/* Outcomes Card */}
+  <div className="card flex-grow-1 flex-shrink-0 planning-card-wide">
+        <div className="card-header py-1">
+          <h4 className="card-title h6 mb-0">{t('section.outcomes', { defaultValue: 'Outcomes' })}</h4>
+        </div>
+        <div className="card-body p-1 small">
+          <OutcomeSources
+            title=""
+            helpText={outcomeHelp || t('section.predictedOutcome.desc', { defaultValue: 'Plan and track your expected expenses' })}
+            sources={outcomeSources}
+            isDarkMode={isDarkMode}
+            parseLocaleAmount={parseLocaleAmount}
+            onUpdate={onOutcomeUpdate}
+            onBlurSave={onOutcomeBlurSave}
+            onRemoveUnsaved={onOutcomeRemoveUnsaved}
+            onDeletePersisted={onOutcomeDeletePersisted}
+            onAddEmpty={onOutcomeAddEmpty}
+            addButtonText={t('btn.addOutcomeSource', { defaultValue: '+ Outcome' })}
+          />
+        </div>
+      </div>
+      {/* Summary Card */}
+  <div className="card flex-grow-1 flex-shrink-0 planning-card-narrow">
+        <div className="card-header py-1 d-flex justify-content-between align-items-center">
+          <h4 className="card-title h6 mb-0">{t('section.summary', { defaultValue: 'Summary' })}</h4>
+          <span className="badge bg-secondary">{monthLabel}</span>
+        </div>
+        <div className="card-body p-1 small">
+          <div className="d-flex flex-column gap-2">
+            <div className="d-flex justify-content-between"><span>{totalIncomeLabel}</span><strong className="text-success">{formatCurrency(totalIncome)}</strong></div>
+            <div className="d-flex justify-content-between"><span>{totalOutcomeLabel}</span><strong className="text-warning">{formatCurrency(totalOutcome)}</strong></div>
+            <div className="d-flex justify-content-between"><span>{differenceLabel}</span><strong className={difference >= 0 ? 'text-success' : 'text-danger'}>{formatCurrency(difference)}</strong></div>
           </div>
-          <div className="card-body">
-            <div className="row">
-              <IncomeSources
-                title=""
-                helpText={incomeHelp}
-                sources={incomeSources}
-                isDarkMode={isDarkMode}
-                parseLocaleAmount={parseLocaleAmount}
-                onUpdate={onIncomeUpdate}
-                onBlurSave={onIncomeBlurSave}
-                onRemoveUnsaved={onIncomeRemoveUnsaved}
-                onDeletePersisted={onIncomeDeletePersisted}
-                onAddEmpty={onIncomeAddEmpty}
-                addButtonText={t('btn.addIncomeSource', { defaultValue: '+ Add Income Source' })}
-              />
-
-              <OutcomeSources
-                title=""
-                helpText={outcomeHelp}
-                sources={outcomeSources}
-                isDarkMode={isDarkMode}
-                parseLocaleAmount={parseLocaleAmount}
-                onUpdate={onOutcomeUpdate}
-                onBlurSave={onOutcomeBlurSave}
-                onRemoveUnsaved={onOutcomeRemoveUnsaved}
-                onDeletePersisted={onOutcomeDeletePersisted}
-                onAddEmpty={onOutcomeAddEmpty}
-                addButtonText={t('btn.addOutcomeSource', { defaultValue: '+ Add Outcome Source' })}
-              />
-            </div>
-
-            {/* Summary */}
-            <div className="row g-2">
-              <div className="col-md-4 col-12">
-                <div className="text-center">
-                  <strong>{totalIncomeLabel}</strong>
-                  <div className="h5 text-success">{formatCurrency(totalIncome)}</div>
-                </div>
-              </div>
-              <div className="col-md-4 col-12">
-                <div className="text-center">
-                  <strong>{totalOutcomeLabel}</strong>
-                  <div className="h5 text-warning">{formatCurrency(totalOutcome)}</div>
-                </div>
-              </div>
-              <div className="col-md-4 col-12">
-                <div className="text-center">
-                  <strong>{differenceLabel}</strong>
-                  <div className={`h5 ${difference >= 0 ? 'text-success' : 'text-danger'}`}>
-                    {formatCurrency(difference)}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+          <hr className="my-2" />
+          <div className="small text-muted">{t('section.predictedBudget.desc', { defaultValue: 'Plan your month by defining income and outcome sources.' })}</div>
         </div>
       </div>
     </div>

@@ -17,7 +17,7 @@ services:
       - HTTP_ADDRESS=0.0.0.0:8082
       - DB_DRIVER=sqlite
       - DB_PATH=/db/app.db
-      - CORS_ALLOWED_ORIGINS=http://web:5173,http://localhost:5173,http://instance-agent.subnet05071228.vcn05071228.oraclevcn.com:5173
+      - CORS_ALLOWED_ORIGINS=http://web:5173,http://localhost:5173,http://instance-agent.subnet05071228.vcn05071228.oraclevcn.com:5173,https://localhost:31443,https://instance-agent.subnet05071228.vcn05071228.oraclevcn.com:31443
       - ENV=dev
       - LOG_LEVEL=debug
       - LOG_FORMAT=text
@@ -52,6 +52,22 @@ services:
       retries: 5
       start_period: 10s
 
+  # HTTPS Reverse Proxy
+  https-proxy:
+    build:
+      context: ..
+      dockerfile: deployments/Docker/Dockerfile.nginx
+    image: webapp-https-proxy:local
+    container_name: webapp-https-proxy
+    platform: linux/arm64
+    ports:
+      - "31443:31443"
+      - "31080:31080"
+    networks:
+      - webapp-network
+    depends_on:
+      - web
+
   # Frontend React/TypeScript application
   web:
     build:
@@ -71,8 +87,7 @@ services:
       - NODE_ENV=development
       - VITE_PROXY_TARGET=http://api:8082
     command: ["sh", "-c", "npm ci || npm install && npm run dev -- --host 0.0.0.0 --port 5173"]
-    ports:
-      - "5173:5173"
+    # Remove external port exposure since we'll go through HTTPS proxy
     networks:
       - webapp-network
     depends_on:

@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.7
-FROM python:3.12-alpine
+FROM python:3.11-alpine
 WORKDIR /app
 RUN apk add --no-cache ca-certificates && \
     pip install --no-cache-dir sqlite-web

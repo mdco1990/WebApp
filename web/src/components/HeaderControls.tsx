@@ -1,5 +1,8 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import AdminControls from './AdminControls';
+import { getPendingUsers, getAllUsers, approveUser, deleteUser, rejectUser } from '../services/api';
+import { useToast } from '../shared/toast';
 import type { User } from '../types/budget';
 
 export type HeaderControlsProps = {
@@ -30,6 +33,77 @@ const HeaderControls: React.FC<HeaderControlsProps> = ({
   onLogout,
 }) => {
   const { t, i18n } = useTranslation();
+  const [pendingUsers, setPendingUsers] = useState<Array<{ id: number; username: string; email: string; created_at: string }>>([]);
+  const [allUsers, setAllUsers] = useState<Array<{ id: number; username: string; email: string; created_at: string; is_admin: boolean; is_approved: boolean; status?: string }>>([]);
+  const [userActionLoading, setUserActionLoading] = useState(false);
+  const { push } = useToast();
+
+  // Load pending users and all users if admin
+  useEffect(() => {
+    if (user?.is_admin) {
+      Promise.all([
+        getPendingUsers().catch(() => []),
+        getAllUsers().catch(() => [])
+      ]).then(([pending, all]) => {
+        setPendingUsers(pending);
+        setAllUsers(all);
+      });
+    }
+  }, [user?.is_admin]);
+
+  const handleApproveUser = async (userId: number) => {
+    try {
+      setUserActionLoading(true);
+      await approveUser(userId);
+      setPendingUsers(prev => prev.filter(u => u.id !== userId));
+      // Refresh all users list
+      if (user?.is_admin) {
+        getAllUsers().then(setAllUsers).catch(() => setAllUsers([]));
+      }
+      push(t('toast.userApproved', { defaultValue: 'User approved' }), 'success');
+    } catch {
+      push(t('toast.errorApprove', { defaultValue: 'Failed to approve user' }), 'error');
+    } finally {
+      setUserActionLoading(false);
+    }
+  };
+
+  const handleDeleteUser = async (userId: number) => {
+    try {
+      setUserActionLoading(true);
+      await deleteUser(userId);
+      setPendingUsers(prev => prev.filter(u => u.id !== userId));
+      setAllUsers(prev => prev.filter(u => u.id !== userId));
+      push(t('toast.userDeleted', { defaultValue: 'User deleted' }), 'success');
+    } catch {
+      push(t('toast.errorDelete', { defaultValue: 'Failed to delete user' }), 'error');
+    } finally {
+      setUserActionLoading(false);
+    }
+  };
+
+  const handleRejectUser = async (userId: number) => {
+    try {
+      setUserActionLoading(true);
+      await rejectUser(userId);
+      setPendingUsers(prev => prev.filter(u => u.id !== userId));
+      // Refresh full list to capture status change
+      if (user?.is_admin) {
+        getAllUsers().then(setAllUsers).catch(() => setAllUsers([]));
+      }
+      push(t('toast.userRejected', { defaultValue: 'User rejected' }), 'success');
+    } catch {
+      push(t('toast.errorReject', { defaultValue: 'Failed to reject user' }), 'error');
+    } finally {
+      setUserActionLoading(false);
+    }
+  };
+
+  // Helper to style toggle buttons with better contrast
+  const activeBtnClass = isDarkMode ? 'btn-light text-dark' : 'btn-dark text-light';
+  const inactiveBtnClass = 'btn-outline-secondary';
+  const langBtnClass = (lang: string) => `btn ${i18n.language === lang ? activeBtnClass : inactiveBtnClass}`;
+  const currencyBtnClass = (c: 'USD' | 'EUR') => `btn ${currency === c ? activeBtnClass : inactiveBtnClass}`;
 
   return (
     <div className="btn-list">
@@ -39,14 +113,16 @@ const HeaderControls: React.FC<HeaderControlsProps> = ({
         aria-label={t('nav.monthNav', { defaultValue: 'Month navigation' })}
       >
         <button
-          className="btn btn-outline-primary btn-sm"
+          className="btn btn-primary btn-sm"
+          style={{ backgroundColor: '#007bff', borderColor: '#0056b3', color: '#ffffff' }}
           onClick={() => navigateMonth('prev')}
           aria-label={t('nav.prev', { defaultValue: 'Previous month' })}
         >
           {t('nav.prev')}
         </button>
         <button
-          className="btn btn-outline-primary btn-sm"
+          className="btn btn-primary btn-sm"
+          style={{ backgroundColor: '#007bff', borderColor: '#0056b3', color: '#ffffff' }}
           onClick={() => navigateMonth('next')}
           aria-label={t('nav.next', { defaultValue: 'Next month' })}
         >
@@ -78,7 +154,7 @@ const HeaderControls: React.FC<HeaderControlsProps> = ({
       {/* Language switcher */}
       <div className="btn-group btn-group-sm" aria-label="Language Switcher">
         <button
-          className={`btn btn-outline-secondary ${i18n.language === 'en' ? 'active' : ''}`}
+          className={langBtnClass('en')}
           onClick={() => {
             i18n.changeLanguage('en');
             localStorage.setItem('lang', 'en');
@@ -87,7 +163,7 @@ const HeaderControls: React.FC<HeaderControlsProps> = ({
           {t('lang.english')}
         </button>
         <button
-          className={`btn btn-outline-secondary ${i18n.language === 'fr' ? 'active' : ''}`}
+          className={langBtnClass('fr')}
           onClick={() => {
             i18n.changeLanguage('fr');
             localStorage.setItem('lang', 'fr');
@@ -100,14 +176,14 @@ const HeaderControls: React.FC<HeaderControlsProps> = ({
       {/* Currency switcher */}
       <div className="btn-group btn-group-sm" aria-label="Currency Switcher">
         <button
-          className={`btn btn-outline-secondary ${currency === 'USD' ? 'active' : ''}`}
+          className={currencyBtnClass('USD')}
           onClick={() => onSetCurrency('USD')}
           aria-label="Switch to USD"
         >
           $ USD
         </button>
         <button
-          className={`btn btn-outline-secondary ${currency === 'EUR' ? 'active' : ''}`}
+          className={currencyBtnClass('EUR')}
           onClick={() => onSetCurrency('EUR')}
           aria-label="Switch to EUR"
         >
@@ -137,65 +213,16 @@ const HeaderControls: React.FC<HeaderControlsProps> = ({
         {t('nav.password')}
       </button>
 
-      {/* Admin links */}
-      {user?.is_admin ? (
-        <>
-          <a
-            href="/api/"
-            target="_blank"
-            className="btn btn-outline-info btn-sm"
-            title="API Doc"
-            rel="noreferrer"
-          >
-            {t('nav.apiDocs', { defaultValue: 'API Docs' })}
-          </a>
-          <a
-            href="/openapi.json"
-            target="_blank"
-            className="btn btn-outline-info btn-sm"
-            title="Open API"
-            rel="noreferrer"
-          >
-            {t('nav.openApi', { defaultValue: 'API Docs' })}
-          </a>
-          <a
-            href="/scalar/"
-            target="_blank"
-            className="btn btn-outline-info btn-sm"
-            title="Scalar"
-            rel="noreferrer"
-          >
-            {t('nav.scalar', { defaultValue: 'API Docs' })}
-          </a>
-          <a
-            href="/redoc/"
-            target="_blank"
-            className="btn btn-outline-info btn-sm"
-            title="RE Doc"
-            rel="noreferrer"
-          >
-            {t('nav.reDocs', { defaultValue: 'API Docs' })}
-          </a>
-          <a
-            href="/rapidoc/"
-            target="_blank"
-            className="btn btn-outline-info btn-sm"
-            title="Rapi Doc"
-            rel="noreferrer"
-          >
-            {t('nav.RapiDocs', { defaultValue: 'API Docs' })}
-          </a>
-          <a
-            href="/db-admin/"
-            target="_blank"
-            className="btn btn-outline-success btn-sm"
-            title="SQLite DB Admin"
-            rel="noreferrer"
-          >
-            DB Admin
-          </a>
-        </>
-      ) : null}
+  <AdminControls 
+        isDarkMode={isDarkMode}
+        user={user}
+        pendingUsers={pendingUsers}
+        allUsers={allUsers}
+        onApproveUser={handleApproveUser}
+        onRejectUser={handleRejectUser}
+        onDeleteUser={handleDeleteUser}
+      />
+  {userActionLoading && <span className="spinner-border spinner-border-sm text-info" role="status" aria-hidden="true"></span>}
 
       <button
         className="btn btn-outline-danger btn-sm"

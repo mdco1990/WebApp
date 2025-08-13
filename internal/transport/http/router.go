@@ -17,6 +17,7 @@ import (
 	"github.com/mdco1990/webapp/internal/domain"
 	"github.com/mdco1990/webapp/internal/middleware"
 	"github.com/mdco1990/webapp/internal/repository"
+	"github.com/mdco1990/webapp/internal/security"
 	"github.com/mdco1990/webapp/internal/service"
 )
 
@@ -48,8 +49,15 @@ func NewRouter(cfg config.Config, db *sql.DB) http.Handler {
 		AllowCredentials: true,
 		MaxAge:           300,
 	}))
+
+	// OWASP Security Headers and Input Validation
 	r.Use(middleware.SecurityHeaders)
 	r.Use(middleware.RequestID())
+
+	// Enhanced security middleware
+	r.Use(security.SecurityHeadersMiddleware)
+	r.Use(security.InputValidationMiddleware)
+	r.Use(security.RequestSizeLimit(security.MaxRequestBodySize))
 	// Recover from panics to avoid 500s without response
 	r.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
