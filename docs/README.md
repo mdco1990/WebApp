@@ -65,6 +65,28 @@ The Budget Planner API provides comprehensive endpoints for:
 - `POST /api/v1/salary` - Set monthly salary (legacy)
 - `POST /api/v1/budget` - Set monthly budget (legacy)
 
+#### Manual Budgets
+- `GET /api/v1/manual-budgets` - Get manual budget for month
+- `POST /api/v1/manual-budgets` - Create/update manual budget
+
+### Secure API Endpoints (`/api/v1/secure`)
+
+Enhanced security endpoints with OWASP-compliant validation:
+
+#### Income Sources (Secure)
+- `POST /api/v1/secure/income-sources` - Create income source with enhanced validation
+- `PUT /api/v1/secure/income-sources/{id}` - Update income source with enhanced validation
+- `DELETE /api/v1/secure/income-sources/{id}` - Delete income source
+
+#### Budget Sources (Secure)
+- `POST /api/v1/secure/budget-sources` - Create budget source with enhanced validation
+- `PUT /api/v1/secure/budget-sources/{id}` - Update budget source with enhanced validation
+- `DELETE /api/v1/secure/budget-sources/{id}` - Delete budget source
+
+#### Manual Budgets (Secure)
+- `POST /api/v1/secure/manual-budgets` - Create/update manual budget with enhanced validation
+- `PUT /api/v1/secure/manual-budgets/{id}` - Create/update manual budget with enhanced validation
+
 ## Authentication
 
 The API uses two authentication layers:

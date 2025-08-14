@@ -67,12 +67,8 @@ func TestLogFormat(t *testing.T) {
 
 func TestEnvironmentVariables(t *testing.T) {
 	// Test with environment variables
-	if err := os.Setenv("LOG_LEVEL", "debug"); err != nil {
-		t.Fatalf("Failed to set LOG_LEVEL: %v", err)
-	}
-	if err := os.Setenv("LOG_FORMAT", "json"); err != nil {
-		t.Fatalf("Failed to set LOG_FORMAT: %v", err)
-	}
+	t.Setenv("LOG_LEVEL", "debug")
+	t.Setenv("LOG_FORMAT", "json")
 	defer func() {
 		if err := os.Unsetenv("LOG_LEVEL"); err != nil {
 			t.Logf("Failed to unset LOG_LEVEL: %v", err)

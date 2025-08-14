@@ -103,7 +103,10 @@ func (s *SecureHTTPHandler) SecureJSONDecoder(r *http.Request, v interface{}) er
 }
 
 // ValidateAndParseURLParam safely parses URL parameters with validation
-func (s *SecureHTTPHandler) ValidateAndParseURLParam(r *http.Request, paramName string) (int64, error) {
+func (s *SecureHTTPHandler) ValidateAndParseURLParam(
+	r *http.Request,
+	paramName string,
+) (int64, error) {
 	paramStr := chi.URLParam(r, paramName)
 	if paramStr == "" {
 		return 0, ValidationError{
@@ -195,7 +198,11 @@ func (s *SecureHTTPHandler) ValidateAndParseQueryParams(r *http.Request) (domain
 }
 
 // SecureJSONResponse safely sends JSON responses with security headers
-func (s *SecureHTTPHandler) SecureJSONResponse(w http.ResponseWriter, status int, data interface{}) {
+func (s *SecureHTTPHandler) SecureJSONResponse(
+	w http.ResponseWriter,
+	status int,
+	data interface{},
+) {
 	// Set security headers
 	w.Header().Set(HeaderContentType, ContentTypeJSON)
 	w.Header().Set(HeaderXContentTypeOptions, "nosniff")
@@ -327,7 +334,11 @@ func RateLimitMiddleware(requestsPerMinute int) func(http.Handler) http.Handler 
 
 				if c.requests >= requestsPerMinute {
 					handler := NewSecureHandler()
-					handler.SecureErrorResponse(w, http.StatusTooManyRequests, "rate limit exceeded")
+					handler.SecureErrorResponse(
+						w,
+						http.StatusTooManyRequests,
+						"rate limit exceeded",
+					)
 					return
 				}
 

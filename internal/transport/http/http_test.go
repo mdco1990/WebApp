@@ -134,7 +134,10 @@ func TestCORSHeaders(t *testing.T) {
 
 	// Check CORS headers
 	if w.Header().Get("Access-Control-Allow-Origin") != "http://localhost:3000" {
-		t.Errorf("Expected CORS origin header, got %s", w.Header().Get("Access-Control-Allow-Origin"))
+		t.Errorf(
+			"Expected CORS origin header, got %s",
+			w.Header().Get("Access-Control-Allow-Origin"),
+		)
 	}
 
 	if w.Header().Get("Access-Control-Allow-Methods") == "" {

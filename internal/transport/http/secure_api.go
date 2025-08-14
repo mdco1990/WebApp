@@ -41,7 +41,11 @@ func (h *secureAPIHandlers) validateUserID(w http.ResponseWriter, userID int64) 
 	return true
 }
 
-func (h *secureAPIHandlers) handleValidationError(w http.ResponseWriter, err error, defaultMsg string) {
+func (h *secureAPIHandlers) handleValidationError(
+	w http.ResponseWriter,
+	err error,
+	defaultMsg string,
+) {
 	var validationErr security.ValidationError
 	if errors.As(err, &validationErr) {
 		h.secureHandler.SecureErrorResponse(w, http.StatusBadRequest, validationErr.Message)
@@ -53,7 +57,9 @@ func (h *secureAPIHandlers) handleValidationError(w http.ResponseWriter, err err
 // Simplified secure handlers with enhanced OWASP validation
 
 // secureHandleCreateIncomeSource creates income sources with full validation
-func (h *secureAPIHandlers) secureHandleCreateIncomeSource(repo *repository.Repository) http.HandlerFunc {
+func (h *secureAPIHandlers) secureHandleCreateIncomeSource(
+	repo *repository.Repository,
+) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		userID := getUserIDFromContext(r.Context())
 		if !h.validateUserID(w, userID) {
@@ -74,7 +80,11 @@ func (h *secureAPIHandlers) secureHandleCreateIncomeSource(repo *repository.Repo
 
 		source, err := repo.CreateIncomeSource(r.Context(), userID, *validatedReq)
 		if err != nil {
-			h.secureHandler.SecureErrorResponse(w, http.StatusInternalServerError, "failed to create income source")
+			h.secureHandler.SecureErrorResponse(
+				w,
+				http.StatusInternalServerError,
+				"failed to create income source",
+			)
 			return
 		}
 
@@ -83,7 +93,9 @@ func (h *secureAPIHandlers) secureHandleCreateIncomeSource(repo *repository.Repo
 }
 
 // secureHandleUpdateIncomeSource updates income sources with validation
-func (h *secureAPIHandlers) secureHandleUpdateIncomeSource(repo *repository.Repository) http.HandlerFunc {
+func (h *secureAPIHandlers) secureHandleUpdateIncomeSource(
+	repo *repository.Repository,
+) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		userID := getUserIDFromContext(r.Context())
 		if !h.validateUserID(w, userID) {
@@ -109,7 +121,11 @@ func (h *secureAPIHandlers) secureHandleUpdateIncomeSource(repo *repository.Repo
 		}
 
 		if err := repo.UpdateIncomeSource(r.Context(), id, userID, *validatedReq); err != nil {
-			h.secureHandler.SecureErrorResponse(w, http.StatusInternalServerError, "failed to update")
+			h.secureHandler.SecureErrorResponse(
+				w,
+				http.StatusInternalServerError,
+				"failed to update",
+			)
 			return
 		}
 
@@ -118,7 +134,9 @@ func (h *secureAPIHandlers) secureHandleUpdateIncomeSource(repo *repository.Repo
 }
 
 // secureHandleDeleteIncomeSource deletes income sources with validation
-func (h *secureAPIHandlers) secureHandleDeleteIncomeSource(repo *repository.Repository) http.HandlerFunc {
+func (h *secureAPIHandlers) secureHandleDeleteIncomeSource(
+	repo *repository.Repository,
+) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		userID := getUserIDFromContext(r.Context())
 		if !h.validateUserID(w, userID) {
@@ -132,7 +150,11 @@ func (h *secureAPIHandlers) secureHandleDeleteIncomeSource(repo *repository.Repo
 		}
 
 		if err := repo.DeleteIncomeSource(r.Context(), id, userID); err != nil {
-			h.secureHandler.SecureErrorResponse(w, http.StatusInternalServerError, "failed to delete income source")
+			h.secureHandler.SecureErrorResponse(
+				w,
+				http.StatusInternalServerError,
+				"failed to delete income source",
+			)
 			return
 		}
 
@@ -141,7 +163,9 @@ func (h *secureAPIHandlers) secureHandleDeleteIncomeSource(repo *repository.Repo
 }
 
 // secureHandleCreateBudgetSource creates budget sources with full validation
-func (h *secureAPIHandlers) secureHandleCreateBudgetSource(repo *repository.Repository) http.HandlerFunc {
+func (h *secureAPIHandlers) secureHandleCreateBudgetSource(
+	repo *repository.Repository,
+) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		userID := getUserIDFromContext(r.Context())
 		if !h.validateUserID(w, userID) {
@@ -162,7 +186,11 @@ func (h *secureAPIHandlers) secureHandleCreateBudgetSource(repo *repository.Repo
 
 		source, err := repo.CreateBudgetSource(r.Context(), userID, *validatedReq)
 		if err != nil {
-			h.secureHandler.SecureErrorResponse(w, http.StatusInternalServerError, "failed to create budget source")
+			h.secureHandler.SecureErrorResponse(
+				w,
+				http.StatusInternalServerError,
+				"failed to create budget source",
+			)
 			return
 		}
 
@@ -171,7 +199,9 @@ func (h *secureAPIHandlers) secureHandleCreateBudgetSource(repo *repository.Repo
 }
 
 // secureHandleUpdateBudgetSource updates budget sources with validation
-func (h *secureAPIHandlers) secureHandleUpdateBudgetSource(repo *repository.Repository) http.HandlerFunc {
+func (h *secureAPIHandlers) secureHandleUpdateBudgetSource(
+	repo *repository.Repository,
+) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		userID := getUserIDFromContext(r.Context())
 		if !h.validateUserID(w, userID) {
@@ -197,7 +227,11 @@ func (h *secureAPIHandlers) secureHandleUpdateBudgetSource(repo *repository.Repo
 		}
 
 		if err := repo.UpdateBudgetSource(r.Context(), id, userID, *validatedReq); err != nil {
-			h.secureHandler.SecureErrorResponse(w, http.StatusInternalServerError, "failed to update budget source")
+			h.secureHandler.SecureErrorResponse(
+				w,
+				http.StatusInternalServerError,
+				"failed to update budget source",
+			)
 			return
 		}
 
@@ -206,7 +240,9 @@ func (h *secureAPIHandlers) secureHandleUpdateBudgetSource(repo *repository.Repo
 }
 
 // secureHandleDeleteBudgetSource deletes budget sources with validation
-func (h *secureAPIHandlers) secureHandleDeleteBudgetSource(repo *repository.Repository) http.HandlerFunc {
+func (h *secureAPIHandlers) secureHandleDeleteBudgetSource(
+	repo *repository.Repository,
+) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		userID := getUserIDFromContext(r.Context())
 		if !h.validateUserID(w, userID) {
@@ -220,7 +256,11 @@ func (h *secureAPIHandlers) secureHandleDeleteBudgetSource(repo *repository.Repo
 		}
 
 		if err := repo.DeleteBudgetSource(r.Context(), id, userID); err != nil {
-			h.secureHandler.SecureErrorResponse(w, http.StatusInternalServerError, "failed to delete budget source")
+			h.secureHandler.SecureErrorResponse(
+				w,
+				http.StatusInternalServerError,
+				"failed to delete budget source",
+			)
 			return
 		}
 
@@ -229,7 +269,9 @@ func (h *secureAPIHandlers) secureHandleDeleteBudgetSource(repo *repository.Repo
 }
 
 // secureHandleUpsertManualBudget creates or updates manual budgets with full validation
-func (h *secureAPIHandlers) secureHandleUpsertManualBudget(repo *repository.Repository) http.HandlerFunc {
+func (h *secureAPIHandlers) secureHandleUpsertManualBudget(
+	repo *repository.Repository,
+) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		userID := getUserIDFromContext(r.Context())
 		if !h.validateUserID(w, userID) {
@@ -249,9 +291,19 @@ func (h *secureAPIHandlers) secureHandleUpsertManualBudget(repo *repository.Repo
 		}
 
 		// Call the repository method with correct parameters
-		err := repo.UpsertManualBudget(r.Context(), userID, req.YearMonth, req.BankAmountCents, req.Items)
+		err := repo.UpsertManualBudget(
+			r.Context(),
+			userID,
+			req.YearMonth,
+			req.BankAmountCents,
+			req.Items,
+		)
 		if err != nil {
-			h.secureHandler.SecureErrorResponse(w, http.StatusInternalServerError, "failed to upsert manual budget")
+			h.secureHandler.SecureErrorResponse(
+				w,
+				http.StatusInternalServerError,
+				"failed to upsert manual budget",
+			)
 			return
 		}
 
@@ -264,11 +316,16 @@ func (h *secureAPIHandlers) secureHandleUpsertManualBudget(repo *repository.Repo
 // ValidatedJSONDecoder middleware that ensures JSON requests are properly validated
 func ValidatedJSONDecoder(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodPost || r.Method == http.MethodPut || r.Method == http.MethodPatch {
+		if r.Method == http.MethodPost || r.Method == http.MethodPut ||
+			r.Method == http.MethodPatch {
 			contentType := r.Header.Get("Content-Type")
 			if contentType != "" && !contains(contentType, "application/json") {
 				secureHandler := security.NewSecureHandler()
-				secureHandler.SecureErrorResponse(w, http.StatusBadRequest, "Content-Type must be application/json")
+				secureHandler.SecureErrorResponse(
+					w,
+					http.StatusBadRequest,
+					"Content-Type must be application/json",
+				)
 				return
 			}
 		}
@@ -285,7 +342,7 @@ func contains(s, substr string) bool {
 func registerSecureAPIRoutes(
 	r chi.Router,
 	repo *repository.Repository,
-	_svc *service.Service,
+	_ *service.Service,
 ) {
 	handlers := newSecureAPIHandlers()
 

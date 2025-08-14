@@ -29,6 +29,8 @@ const mockSaveManualBudget = api.saveManualBudget as jest.MockedFunction<typeof 
 describe('useManualBudget', () => {
   beforeEach(() => {
     localStorageMock.clear();
+    // Set up a mock session to enable server calls
+    localStorageMock.setItem('session_id', 'test-session-id');
     jest.clearAllMocks();
     jest.clearAllTimers();
     jest.useFakeTimers();

@@ -33,7 +33,8 @@ func New(db *sql.DB) *Repository {
 		r.hasIsAdmin = true
 	}
 	exists = 0
-	if err := r.db.QueryRow(`SELECT COUNT(1) FROM pragma_table_info('users') WHERE name='status'`).Scan(&exists); err == nil && exists > 0 {
+	if err := r.db.QueryRow(`SELECT COUNT(1) FROM pragma_table_info('users') WHERE name='status'`).Scan(&exists); err == nil &&
+		exists > 0 {
 		r.hasStatus = true
 	}
 	return r

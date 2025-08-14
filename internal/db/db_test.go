@@ -72,7 +72,8 @@ func TestMigrate(t *testing.T) {
 	tables := []string{"expense", "budget", "salary"}
 	for _, table := range tables {
 		var count int
-		err := db.QueryRow("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name=?", table).Scan(&count)
+		err := db.QueryRow("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name=?", table).
+			Scan(&count)
 		if err != nil {
 			t.Fatalf("Failed to check table %s: %v", table, err)
 		}
@@ -204,8 +205,13 @@ func TestDatabaseTransaction(t *testing.T) {
 	}
 
 	// Insert test data
-	_, err = tx.Exec("INSERT INTO expense (year, month, description, amount_cents) VALUES (?, ?, ?, ?)",
-		2024, 1, "Test Expense", 1000)
+	_, err = tx.Exec(
+		"INSERT INTO expense (year, month, description, amount_cents) VALUES (?, ?, ?, ?)",
+		2024,
+		1,
+		"Test Expense",
+		1000,
+	)
 	if err != nil {
 		t.Fatalf("Failed to insert test data: %v", err)
 	}

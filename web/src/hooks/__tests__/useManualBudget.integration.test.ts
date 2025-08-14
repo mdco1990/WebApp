@@ -45,6 +45,8 @@ describe('useManualBudget - Integration Tests', () => {
     jest.clearAllMocks();
     jest.useFakeTimers();
     localStorageMock.clear();
+    // Set up a mock session to enable server calls
+    localStorageMock.setItem('session_id', 'test-session-id');
   });
 
   afterEach(() => {

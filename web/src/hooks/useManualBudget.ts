@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 import { useState, useRef, useEffect } from 'react';
 import { getManualBudget, saveManualBudget } from '../services/api';
 
@@ -29,16 +30,16 @@ export const useManualBudget = (currentDate: Date) => {
     if (!manualBudgetLoadedRef.current) return;
 
     // Debug: Log saving operation
-    console.log('💾 Manual Budget - Saving data:', {
-      key,
-      bankAmount: manualBudget.bankAmount,
-      itemsCount: manualBudget.items.length,
-      items: manualBudget.items
-    });
+    		// console.log('💾 Manual Budget - Saving data:', {
+		// 	key,
+		// 	bankAmount: manualBudget.bankAmount,
+		// 	itemsCount: manualBudget.items.length,
+		// 	items: manualBudget.items
+		// });
 
     try {
       localStorage.setItem(key, JSON.stringify(manualBudget));
-      console.log('✅ localStorage saved successfully');
+      		// console.log('✅ localStorage saved successfully');
     } catch {
       console.error('❌ localStorage save failed');
       // ignore storage quota or availability issues
@@ -61,7 +62,7 @@ export const useManualBudget = (currentDate: Date) => {
     // debounce to reduce network chatter
     if (manualBudgetSaveTimer.current) window.clearTimeout(manualBudgetSaveTimer.current);
     manualBudgetSaveTimer.current = window.setTimeout(async () => {
-      console.log('📡 Attempting server save:', payload);
+      // console.log('📡 Attempting server save:', payload);
       
       // Check if user is authenticated before trying server save
       const sessionId = localStorage.getItem('session_id');
@@ -72,7 +73,7 @@ export const useManualBudget = (currentDate: Date) => {
       
       try {
         await saveManualBudget(payload);
-        console.log('✅ Server save successful');
+        // console.log('✅ Server save successful');
       } catch (error) {
         console.error('❌ Server save failed:', error);
         // ignore - backend may not implement this yet; localStorage remains the fallback

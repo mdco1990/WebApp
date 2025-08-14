@@ -164,52 +164,28 @@ const App: React.FC = () => {
 
     // Handle sign
     const isNegative = cleaned.startsWith('-');
-    const isPositive = cleaned.startsWith('+');
-    if (isNegative || isPositive) {
+    if (isNegative || cleaned.startsWith('+')) {
       cleaned = cleaned.substring(1);
     }
 
-    // Count separators
-    const commaCount = (cleaned.match(/,/g) || []).length;
-    const dotCount = (cleaned.match(/\./g) || []).length;
+    // Optimized separator handling
+    const lastComma = cleaned.lastIndexOf(',');
+    const lastDot = cleaned.lastIndexOf('.');
 
     let normalized = cleaned;
-
-    if (commaCount === 0 && dotCount <= 1) {
-      // Simple case: "12.56" or "12"
-      normalized = cleaned;
-    } else if (dotCount === 0 && commaCount === 1) {
-      // European format: "12,56"  
-      normalized = cleaned.replace(',', '.');
-    } else if (commaCount > 0 && dotCount > 0) {
-      // Mixed separators: determine which is decimal
-      const lastComma = cleaned.lastIndexOf(',');
-      const lastDot = cleaned.lastIndexOf('.');
-
-      if (lastDot > lastComma) {
-        // Dot is decimal separator: "1,234.56"
-        normalized = cleaned.replace(/,/g, '');
-      } else {
-        // Comma is decimal separator: "1.234,56"
-        normalized = cleaned.replace(/\./g, '').replace(',', '.');
-      }
-    } else if (commaCount > 1 || dotCount > 1) {
-      // Multiple separators of same type: keep last as decimal
-      if (commaCount > 1) {
-        const lastCommaIndex = cleaned.lastIndexOf(',');
-        normalized = cleaned.substring(0, lastCommaIndex).replace(/,/g, '') +
-          '.' + cleaned.substring(lastCommaIndex + 1);
-      } else if (dotCount > 1) {
-        const lastDotIndex = cleaned.lastIndexOf('.');
-        normalized = cleaned.substring(0, lastDotIndex).replace(/\./g, '') +
-          '.' + cleaned.substring(lastDotIndex + 1);
-      }
+    if (lastComma > lastDot) {
+      // Comma is decimal separator: "1.234,56" or "12,56"
+      normalized = cleaned.replace(/\./g, '').replace(',', '.');
+    } else if (lastDot > lastComma) {
+      // Dot is decimal separator: "1,234.56" or "12.56"
+      normalized = cleaned.replace(/,/g, '');
     }
+    // If no separators or equal positions, use as-is
 
     const parsed = Number.parseFloat(normalized);
     const result = Number.isFinite(parsed) ? parsed : 0;
 
-    return (isNegative && result !== 0) ? -result : result;
+    return isNegative ? -result : result;
   };
 
   // Hook: monthly data (budget sources) for current year-month

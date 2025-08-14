@@ -179,7 +179,11 @@ func TestAPIUpdateManualBudget(t *testing.T) {
 	})
 
 	t.Run("InvalidJSON", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodPut, testAPIEndpoint, bytes.NewBufferString("invalid json"))
+		req := httptest.NewRequest(
+			http.MethodPut,
+			testAPIEndpoint,
+			bytes.NewBufferString("invalid json"),
+		)
 		req.Header.Set(testHeaderContentType, testContentTypeJSON)
 		w := httptest.NewRecorder()
 

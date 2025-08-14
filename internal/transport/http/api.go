@@ -377,7 +377,11 @@ func handleCreateIncomeSource(repo *repository.Repository) http.HandlerFunc {
 
 		source, err := repo.CreateIncomeSource(r.Context(), userID, *validatedReq)
 		if err != nil {
-			secureHandler.SecureErrorResponse(w, http.StatusInternalServerError, "failed to create income source")
+			secureHandler.SecureErrorResponse(
+				w,
+				http.StatusInternalServerError,
+				"failed to create income source",
+			)
 			return
 		}
 

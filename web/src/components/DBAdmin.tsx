@@ -56,7 +56,7 @@ const DBAdmin: React.FC<DBAdminProps> = ({ onBackToMain }) => {
         totalExpenses: expenses.length,
         totalManualBudgets: manualBudgets.length
       });
-    } catch (_error) {
+    		} catch {
       push(t('toast.errorLoadStats', { defaultValue: 'Failed to load database statistics' }), 'error');
     } finally {
       setLoading(false);

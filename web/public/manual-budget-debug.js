@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 // Manual Budget localStorage Test
 // Run this in browser console to diagnose localStorage issues
 

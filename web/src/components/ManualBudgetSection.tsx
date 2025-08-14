@@ -37,7 +37,8 @@ const AmountInput: React.FC<{
   parseLocaleAmount: (v: string) => number;
   className?: string;
   placeholder?: string;
-}> = ({ value, onChange, parseLocaleAmount, className, placeholder }) => {
+  id?: string;
+}> = ({ value, onChange, parseLocaleAmount, className, placeholder, id }) => {
   const [displayValue, setDisplayValue] = useState<string>(value.toString());
   const [isFocused, setIsFocused] = useState(false);
 
@@ -51,6 +52,7 @@ const AmountInput: React.FC<{
   return (
     <input
       type="text"
+      id={id}
       className={className}
       placeholder={placeholder}
       value={displayValue}
@@ -119,6 +121,7 @@ const ManualBudgetSection: React.FC<Props> = ({
               <div className="col-md-4">
                 <label className="form-label" htmlFor="bank-amount">{bankLabel}</label>
                 <AmountInput
+                  id="bank-amount"
                   value={manualBudget.bankAmount}
                   onChange={(newAmount) =>
                     setManualBudget({

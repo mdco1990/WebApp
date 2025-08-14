@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 import { useState, useRef, useEffect } from 'react';
 
 interface ManualBudgetItem {

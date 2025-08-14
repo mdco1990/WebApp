@@ -148,19 +148,28 @@ func SanitizeString(input string, fieldName string) (string, error) {
 func containsSQLInjection(input string) bool {
 	lower := strings.ToLower(input)
 
-	// SQL injection patterns - more precise matching to avoid false positives
+	// SQL injection patterns - comprehensive matching
 	sqlPatterns := []string{
-		"' or ", "\" or ", "' union ", "\" union ",
-		"' select ", "\" select ", "' insert ", "\" insert ",
-		"' update ", "\" update ", "' delete ", "\" delete ",
-		"' drop ", "\" drop ", "' exec ", "\" exec ",
-		"' execute ", "\" execute ", "' sp_ ", "\" sp_ ",
-		"' xp_ ", "\" xp_ ", "' alter ", "\" alter ",
-		"' create ", "\" create ", "--;", "/**/",
-		"char(", "chr(", "ascii(", "substring(",
-		"waitfor delay", "benchmark(", "sleep(",
-		"information_schema", "sysobjects", "syscolumns",
-		"' and ", "\" and ", "' having ", "\" having ",
+		// Basic SQL keywords that could be used in injection
+		"union select", "union all", "select *", "select 1", "select 0",
+		"insert into", "update set", "delete from", "drop table", "drop database",
+		"create table", "alter table", "exec ", "execute ", "sp_", "xp_",
+
+		// SQL comments and termination
+		"--", "/*", "*/", ";",
+
+		// Common SQL functions used in injection
+		"char(", "chr(", "ascii(", "substring(", "concat(",
+		"waitfor delay", "benchmark(", "sleep(", "delay(",
+
+		// System tables and schemas
+		"information_schema", "sysobjects", "syscolumns", "sys.tables",
+
+		// Conditional logic
+		" or ", " and ", " having ", " where ",
+
+		// Quote patterns that could be used for injection
+		"'", "\"",
 	}
 
 	for _, pattern := range sqlPatterns {
@@ -504,7 +513,9 @@ func ValidateID(id int64, fieldName string) error {
 // Comprehensive request validation functions
 
 // ValidateCreateIncomeSourceRequest validates income source creation
-func ValidateCreateIncomeSourceRequest(req domain.CreateIncomeSourceRequest) (*domain.CreateIncomeSourceRequest, error) {
+func ValidateCreateIncomeSourceRequest(
+	req domain.CreateIncomeSourceRequest,
+) (*domain.CreateIncomeSourceRequest, error) {
 	validated := domain.CreateIncomeSourceRequest{}
 
 	// Validate name
@@ -532,7 +543,9 @@ func ValidateCreateIncomeSourceRequest(req domain.CreateIncomeSourceRequest) (*d
 }
 
 // ValidateCreateBudgetSourceRequest validates budget source creation
-func ValidateCreateBudgetSourceRequest(req domain.CreateBudgetSourceRequest) (*domain.CreateBudgetSourceRequest, error) {
+func ValidateCreateBudgetSourceRequest(
+	req domain.CreateBudgetSourceRequest,
+) (*domain.CreateBudgetSourceRequest, error) {
 	validated := domain.CreateBudgetSourceRequest{}
 
 	// Validate name
@@ -560,7 +573,9 @@ func ValidateCreateBudgetSourceRequest(req domain.CreateBudgetSourceRequest) (*d
 }
 
 // ValidateUpdateSourceRequest validates source updates
-func ValidateUpdateSourceRequest(req domain.UpdateSourceRequest) (*domain.UpdateSourceRequest, error) {
+func ValidateUpdateSourceRequest(
+	req domain.UpdateSourceRequest,
+) (*domain.UpdateSourceRequest, error) {
 	validated := domain.UpdateSourceRequest{}
 
 	// Validate name

@@ -28,7 +28,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ onBackToMain }) => {
       const [pending, all] = await Promise.all([getPendingUsers(), getAllUsers()]);
       setPendingUsers(pending || []);
       setAllUsers(all || []);
-    } catch (_error) {
+    } catch {
       push(t('toast.errorLoadUsers', { defaultValue: 'Failed to load users' }), 'error');
     } finally {
       setLoading(false);
@@ -46,7 +46,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ onBackToMain }) => {
       await approveUser(userId);
       push(t('toast.userApproved', { defaultValue: 'User approved successfully' }), 'success');
       await loadUserData();
-    } catch (_error) {
+    } catch {
       push(t('toast.errorApproveUser', { defaultValue: 'Failed to approve user' }), 'error');
     } finally {
       setLoading(false);
@@ -59,7 +59,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ onBackToMain }) => {
       await rejectUser(userId);
       push(t('toast.userRejected', { defaultValue: 'User rejected successfully' }), 'success');
       await loadUserData();
-    } catch (_error) {
+    } catch {
       push(t('toast.errorRejectUser', { defaultValue: 'Failed to reject user' }), 'error');
     } finally {
       setLoading(false);
@@ -75,7 +75,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ onBackToMain }) => {
       await deleteUser(userId);
       push(t('toast.userDeleted', { defaultValue: 'User deleted successfully' }), 'success');
       await loadUserData();
-    } catch (_error) {
+    } catch {
       push(t('toast.errorDeleteUser', { defaultValue: 'Failed to delete user' }), 'error');
     } finally {
       setLoading(false);

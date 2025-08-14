@@ -67,8 +67,8 @@
 - [ ] Add OAuth2/OIDC integration (future enhancement)
 
 ## Current Priorities & Next Steps
-- [ ] **Fix Backend Test Failures**: Resolve `TestLoad` and `TestContainsSQLInjection` test failures
-- [ ] **Fix Frontend Test Failures**: Resolve `useManualBudget` and `ManualBudgetSection` test issues
+- [x] **Fix Backend Test Failures**: Resolved `TestLoad` and `TestContainsSQLInjection` test failures
+- [x] **Fix Frontend Test Failures**: Resolved `useManualBudget` and `ManualBudgetSection` test issues
 - [ ] **Integration Testing**: Complete end-to-end testing of the full application stack
 - [ ] **Performance Optimization**: Optimize database queries and frontend rendering
-- [ ] **Documentation**: Update API documentation and user guides
+- [x] **Documentation**: Updated API documentation with secure endpoints and user guides
