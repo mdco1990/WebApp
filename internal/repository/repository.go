@@ -850,23 +850,110 @@ func generateSessionID() string {
 
 // --- User management extensions ---
 
-// ListUsers lists users optionally filtered by status (pending/approved/rejected) if status column exists.
-func (r *Repository) ListUsers(ctx context.Context, status string) ([]domain.User, error) {
+// UserQueryBuilder builds user queries with dynamic field support
+type UserQueryBuilder struct {
+	hasIsAdmin bool
+	hasStatus  bool
+}
+
+// NewUserQueryBuilder creates a new user query builder
+func NewUserQueryBuilder(hasIsAdmin, hasStatus bool) *UserQueryBuilder {
+	return &UserQueryBuilder{
+		hasIsAdmin: hasIsAdmin,
+		hasStatus:  hasStatus,
+	}
+}
+
+// BuildQuery builds the SQL query for listing users
+func (qb *UserQueryBuilder) BuildQuery(status string) (string, []any) {
 	base := "SELECT id, username, email, created_at, last_login"
-	if r.hasIsAdmin {
+	if qb.hasIsAdmin {
 		base += ", is_admin"
 	}
-	if r.hasStatus {
+	if qb.hasStatus {
 		base += ", status"
 	}
 	base += " FROM users"
+
 	args := []any{}
-	if status != "" && r.hasStatus {
+	if status != "" && qb.hasStatus {
 		base += " WHERE status = ?"
 		args = append(args, status)
 	}
 	base += " ORDER BY created_at DESC"
-	rows, err := r.db.QueryContext(ctx, base, args...)
+
+	return base, args
+}
+
+// UserRowScanner handles scanning user rows from the database
+type UserRowScanner struct {
+	hasIsAdmin bool
+	hasStatus  bool
+}
+
+// NewUserRowScanner creates a new user row scanner
+func NewUserRowScanner(hasIsAdmin, hasStatus bool) *UserRowScanner {
+	return &UserRowScanner{
+		hasIsAdmin: hasIsAdmin,
+		hasStatus:  hasStatus,
+	}
+}
+
+// ScanRow scans a user row from the database
+func (urs *UserRowScanner) ScanRow(rows *sql.Rows) (domain.User, error) {
+	var u domain.User
+	var email sql.NullString
+	var last sql.NullTime
+	var isAdmin sql.NullInt64
+	var st sql.NullString
+
+	scan := []any{&u.ID, &u.Username, &email, &u.CreatedAt, &last}
+	if urs.hasIsAdmin {
+		scan = append(scan, &isAdmin)
+	}
+	if urs.hasStatus {
+		scan = append(scan, &st)
+	}
+
+	if err := rows.Scan(scan...); err != nil {
+		return domain.User{}, err
+	}
+
+	u.Email = email.String
+	if last.Valid {
+		u.LastLogin = &last.Time
+	}
+	if urs.hasIsAdmin {
+		u.IsAdmin = isAdmin.Valid && isAdmin.Int64 != 0
+	}
+	if urs.hasStatus {
+		u.Status = st.String
+	}
+
+	return u, nil
+}
+
+// UserLister handles listing users with proper separation of concerns
+type UserLister struct {
+	db      *sql.DB
+	builder *UserQueryBuilder
+	scanner *UserRowScanner
+}
+
+// NewUserLister creates a new user lister
+func NewUserLister(db *sql.DB, hasIsAdmin, hasStatus bool) *UserLister {
+	return &UserLister{
+		db:      db,
+		builder: NewUserQueryBuilder(hasIsAdmin, hasStatus),
+		scanner: NewUserRowScanner(hasIsAdmin, hasStatus),
+	}
+}
+
+// ListUsers lists users optionally filtered by status
+func (ul *UserLister) ListUsers(ctx context.Context, status string) ([]domain.User, error) {
+	query, args := ul.builder.BuildQuery(status)
+
+	rows, err := ul.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return []domain.User{}, err
 	}
@@ -876,39 +963,27 @@ func (r *Repository) ListUsers(ctx context.Context, status string) ([]domain.Use
 			_ = closeErr
 		}
 	}()
+
 	users := []domain.User{}
 	for rows.Next() {
-		var u domain.User
-		var email sql.NullString
-		var last sql.NullTime
-		var isAdmin sql.NullInt64
-		var st sql.NullString
-		scan := []any{&u.ID, &u.Username, &email, &u.CreatedAt, &last}
-		if r.hasIsAdmin {
-			scan = append(scan, &isAdmin)
-		}
-		if r.hasStatus {
-			scan = append(scan, &st)
-		}
-		if err := rows.Scan(scan...); err != nil {
+		user, err := ul.scanner.ScanRow(rows)
+		if err != nil {
 			return []domain.User{}, err
 		}
-		u.Email = email.String
-		if last.Valid {
-			u.LastLogin = &last.Time
-		}
-		if r.hasIsAdmin {
-			u.IsAdmin = isAdmin.Valid && isAdmin.Int64 != 0
-		}
-		if r.hasStatus {
-			u.Status = st.String
-		}
-		users = append(users, u)
+		users = append(users, user)
 	}
+
 	if err := rows.Err(); err != nil {
 		return []domain.User{}, err
 	}
+
 	return users, nil
+}
+
+// ListUsers lists users optionally filtered by status (pending/approved/rejected) if status column exists.
+func (r *Repository) ListUsers(ctx context.Context, status string) ([]domain.User, error) {
+	lister := NewUserLister(r.db, r.hasIsAdmin, r.hasStatus)
+	return lister.ListUsers(ctx, status)
 }
 
 // UpdateUserStatus updates status if supported.

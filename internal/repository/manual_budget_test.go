@@ -2,52 +2,342 @@ package repository
 
 import (
 	"context"
-	"database/sql"
 	"testing"
 
-	_ "github.com/glebarez/go-sqlite" // SQLite driver
+	"github.com/mdco1990/webapp/internal/db"
 	"github.com/mdco1990/webapp/internal/domain"
 )
 
-// Test database helper
+// TestBuilder implements Builder pattern for constructing test data
+type TestBuilder struct {
+	userID     int64
+	yearMonth  domain.YearMonth
+	bankAmount domain.Money
+	items      []domain.ManualBudgetItem
+}
+
+// NewTestBuilder creates a new test builder
+func NewTestBuilder() *TestBuilder {
+	return &TestBuilder{
+		userID:     1,
+		yearMonth:  domain.YearMonth{Year: 2024, Month: 1},
+		bankAmount: 0,
+		items:      []domain.ManualBudgetItem{},
+	}
+}
+
+// WithUserID sets the user ID
+func (tb *TestBuilder) WithUserID(userID int64) *TestBuilder {
+	tb.userID = userID
+	return tb
+}
+
+// WithYearMonth sets the year/month
+func (tb *TestBuilder) WithYearMonth(ym domain.YearMonth) *TestBuilder {
+	tb.yearMonth = ym
+	return tb
+}
+
+// WithBankAmount sets the bank amount
+func (tb *TestBuilder) WithBankAmount(amount domain.Money) *TestBuilder {
+	tb.bankAmount = amount
+	return tb
+}
+
+// WithItems sets the budget items
+func (tb *TestBuilder) WithItems(items []domain.ManualBudgetItem) *TestBuilder {
+	tb.items = items
+	return tb
+}
+
+// Build creates the test data
+func (tb *TestBuilder) Build() (int64, domain.YearMonth, domain.Money, []domain.ManualBudgetItem) {
+	return tb.userID, tb.yearMonth, tb.bankAmount, tb.items
+}
+
+// TestStrategy defines the strategy pattern for different test scenarios
+type TestStrategy interface {
+	Execute(ctx context.Context, t *testing.T, repo *Repository) error
+	GetName() string
+}
+
+// BaseTestStrategy provides common functionality for test strategies
+type BaseTestStrategy struct {
+	builder *TestBuilder
+}
+
+// NewBaseTestStrategy creates a new base test strategy
+func NewBaseTestStrategy(builder *TestBuilder) *BaseTestStrategy {
+	return &BaseTestStrategy{
+		builder: builder,
+	}
+}
+
+// EmptyBudgetStrategy tests empty budget scenarios
+type EmptyBudgetStrategy struct {
+	*BaseTestStrategy
+}
+
+// NewEmptyBudgetStrategy creates a new empty budget test strategy
+func NewEmptyBudgetStrategy(builder *TestBuilder) *EmptyBudgetStrategy {
+	return &EmptyBudgetStrategy{
+		BaseTestStrategy: NewBaseTestStrategy(builder),
+	}
+}
+
+// GetName returns the strategy name
+func (ebs *EmptyBudgetStrategy) GetName() string {
+	return "EmptyBudget"
+}
+
+// Execute runs the empty budget test
+func (ebs *EmptyBudgetStrategy) Execute(ctx context.Context, t *testing.T, repo *Repository) error {
+	t.Helper()
+	userID, ym, _, _ := ebs.builder.Build()
+
+	budget, err := repo.GetManualBudget(ctx, userID, ym)
+	if err != nil {
+		return err
+	}
+
+	// Validate empty budget
+	if budget.UserID != userID {
+		t.Errorf("expected UserID %d, got %d", userID, budget.UserID)
+	}
+	if budget.YearMonth != ym {
+		t.Errorf("expected YearMonth %+v, got %+v", ym, budget.YearMonth)
+	}
+	if budget.BankAmountCents != 0 {
+		t.Errorf("expected BankAmountCents 0, got %d", budget.BankAmountCents)
+	}
+	if len(budget.Items) != 0 {
+		t.Errorf("expected empty items, got %d items", len(budget.Items))
+	}
+
+	return nil
+}
+
+// CreateBudgetStrategy tests budget creation scenarios
+type CreateBudgetStrategy struct {
+	*BaseTestStrategy
+}
+
+// NewCreateBudgetStrategy creates a new create budget test strategy
+func NewCreateBudgetStrategy(builder *TestBuilder) *CreateBudgetStrategy {
+	return &CreateBudgetStrategy{
+		BaseTestStrategy: NewBaseTestStrategy(builder),
+	}
+}
+
+// GetName returns the strategy name
+func (cbs *CreateBudgetStrategy) GetName() string {
+	return "CreateBudget"
+}
+
+// Execute runs the create budget test
+func (cbs *CreateBudgetStrategy) Execute(
+	ctx context.Context,
+	t *testing.T,
+	repo *Repository,
+) error {
+	t.Helper()
+	userID, ym, bankAmount, items := cbs.builder.Build()
+
+	err := repo.UpsertManualBudget(ctx, userID, ym, bankAmount, items)
+	if err != nil {
+		return err
+	}
+
+	// Verify data was saved
+	budget, err := repo.GetManualBudget(ctx, userID, ym)
+	if err != nil {
+		return err
+	}
+
+	if budget.BankAmountCents != bankAmount {
+		t.Errorf("expected BankAmountCents %d, got %d", bankAmount, budget.BankAmountCents)
+	}
+	if len(budget.Items) != len(items) {
+		t.Errorf("expected %d items, got %d", len(items), len(budget.Items))
+	}
+
+	// Verify items
+	expectedItems := make(map[string]domain.Money)
+	for _, item := range items {
+		expectedItems[item.Name] = item.AmountCents
+	}
+
+	for _, item := range budget.Items {
+		expectedAmount, exists := expectedItems[item.Name]
+		if !exists {
+			t.Errorf("unexpected item: %s", item.Name)
+			continue
+		}
+		if item.AmountCents != expectedAmount {
+			t.Errorf("item %s: expected amount %d, got %d",
+				item.Name, expectedAmount, item.AmountCents)
+		}
+	}
+
+	return nil
+}
+
+// UpdateBudgetStrategy tests budget update scenarios
+type UpdateBudgetStrategy struct {
+	*BaseTestStrategy
+}
+
+// NewUpdateBudgetStrategy creates a new update budget test strategy
+func NewUpdateBudgetStrategy(builder *TestBuilder) *UpdateBudgetStrategy {
+	return &UpdateBudgetStrategy{
+		BaseTestStrategy: NewBaseTestStrategy(builder),
+	}
+}
+
+// GetName returns the strategy name
+func (ubs *UpdateBudgetStrategy) GetName() string {
+	return "UpdateBudget"
+}
+
+// Execute runs the update budget test
+func (ubs *UpdateBudgetStrategy) Execute(
+	ctx context.Context,
+	t *testing.T,
+	repo *Repository,
+) error {
+	t.Helper()
+	userID, ym, bankAmount, items := ubs.builder.Build()
+
+	err := repo.UpsertManualBudget(ctx, userID, ym, bankAmount, items)
+	if err != nil {
+		return err
+	}
+
+	// Verify updates
+	budget, err := repo.GetManualBudget(ctx, userID, ym)
+	if err != nil {
+		return err
+	}
+
+	if budget.BankAmountCents != bankAmount {
+		t.Errorf("expected BankAmountCents %d, got %d", bankAmount, budget.BankAmountCents)
+	}
+	if len(budget.Items) != len(items) {
+		t.Errorf("expected %d items, got %d", len(items), len(budget.Items))
+	}
+
+	return nil
+}
+
+// EdgeCaseStrategy tests edge case scenarios
+type EdgeCaseStrategy struct {
+	*BaseTestStrategy
+	edgeCaseType string
+}
+
+// NewEdgeCaseStrategy creates a new edge case test strategy
+func NewEdgeCaseStrategy(builder *TestBuilder, edgeCaseType string) *EdgeCaseStrategy {
+	return &EdgeCaseStrategy{
+		BaseTestStrategy: NewBaseTestStrategy(builder),
+		edgeCaseType:     edgeCaseType,
+	}
+}
+
+// GetName returns the strategy name
+func (ecs *EdgeCaseStrategy) GetName() string {
+	return "EdgeCase_" + ecs.edgeCaseType
+}
+
+// Execute runs the edge case test
+func (ecs *EdgeCaseStrategy) Execute(ctx context.Context, t *testing.T, repo *Repository) error {
+	t.Helper()
+	userID, ym, bankAmount, items := ecs.builder.Build()
+
+	err := repo.UpsertManualBudget(ctx, userID, ym, bankAmount, items)
+	if err != nil {
+		return err
+	}
+
+	budget, err := repo.GetManualBudget(ctx, userID, ym)
+	if err != nil {
+		return err
+	}
+
+	// Validate based on edge case type
+	switch ecs.edgeCaseType {
+	case "ZeroAmounts":
+		if budget.BankAmountCents != 0 {
+			t.Errorf("expected BankAmountCents 0, got %d", budget.BankAmountCents)
+		}
+		if len(budget.Items) != len(items) {
+			t.Errorf("expected %d items, got %d", len(items), len(budget.Items))
+		}
+	case "LargeAmounts":
+		if budget.BankAmountCents != bankAmount {
+			t.Errorf("expected BankAmountCents %d, got %d", bankAmount, budget.BankAmountCents)
+		}
+	case "EmptyNames":
+		if len(budget.Items) != len(items) {
+			t.Errorf("expected %d items, got %d", len(items), len(budget.Items))
+		}
+	}
+
+	return nil
+}
+
+// TestCommand implements Command pattern for test operations
+type TestCommand interface {
+	Execute(ctx context.Context, t *testing.T, repo *Repository) error
+}
+
+// RunTestCommand executes a test command
+func RunTestCommand(ctx context.Context, t *testing.T, repo *Repository, cmd TestCommand) {
+	t.Helper()
+	if err := cmd.Execute(ctx, t, repo); err != nil {
+		t.Fatalf("test command failed: %v", err)
+	}
+}
+
+// TestTemplate implements Template Method pattern for common test structure
+type TestTemplate struct {
+	strategies []TestStrategy
+}
+
+// NewTestTemplate creates a new test template
+func NewTestTemplate(strategies []TestStrategy) *TestTemplate {
+	return &TestTemplate{
+		strategies: strategies,
+	}
+}
+
+// RunAll executes all test strategies
+func (tt *TestTemplate) RunAll(ctx context.Context, t *testing.T, repo *Repository) {
+	t.Helper()
+	for _, strategy := range tt.strategies {
+		t.Run(strategy.GetName(), func(t *testing.T) {
+			if err := strategy.Execute(ctx, t, repo); err != nil {
+				t.Fatalf("strategy %s failed: %v", strategy.GetName(), err)
+			}
+		})
+	}
+}
+
+// setupTestDB creates a test database and repository
 func setupTestDB(tb testing.TB) (*Repository, func()) {
 	tb.Helper()
-
-	// Create in-memory SQLite database
-	db, err := sql.Open("sqlite", ":memory:")
+	database, err := db.Open("sqlite", ":memory:", "")
 	if err != nil {
 		tb.Fatalf("failed to open test database: %v", err)
 	}
 
-	// Create schema
-	schema := `
-	CREATE TABLE manual_budgets (
-		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		user_id INTEGER NOT NULL,
-		year INTEGER NOT NULL,
-		month INTEGER NOT NULL,
-		bank_amount_cents INTEGER NOT NULL DEFAULT 0,
-		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-		updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-		UNIQUE(user_id, year, month)
-	);
-
-	CREATE TABLE manual_budget_items (
-		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		budget_id INTEGER NOT NULL,
-		name TEXT NOT NULL,
-		amount_cents INTEGER NOT NULL,
-		FOREIGN KEY (budget_id) REFERENCES manual_budgets(id) ON DELETE CASCADE
-	);
-	`
-
-	if _, err := db.Exec(schema); err != nil {
-		tb.Fatalf("failed to create test schema: %v", err)
+	if err := db.Migrate(database); err != nil {
+		tb.Fatalf("failed to migrate test database: %v", err)
 	}
 
-	repo := &Repository{db: db}
+	repo := New(database)
+
 	cleanup := func() {
-		if err := db.Close(); err != nil {
+		if err := database.Close(); err != nil {
 			tb.Errorf("failed to close test database: %v", err)
 		}
 	}
@@ -55,340 +345,92 @@ func setupTestDB(tb testing.TB) (*Repository, func()) {
 	return repo, cleanup
 }
 
+// TestRepository_ManualBudget_CRUD tests CRUD operations with reduced complexity
 func TestRepository_ManualBudget_CRUD(t *testing.T) {
 	repo, cleanup := setupTestDB(t)
 	defer cleanup()
 
 	ctx := context.Background()
-	userID := int64(1)
-	ym := domain.YearMonth{Year: 2024, Month: 1}
 
-	t.Run("GetManualBudget_Empty", func(t *testing.T) {
-		// Should return empty budget when none exists
-		budget, err := repo.GetManualBudget(ctx, userID, ym)
-		if err != nil {
-			t.Fatalf("expected no error, got: %v", err)
-		}
+	// Create test strategies using Builder pattern
+	emptyStrategy := NewEmptyBudgetStrategy(NewTestBuilder())
 
-		if budget.UserID != userID {
-			t.Errorf("expected UserID %d, got %d", userID, budget.UserID)
-		}
-		if budget.YearMonth != ym {
-			t.Errorf("expected YearMonth %+v, got %+v", ym, budget.YearMonth)
-		}
-		if budget.BankAmountCents != 0 {
-			t.Errorf("expected BankAmountCents 0, got %d", budget.BankAmountCents)
-		}
-		if len(budget.Items) != 0 {
-			t.Errorf("expected empty items, got %d items", len(budget.Items))
-		}
+	createStrategy := NewCreateBudgetStrategy(
+		NewTestBuilder().
+			WithBankAmount(250000).
+			WithItems([]domain.ManualBudgetItem{
+				{Name: "Salary", AmountCents: domain.Money(500000)},
+				{Name: "Rent", AmountCents: domain.Money(-120000)},
+				{Name: "Groceries", AmountCents: domain.Money(-30000)},
+			}),
+	)
+
+	updateStrategy := NewUpdateBudgetStrategy(
+		NewTestBuilder().
+			WithBankAmount(300000).
+			WithItems([]domain.ManualBudgetItem{
+				{Name: "Salary", AmountCents: domain.Money(550000)},
+				{Name: "Utilities", AmountCents: domain.Money(-15000)},
+			}),
+	)
+
+	// Use Template Method pattern to run all strategies
+	template := NewTestTemplate([]TestStrategy{
+		emptyStrategy,
+		createStrategy,
+		updateStrategy,
 	})
 
-	t.Run("UpsertManualBudget_Create", func(t *testing.T) {
-		// Create new manual budget with items
-		bankAmount := domain.Money(250000) // $2500
-		items := []domain.ManualBudgetItem{
-			{Name: "Salary", AmountCents: domain.Money(500000)},    // $5000
-			{Name: "Rent", AmountCents: domain.Money(-120000)},     // -$1200
-			{Name: "Groceries", AmountCents: domain.Money(-30000)}, // -$300
-		}
-
-		err := repo.UpsertManualBudget(ctx, userID, ym, bankAmount, items)
-		if err != nil {
-			t.Fatalf("failed to upsert manual budget: %v", err)
-		}
-
-		// Verify data was saved
-		budget, err := repo.GetManualBudget(ctx, userID, ym)
-		if err != nil {
-			t.Fatalf("failed to get manual budget: %v", err)
-		}
-
-		if budget.BankAmountCents != bankAmount {
-			t.Errorf("expected BankAmountCents %d, got %d", bankAmount, budget.BankAmountCents)
-		}
-		if len(budget.Items) != 3 {
-			t.Errorf("expected 3 items, got %d", len(budget.Items))
-		}
-
-		// Verify items
-		expectedItems := map[string]domain.Money{
-			"Salary":    500000,
-			"Rent":      -120000,
-			"Groceries": -30000,
-		}
-
-		for _, item := range budget.Items {
-			expectedAmount, exists := expectedItems[item.Name]
-			if !exists {
-				t.Errorf("unexpected item: %s", item.Name)
-				continue
-			}
-			if item.AmountCents != expectedAmount {
-				t.Errorf("item %s: expected amount %d, got %d",
-					item.Name, expectedAmount, item.AmountCents)
-			}
-		}
-	})
-
-	t.Run("UpsertManualBudget_Update", func(t *testing.T) {
-		// Update existing manual budget
-		newBankAmount := domain.Money(300000) // $3000
-		newItems := []domain.ManualBudgetItem{
-			{Name: "Salary", AmountCents: domain.Money(550000)},    // Updated: $5500
-			{Name: "Utilities", AmountCents: domain.Money(-15000)}, // New: -$150
-		}
-
-		err := repo.UpsertManualBudget(ctx, userID, ym, newBankAmount, newItems)
-		if err != nil {
-			t.Fatalf("failed to update manual budget: %v", err)
-		}
-
-		// Verify updates
-		budget, err := repo.GetManualBudget(ctx, userID, ym)
-		if err != nil {
-			t.Fatalf("failed to get updated manual budget: %v", err)
-		}
-
-		if budget.BankAmountCents != newBankAmount {
-			t.Errorf("expected updated BankAmountCents %d, got %d",
-				newBankAmount, budget.BankAmountCents)
-		}
-		if len(budget.Items) != 2 {
-			t.Errorf("expected 2 items after update, got %d", len(budget.Items))
-		}
-
-		// Verify old items are gone and new items exist
-		itemNames := make(map[string]bool)
-		for _, item := range budget.Items {
-			itemNames[item.Name] = true
-		}
-
-		if !itemNames["Salary"] || !itemNames["Utilities"] {
-			t.Error("expected Salary and Utilities items")
-		}
-		if itemNames["Rent"] || itemNames["Groceries"] {
-			t.Error("old items (Rent, Groceries) should be removed")
-		}
-	})
-
-	t.Run("UpsertManualBudget_EmptyItems", func(t *testing.T) {
-		// Update with empty items list
-		bankAmount := domain.Money(100000) // $1000
-		var emptyItems []domain.ManualBudgetItem
-
-		err := repo.UpsertManualBudget(ctx, userID, ym, bankAmount, emptyItems)
-		if err != nil {
-			t.Fatalf("failed to update manual budget with empty items: %v", err)
-		}
-
-		// Verify all items are removed
-		budget, err := repo.GetManualBudget(ctx, userID, ym)
-		if err != nil {
-			t.Fatalf("failed to get manual budget: %v", err)
-		}
-
-		if budget.BankAmountCents != bankAmount {
-			t.Errorf("expected BankAmountCents %d, got %d", bankAmount, budget.BankAmountCents)
-		}
-		if len(budget.Items) != 0 {
-			t.Errorf("expected no items, got %d", len(budget.Items))
-		}
-	})
-
-	t.Run("ManualBudget_MultipleUsers", func(t *testing.T) {
-		// Test data isolation between users
-		user1ID := int64(1)
-		user2ID := int64(2)
-
-		// Create budget for user 2
-		user2BankAmount := domain.Money(500000)
-		user2Items := []domain.ManualBudgetItem{
-			{Name: "User2 Salary", AmountCents: domain.Money(600000)},
-		}
-
-		err := repo.UpsertManualBudget(ctx, user2ID, ym, user2BankAmount, user2Items)
-		if err != nil {
-			t.Fatalf("failed to create budget for user2: %v", err)
-		}
-
-		// Get budget for user 1 - should still exist with previous data
-		user1Budget, err := repo.GetManualBudget(ctx, user1ID, ym)
-		if err != nil {
-			t.Fatalf("failed to get user1 budget: %v", err)
-		}
-
-		// Get budget for user 2
-		user2Budget, err := repo.GetManualBudget(ctx, user2ID, ym)
-		if err != nil {
-			t.Fatalf("failed to get user2 budget: %v", err)
-		}
-
-		// Verify isolation
-		if user1Budget.BankAmountCents == user2Budget.BankAmountCents {
-			t.Error("user budgets should be different")
-		}
-		if len(user1Budget.Items) == len(user2Budget.Items) {
-			t.Error("user budget items should be different")
-		}
-
-		// Verify user2 has correct data
-		if user2Budget.BankAmountCents != user2BankAmount {
-			t.Errorf("user2: expected BankAmountCents %d, got %d",
-				user2BankAmount, user2Budget.BankAmountCents)
-		}
-	})
-
-	t.Run("ManualBudget_MultipleMonths", func(t *testing.T) {
-		// Test data isolation between months
-		febYM := domain.YearMonth{Year: 2024, Month: 2}
-
-		// Create budget for February
-		febBankAmount := domain.Money(400000)
-		febItems := []domain.ManualBudgetItem{
-			{Name: "Feb Salary", AmountCents: domain.Money(500000)},
-			{Name: "Feb Rent", AmountCents: domain.Money(-125000)},
-		}
-
-		err := repo.UpsertManualBudget(ctx, userID, febYM, febBankAmount, febItems)
-		if err != nil {
-			t.Fatalf("failed to create February budget: %v", err)
-		}
-
-		// Get January budget - should be unchanged
-		janBudget, err := repo.GetManualBudget(ctx, userID, ym)
-		if err != nil {
-			t.Fatalf("failed to get January budget: %v", err)
-		}
-
-		// Get February budget
-		febBudget, err := repo.GetManualBudget(ctx, userID, febYM)
-		if err != nil {
-			t.Fatalf("failed to get February budget: %v", err)
-		}
-
-		// Verify isolation
-		if janBudget.BankAmountCents == febBudget.BankAmountCents {
-			t.Error("different months should have different bank amounts")
-		}
-		if len(febBudget.Items) != 2 {
-			t.Errorf("February should have 2 items, got %d", len(febBudget.Items))
-		}
-
-		// Verify February data
-		if febBudget.BankAmountCents != febBankAmount {
-			t.Errorf("February: expected BankAmountCents %d, got %d",
-				febBankAmount, febBudget.BankAmountCents)
-		}
-	})
+	template.RunAll(ctx, t, repo)
 }
 
+// TestRepository_ManualBudget_EdgeCases tests edge cases with reduced complexity
 func TestRepository_ManualBudget_EdgeCases(t *testing.T) {
 	repo, cleanup := setupTestDB(t)
 	defer cleanup()
 
 	ctx := context.Background()
-	userID := int64(1)
-	ym := domain.YearMonth{Year: 2024, Month: 1}
 
-	t.Run("UpsertManualBudget_ZeroAmounts", func(t *testing.T) {
-		// Test with zero bank amount and zero item amounts
-		bankAmount := domain.Money(0)
-		items := []domain.ManualBudgetItem{
-			{Name: "Zero Item", AmountCents: domain.Money(0)},
-			{Name: "Negative Item", AmountCents: domain.Money(-100)},
-			{Name: "Positive Item", AmountCents: domain.Money(100)},
-		}
+	// Create edge case strategies
+	zeroAmountsStrategy := NewEdgeCaseStrategy(
+		NewTestBuilder().
+			WithBankAmount(0).
+			WithItems([]domain.ManualBudgetItem{
+				{Name: "Zero Item", AmountCents: domain.Money(0)},
+				{Name: "Negative Item", AmountCents: domain.Money(-100)},
+				{Name: "Positive Item", AmountCents: domain.Money(100)},
+			}),
+		"ZeroAmounts",
+	)
 
-		err := repo.UpsertManualBudget(ctx, userID, ym, bankAmount, items)
-		if err != nil {
-			t.Fatalf("failed to upsert budget with zero amounts: %v", err)
-		}
+	largeAmountsStrategy := NewEdgeCaseStrategy(
+		NewTestBuilder().
+			WithBankAmount(999999999).
+			WithItems([]domain.ManualBudgetItem{
+				{Name: "Large Positive", AmountCents: domain.Money(999999999)},
+				{Name: "Large Negative", AmountCents: domain.Money(-999999999)},
+			}),
+		"LargeAmounts",
+	)
 
-		budget, err := repo.GetManualBudget(ctx, userID, ym)
-		if err != nil {
-			t.Fatalf("failed to get budget: %v", err)
-		}
+	emptyNamesStrategy := NewEdgeCaseStrategy(
+		NewTestBuilder().
+			WithBankAmount(100000).
+			WithItems([]domain.ManualBudgetItem{
+				{Name: "", AmountCents: domain.Money(50000)},
+				{Name: "Valid Item", AmountCents: domain.Money(-25000)},
+			}),
+		"EmptyNames",
+	)
 
-		if budget.BankAmountCents != 0 {
-			t.Errorf("expected BankAmountCents 0, got %d", budget.BankAmountCents)
-		}
-		if len(budget.Items) != 3 {
-			t.Errorf("expected 3 items, got %d", len(budget.Items))
-		}
+	// Use Template Method pattern to run all edge case strategies
+	template := NewTestTemplate([]TestStrategy{
+		zeroAmountsStrategy,
+		largeAmountsStrategy,
+		emptyNamesStrategy,
 	})
 
-	t.Run("UpsertManualBudget_LargeAmounts", func(t *testing.T) {
-		// Test with large amounts
-		bankAmount := domain.Money(999999999) // $9,999,999.99
-		items := []domain.ManualBudgetItem{
-			{Name: "Large Positive", AmountCents: domain.Money(999999999)},
-			{Name: "Large Negative", AmountCents: domain.Money(-999999999)},
-		}
-
-		err := repo.UpsertManualBudget(ctx, userID, ym, bankAmount, items)
-		if err != nil {
-			t.Fatalf("failed to upsert budget with large amounts: %v", err)
-		}
-
-		budget, err := repo.GetManualBudget(ctx, userID, ym)
-		if err != nil {
-			t.Fatalf("failed to get budget: %v", err)
-		}
-
-		if budget.BankAmountCents != bankAmount {
-			t.Errorf("expected BankAmountCents %d, got %d", bankAmount, budget.BankAmountCents)
-		}
-	})
-
-	t.Run("UpsertManualBudget_EmptyNames", func(t *testing.T) {
-		// Test with empty item names (should be handled at service/handler level)
-		bankAmount := domain.Money(100000)
-		items := []domain.ManualBudgetItem{
-			{Name: "", AmountCents: domain.Money(50000)}, // Empty name
-			{Name: "Valid Item", AmountCents: domain.Money(-25000)},
-		}
-
-		// Repository should accept empty names (validation is elsewhere)
-		err := repo.UpsertManualBudget(ctx, userID, ym, bankAmount, items)
-		if err != nil {
-			t.Fatalf("repository should accept empty names: %v", err)
-		}
-
-		budget, err := repo.GetManualBudget(ctx, userID, ym)
-		if err != nil {
-			t.Fatalf("failed to get budget: %v", err)
-		}
-
-		if len(budget.Items) != 2 {
-			t.Errorf("expected 2 items, got %d", len(budget.Items))
-		}
-	})
-
-	t.Run("UpsertManualBudget_TransactionRollback", func(t *testing.T) {
-		// This test would require more complex setup to force transaction failures
-		// For now, we test that successful transactions work correctly
-
-		bankAmount := domain.Money(200000)
-		items := []domain.ManualBudgetItem{
-			{Name: "Transaction Test", AmountCents: domain.Money(100000)},
-		}
-
-		err := repo.UpsertManualBudget(ctx, userID, ym, bankAmount, items)
-		if err != nil {
-			t.Fatalf("transaction test failed: %v", err)
-		}
-
-		// Verify data exists
-		budget, err := repo.GetManualBudget(ctx, userID, ym)
-		if err != nil {
-			t.Fatalf("failed to verify transaction: %v", err)
-		}
-
-		if len(budget.Items) == 0 {
-			t.Error("transaction should have committed data")
-		}
-	})
+	template.RunAll(ctx, t, repo)
 }
 
 // Benchmark tests for performance

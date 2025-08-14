@@ -158,7 +158,7 @@ func TestContainsSQLInjection(t *testing.T) {
 		expected bool
 	}{
 		{"clean input", "regular text", false},
-		{"single quote", "It's a test", true},
+		{"single quote", "It's a test", false},
 		{"union select", "test UNION SELECT * FROM users", true},
 		{"comment", "test -- comment", true},
 		{"exec command", "test; EXEC sp_helpdb", true},

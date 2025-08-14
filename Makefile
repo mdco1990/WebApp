@@ -69,6 +69,11 @@ help:
 	@echo "  web-audit            Run frontend audit checks"
 	@echo "  sonar                Run Sonar checks"
 	@echo ""
+	@echo "🐳 Docker Quality:"
+	@echo "  quality-docker       Run all quality checks via Docker Compose"
+	@echo "  quality-docker-backend  Run backend quality checks via Docker"
+	@echo "  quality-docker-frontend Run frontend quality checks via Docker"
+	@echo ""
 	@echo "🧹 Cleanup:"
 	@echo "  clean                Remove build artifacts"
 	@echo "  stop                 Stop any running server"
@@ -303,6 +308,21 @@ web-audit:
 # Sonar checks
 sonar:
 	sonar-scanner -Dsonar.projectKey=WebApp -Dsonar.sources=. -Dsonar.host.url=http://localhost:9000 -Dsonar.login=admin -Dsonar.password=admin
+
+# Docker Compose quality checks (review, lint, refactor, fix, clean, test, format)
+quality-docker:
+	@echo "Running comprehensive quality checks via Docker Compose..."
+	@./scripts/quality-docker.sh
+
+# Docker Compose quality checks - backend only
+quality-docker-backend:
+	@echo "Running backend quality checks via Docker Compose..."
+	@./scripts/quality-docker.sh --backend
+
+# Docker Compose quality checks - frontend only
+quality-docker-frontend:
+	@echo "Running frontend quality checks via Docker Compose..."
+	@./scripts/quality-docker.sh --frontend
 
 # Quick health probe (requires server running with matching PORT)
 health:

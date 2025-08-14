@@ -88,6 +88,117 @@ func (v ValidationError) Unwrap() error {
 	return v.Err
 }
 
+// Validator provides object-oriented validation capabilities
+type Validator struct {
+	fieldName string
+	value     string
+}
+
+// NewValidator creates a new validator instance
+func NewValidator(fieldName, value string) *Validator {
+	return &Validator{
+		fieldName: fieldName,
+		value:     value,
+	}
+}
+
+// PasswordValidator provides specialized password validation
+type PasswordValidator struct {
+	*Validator
+}
+
+// NewPasswordValidator creates a new password validator
+func NewPasswordValidator(password string) *PasswordValidator {
+	return &PasswordValidator{
+		Validator: NewValidator("password", password),
+	}
+}
+
+// ValidateLength validates the length of the password
+func (pv *PasswordValidator) ValidateLength() error {
+	if len(pv.value) == 0 {
+		return ValidationError{
+			Field:   pv.fieldName,
+			Value:   "[hidden]",
+			Message: "password is required",
+			Err:     ErrInvalidInput,
+		}
+	}
+
+	if len(pv.value) < 8 {
+		return ValidationError{
+			Field:   pv.fieldName,
+			Value:   "[hidden]",
+			Message: "password must be at least 8 characters long",
+			Err:     ErrInvalidInput,
+		}
+	}
+
+	if len(pv.value) > MaxPasswordLength {
+		return ValidationError{
+			Field:   pv.fieldName,
+			Value:   "[hidden]",
+			Message: fmt.Sprintf("password too long (max %d chars)", MaxPasswordLength),
+			Err:     ErrInputTooLong,
+		}
+	}
+
+	return nil
+}
+
+// ValidateComplexity validates password complexity requirements
+func (pv *PasswordValidator) ValidateComplexity() error {
+	// Check for valid UTF-8
+	if !utf8.ValidString(pv.value) {
+		return ValidationError{
+			Field:   pv.fieldName,
+			Value:   "[hidden]",
+			Message: "password contains invalid characters",
+			Err:     ErrInvalidFormat,
+		}
+	}
+
+	// Check character types
+	hasLower, hasUpper, hasDigit, hasSpecial := pv.checkCharacterTypes()
+
+	if !hasLower || !hasUpper || !hasDigit || !hasSpecial {
+		return ValidationError{
+			Field:   pv.fieldName,
+			Value:   "[hidden]",
+			Message: "password must contain at least one lowercase letter, uppercase letter, digit, and special character",
+			Err:     ErrInvalidInput,
+		}
+	}
+
+	return nil
+}
+
+// checkCharacterTypes checks if password contains required character types
+func (pv *PasswordValidator) checkCharacterTypes() (bool, bool, bool, bool) {
+	var hasLower, hasUpper, hasDigit, hasSpecial bool
+	for _, r := range pv.value {
+		switch {
+		case unicode.IsLower(r):
+			hasLower = true
+		case unicode.IsUpper(r):
+			hasUpper = true
+		case unicode.IsDigit(r):
+			hasDigit = true
+		case unicode.IsPunct(r) || unicode.IsSymbol(r):
+			hasSpecial = true
+		}
+	}
+	return hasLower, hasUpper, hasDigit, hasSpecial
+}
+
+// Validate performs all password validations
+func (pv *PasswordValidator) Validate() error {
+	if err := pv.ValidateLength(); err != nil {
+		return err
+	}
+	return pv.ValidateComplexity()
+}
+
 // Input sanitization functions
 
 // SanitizeString removes potentially dangerous characters and encodes HTML entities
@@ -155,8 +266,8 @@ func containsSQLInjection(input string) bool {
 		"insert into", "update set", "delete from", "drop table", "drop database",
 		"create table", "alter table", "exec ", "execute ", "sp_", "xp_",
 
-		// SQL comments and termination
-		"--", "/*", "*/", ";",
+		// SQL comments and termination (more specific to avoid false positives)
+		"--", "/*", "*/", ";--", ";/*", "*/;",
 
 		// Common SQL functions used in injection
 		"char(", "chr(", "ascii(", "substring(", "concat(",
@@ -165,11 +276,11 @@ func containsSQLInjection(input string) bool {
 		// System tables and schemas
 		"information_schema", "sysobjects", "syscolumns", "sys.tables",
 
-		// Conditional logic
-		" or ", " and ", " having ", " where ",
+		// Conditional logic (more specific to avoid false positives)
+		" or 1=", " or 1=1", " and 1=", " and 1=1", " having 1=", " where 1=",
 
-		// Quote patterns that could be used for injection
-		"'", "\"",
+		// Quote patterns that could be used for injection (more specific)
+		"';", "\";", "';--", "\";--",
 	}
 
 	for _, pattern := range sqlPatterns {
@@ -249,68 +360,8 @@ func ValidateUsername(username string) (string, error) {
 
 // ValidatePassword validates passwords with security requirements
 func ValidatePassword(password string) error {
-	if len(password) == 0 {
-		return ValidationError{
-			Field:   "password",
-			Value:   "[hidden]",
-			Message: "password is required",
-			Err:     ErrInvalidInput,
-		}
-	}
-
-	if len(password) < 8 {
-		return ValidationError{
-			Field:   "password",
-			Value:   "[hidden]",
-			Message: "password must be at least 8 characters long",
-			Err:     ErrInvalidInput,
-		}
-	}
-
-	if len(password) > MaxPasswordLength {
-		return ValidationError{
-			Field:   "password",
-			Value:   "[hidden]",
-			Message: fmt.Sprintf("password too long (max %d chars)", MaxPasswordLength),
-			Err:     ErrInputTooLong,
-		}
-	}
-
-	// Check for valid UTF-8
-	if !utf8.ValidString(password) {
-		return ValidationError{
-			Field:   "password",
-			Value:   "[hidden]",
-			Message: "password contains invalid characters",
-			Err:     ErrInvalidFormat,
-		}
-	}
-
-	// Ensure password complexity
-	var hasLower, hasUpper, hasDigit, hasSpecial bool
-	for _, r := range password {
-		switch {
-		case unicode.IsLower(r):
-			hasLower = true
-		case unicode.IsUpper(r):
-			hasUpper = true
-		case unicode.IsDigit(r):
-			hasDigit = true
-		case unicode.IsPunct(r) || unicode.IsSymbol(r):
-			hasSpecial = true
-		}
-	}
-
-	if !hasLower || !hasUpper || !hasDigit || !hasSpecial {
-		return ValidationError{
-			Field:   "password",
-			Value:   "[hidden]",
-			Message: "password must contain at least one lowercase letter, uppercase letter, digit, and special character",
-			Err:     ErrInvalidInput,
-		}
-	}
-
-	return nil
+	validator := NewPasswordValidator(password)
+	return validator.Validate()
 }
 
 // ValidateEmail validates email addresses

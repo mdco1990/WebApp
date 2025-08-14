@@ -1,5 +1,5 @@
 /* eslint-disable no-console */
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 
 interface ManualBudgetItem {
   id: string;
@@ -29,7 +29,7 @@ export const useManualBudgetFixed = (currentDate: Date) => {
   };
 
   // Save to localStorage with debouncing
-  const saveToStorage = (data: ManualBudgetState, date: Date) => {
+  const saveToStorage = useCallback((data: ManualBudgetState, date: Date) => {
     const key = getStorageKey(date);
     
     // Clear existing timer
@@ -46,10 +46,10 @@ export const useManualBudgetFixed = (currentDate: Date) => {
         console.error('❌ Failed to save manual budget to localStorage:', error);
       }
     }, 200); // Faster save for better UX
-  };
+  }, []);
 
   // Load from localStorage
-  const loadFromStorage = (date: Date): ManualBudgetState | null => {
+  const loadFromStorage = useCallback((date: Date): ManualBudgetState | null => {
     const key = getStorageKey(date);
     
     try {
@@ -64,7 +64,7 @@ export const useManualBudgetFixed = (currentDate: Date) => {
     }
     
     return null;
-  };
+  }, []);
 
   // Save effect - triggers when manualBudget changes
   useEffect(() => {
@@ -79,7 +79,7 @@ export const useManualBudgetFixed = (currentDate: Date) => {
     });
 
     saveToStorage(manualBudget, currentDate);
-  }, [manualBudget, currentDate]);
+  }, [manualBudget, currentDate, saveToStorage]);
 
   // Load effect - triggers when currentDate changes
   useEffect(() => {
@@ -105,7 +105,7 @@ export const useManualBudgetFixed = (currentDate: Date) => {
 
     // Allow saves after loading
     manualBudgetLoadedRef.current = true;
-  }, [currentDate]);
+  }, [currentDate, loadFromStorage]);
 
   return {
     manualBudget,

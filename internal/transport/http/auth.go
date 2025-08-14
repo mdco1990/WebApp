@@ -1,9 +1,12 @@
 package httpapi
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"io"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -31,57 +34,174 @@ func registerAuthRoutes(r chi.Router, repo *repository.Repository) {
 	})
 }
 
+// LoginProcessor handles the complete login workflow
+type LoginProcessor struct {
+	repo *repository.Repository
+}
+
+// NewLoginProcessor creates a new login processor
+func NewLoginProcessor(repo *repository.Repository) *LoginProcessor {
+	return &LoginProcessor{repo: repo}
+}
+
+// LoginRequest represents a login request
+type LoginRequest struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
+
+// LoginResponse represents a login response
+type LoginResponse struct {
+	Success   bool         `json:"success"`
+	Message   string       `json:"message"`
+	SessionID string       `json:"session_id,omitempty"`
+	User      *domain.User `json:"user,omitempty"`
+}
+
+// validateRequest validates the login request format and content
+func (lp *LoginProcessor) validateRequest(w http.ResponseWriter, r *http.Request) ([]byte, bool) {
+	// Check content type first
+	contentType := r.Header.Get("Content-Type")
+	if !strings.HasPrefix(contentType, "application/json") {
+		respondErr(w, http.StatusBadRequest, "Content-Type must be application/json")
+		return nil, false
+	}
+
+	// Read the request body
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		respondErr(w, http.StatusBadRequest, "failed to read request body")
+		return nil, false
+	}
+	defer func() {
+		if closeErr := r.Body.Close(); closeErr != nil {
+			// Log the error but can't do much more since we're already in an error state
+			slog.Error("Failed to close request body", "error", closeErr)
+		}
+	}()
+
+	// Check if body is empty
+	if len(body) == 0 {
+		respondErr(w, http.StatusBadRequest, "request body is empty")
+		return nil, false
+	}
+
+	return body, true
+}
+
+// parseCredentials parses and validates login credentials
+func (lp *LoginProcessor) parseCredentials(
+	w http.ResponseWriter,
+	body []byte,
+) (*LoginRequest, bool) {
+	var req LoginRequest
+
+	if err := json.Unmarshal(body, &req); err != nil {
+		respondErr(w, http.StatusBadRequest, "invalid JSON format")
+		return nil, false
+	}
+
+	// Validate required fields
+	if req.Username == "" {
+		respondErr(w, http.StatusBadRequest, "username is required")
+		return nil, false
+	}
+	if req.Password == "" {
+		respondErr(w, http.StatusBadRequest, "password is required")
+		return nil, false
+	}
+
+	return &req, true
+}
+
+// authenticateUser authenticates the user credentials
+func (lp *LoginProcessor) authenticateUser(
+	ctx context.Context,
+	w http.ResponseWriter,
+	req *LoginRequest,
+) (*domain.User, bool) {
+	user, passwordHash, err := lp.repo.GetUserByUsername(ctx, req.Username)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			respondJSON(w, http.StatusOK, LoginResponse{
+				Success: false,
+				Message: "Invalid username or password",
+			})
+			return nil, false
+		}
+		respondErr(w, http.StatusInternalServerError, "login failed")
+		return nil, false
+	}
+
+	if err := bcrypt.CompareHashAndPassword([]byte(passwordHash), []byte(req.Password)); err != nil {
+		respondJSON(w, http.StatusOK, LoginResponse{
+			Success: false,
+			Message: "Invalid username or password",
+		})
+		return nil, false
+	}
+
+	return user, true
+}
+
+// createSession creates a session for the authenticated user
+func (lp *LoginProcessor) createSession(
+	w http.ResponseWriter,
+	r *http.Request,
+	user *domain.User,
+) (*domain.Session, bool) {
+	session, err := lp.repo.CreateSession(r.Context(), user.ID)
+	if err != nil {
+		respondErr(w, http.StatusInternalServerError, "failed to create session")
+		return nil, false
+	}
+
+	_ = lp.repo.UpdateLastLogin(r.Context(), user.ID)
+
+	// Also set a session cookie so browser navigation to admin routes works
+	http.SetCookie(w, buildSessionCookie(r, session.ID, 24*60*60))
+
+	return session, true
+}
+
+// ProcessLogin handles the complete login workflow
+func (lp *LoginProcessor) ProcessLogin(w http.ResponseWriter, r *http.Request) {
+	// Validate request format
+	body, ok := lp.validateRequest(w, r)
+	if !ok {
+		return
+	}
+
+	// Parse and validate credentials
+	req, ok := lp.parseCredentials(w, body)
+	if !ok {
+		return
+	}
+
+	// Authenticate user
+	user, ok := lp.authenticateUser(r.Context(), w, req)
+	if !ok {
+		return
+	}
+
+	// Create session
+	session, ok := lp.createSession(w, r, user)
+	if !ok {
+		return
+	}
+
+	respondJSON(w, http.StatusOK, LoginResponse{
+		Success:   true,
+		Message:   "Login successful",
+		SessionID: session.ID,
+		User:      user,
+	})
+}
+
 // handleLogin processes user login requests
 func handleLogin(repo *repository.Repository) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		var req struct {
-			Username string `json:"username"`
-			Password string `json:"password"`
-		}
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			respondErr(w, http.StatusBadRequest, invalidBodyMsg)
-			return
-		}
-
-		user, passwordHash, err := repo.GetUserByUsername(r.Context(), req.Username)
-		if err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
-				respondJSON(w, http.StatusOK, map[string]any{
-					"success": false,
-					"message": "Invalid username or password",
-				})
-				return
-			}
-			respondErr(w, http.StatusInternalServerError, "login failed")
-			return
-		}
-
-		if err := bcrypt.CompareHashAndPassword([]byte(passwordHash), []byte(req.Password)); err != nil {
-			respondJSON(w, http.StatusOK, map[string]any{
-				"success": false,
-				"message": "Invalid username or password",
-			})
-			return
-		}
-
-		session, err := repo.CreateSession(r.Context(), user.ID)
-		if err != nil {
-			respondErr(w, http.StatusInternalServerError, "failed to create session")
-			return
-		}
-
-		_ = repo.UpdateLastLogin(r.Context(), user.ID)
-
-		// Also set a session cookie so browser navigation to admin routes works
-		http.SetCookie(w, buildSessionCookie(r, session.ID, 24*60*60))
-
-		respondJSON(w, http.StatusOK, map[string]any{
-			"success":    true,
-			"message":    "Login successful",
-			"session_id": session.ID,
-			"user":       user,
-		})
-	}
+	processor := NewLoginProcessor(repo)
+	return processor.ProcessLogin
 }
 
 // handleLogout processes user logout requests
