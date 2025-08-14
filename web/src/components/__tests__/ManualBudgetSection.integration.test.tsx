@@ -11,7 +11,9 @@ import * as api from '../../services/api';
 // Mock the API
 jest.mock('../../services/api');
 const mockGetManualBudget = api.getManualBudget as jest.MockedFunction<typeof api.getManualBudget>;
-const mockSaveManualBudget = api.saveManualBudget as jest.MockedFunction<typeof api.saveManualBudget>;
+const mockSaveManualBudget = api.saveManualBudget as jest.MockedFunction<
+  typeof api.saveManualBudget
+>;
 
 // Mock localStorage
 const localStorageMock = {
@@ -39,17 +41,14 @@ const TestManualBudgetComponent: React.FC<{ selectedDate: Date }> = ({ selectedD
   const addItem = () => {
     setManualBudget({
       ...manualBudget,
-      items: [
-        ...manualBudget.items,
-        { id: `test-${Date.now()}`, name: 'Test Item', amount: -100 }
-      ]
+      items: [...manualBudget.items, { id: `test-${Date.now()}`, name: 'Test Item', amount: -100 }],
     });
   };
 
   const updateBankAmount = (amount: number) => {
     setManualBudget({
       ...manualBudget,
-      bankAmount: amount
+      bankAmount: amount,
     });
   };
 
@@ -60,18 +59,17 @@ const TestManualBudgetComponent: React.FC<{ selectedDate: Date }> = ({ selectedD
       <div data-testid="items-count">Items: {manualBudget.items.length}</div>
 
       <div data-testid="items-list">
-        {manualBudget.items.map(item => (
+        {manualBudget.items.map((item) => (
           <div key={item.id} data-testid={`item-${item.id}`}>
             {item.name}: ${item.amount}
           </div>
         ))}
       </div>
 
-      <button onClick={addItem} data-testid="add-item">Add Item</button>
-      <button
-        onClick={() => updateBankAmount(2000)}
-        data-testid="update-bank"
-      >
+      <button onClick={addItem} data-testid="add-item">
+        Add Item
+      </button>
+      <button onClick={() => updateBankAmount(2000)} data-testid="update-bank">
         Update Bank to $2000
       </button>
     </div>
@@ -304,9 +302,12 @@ describe('ManualBudget - Component Integration Tests', () => {
     await user.click(addButton);
 
     // Check UI updated correctly
-    await waitFor(() => {
-      expect(screen.getByTestId('items-count')).toHaveTextContent('Items: 5'); // 2 initial + 3 added
-    }, { timeout: 3000 });
+    await waitFor(
+      () => {
+        expect(screen.getByTestId('items-count')).toHaveTextContent('Items: 5'); // 2 initial + 3 added
+      },
+      { timeout: 3000 }
+    );
 
     console.log('   📱 UI updated correctly for all clicks');
 
@@ -315,9 +316,12 @@ describe('ManualBudget - Component Integration Tests', () => {
       jest.advanceTimersByTime(500);
     });
 
-    await waitFor(() => {
-      expect(mockSaveManualBudget).toHaveBeenCalledTimes(1);
-    }, { timeout: 2000 });
+    await waitFor(
+      () => {
+        expect(mockSaveManualBudget).toHaveBeenCalledTimes(1);
+      },
+      { timeout: 2000 }
+    );
 
     const saveCall = mockSaveManualBudget.mock.calls[0][0];
     expect(saveCall.items).toHaveLength(5); // Should save all 5 items

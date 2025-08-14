@@ -100,7 +100,9 @@ const OutcomeSources: React.FC<Props> = ({
                   type="text"
                   className={`form-control form-control-sm ${isDarkMode ? 'bg-dark text-light border-secondary' : ''}`}
                   value={source.name}
-                  placeholder={t('placeholder.outcomeSourceName', { defaultValue: 'Outcome source name' })}
+                  placeholder={t('placeholder.outcomeSourceName', {
+                    defaultValue: 'Outcome source name',
+                  })}
                   onChange={(e) => onUpdate(index, { ...source, name: e.target.value })}
                   onBlur={() => onBlurSave(index)}
                 />
@@ -130,7 +132,9 @@ const OutcomeSources: React.FC<Props> = ({
                       push('Failed to delete. Please try again.', 'error');
                     }
                   }}
-                  title={t('btn.deleteOutcomeSource', { defaultValue: 'Delete this outcome source' })}
+                  title={t('btn.deleteOutcomeSource', {
+                    defaultValue: 'Delete this outcome source',
+                  })}
                 >
                   ✕
                 </button>

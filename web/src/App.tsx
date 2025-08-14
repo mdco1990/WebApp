@@ -55,7 +55,13 @@ const PageHeader: React.FC<PageHeaderProps> = ({ title, loading, HeaderControlsC
           <div className="page-pretitle">Personal Finance</div>
           <h5 className="page-title d-flex align-items-center gap-2">
             {title}
-            {loading && <span className="spinner-border spinner-border-sm text-light" aria-live="polite" aria-label="Loading"></span>}
+            {loading && (
+              <span
+                className="spinner-border spinner-border-sm text-light"
+                aria-live="polite"
+                aria-label="Loading"
+              ></span>
+            )}
           </h5>
         </div>
         <div className="col-auto ms-auto d-print-none">{HeaderControlsComp}</div>
@@ -64,14 +70,21 @@ const PageHeader: React.FC<PageHeaderProps> = ({ title, loading, HeaderControlsC
   </div>
 );
 
-interface SectionTabsProps { active: string; t: (k: string, opts?: Record<string, unknown>) => string }
+interface SectionTabsProps {
+  active: string;
+  t: (k: string, opts?: Record<string, unknown>) => string;
+}
 const SectionTabs: React.FC<SectionTabsProps> = ({ active, t }) => (
   <div className="page-header-tabs">
     <div className="container-xl">
       <ul className="nav nav-tabs nav-pills nav-fill" aria-label="Sections">
-        {['planning', 'tracking', 'savings', 'analytics'].map(id => (
+        {['planning', 'tracking', 'savings', 'analytics'].map((id) => (
           <li key={id} className="nav-item">
-            <a href={`#${id}`} className={`nav-link ${active === id ? 'active' : ''}`} aria-current={active === id ? 'page' : undefined}>
+            <a
+              href={`#${id}`}
+              className={`nav-link ${active === id ? 'active' : ''}`}
+              aria-current={active === id ? 'page' : undefined}
+            >
               {t(`nav.${id}`, { defaultValue: id.charAt(0).toUpperCase() + id.slice(1) })}
             </a>
           </li>
@@ -351,21 +364,27 @@ const App: React.FC = () => {
         onSubmit={handlePasswordUpdate}
       />
       {/* Page Header */}
-      <PageHeader title={getPageTitle()} loading={loading} HeaderControlsComp={<HeaderControls
-        isDarkMode={theme.isDarkMode}
-        onToggleDarkMode={() => theme.setIsDarkMode(!theme.isDarkMode)}
-        currency={theme.currency}
-        onSetCurrency={theme.setCurrency}
-        navigateMonth={navigation.navigateMonth}
-        goToToday={navigation.goToToday}
-        monthInputValue={navigation.monthInputValue}
-        onMonthChange={navigation.onMonthChange}
-        user={auth.user}
-        onChangePasswordClick={() => setShowPasswordForm(true)}
-        onLogout={auth.logout}
-        onNavigateToUserManagement={() => setShowUserManagement(true)}
-        onNavigateToDBAdmin={() => setShowDBAdmin(true)}
-      />} />
+      <PageHeader
+        title={getPageTitle()}
+        loading={loading}
+        HeaderControlsComp={
+          <HeaderControls
+            isDarkMode={theme.isDarkMode}
+            onToggleDarkMode={() => theme.setIsDarkMode(!theme.isDarkMode)}
+            currency={theme.currency}
+            onSetCurrency={theme.setCurrency}
+            navigateMonth={navigation.navigateMonth}
+            goToToday={navigation.goToToday}
+            monthInputValue={navigation.monthInputValue}
+            onMonthChange={navigation.onMonthChange}
+            user={auth.user}
+            onChangePasswordClick={() => setShowPasswordForm(true)}
+            onLogout={auth.logout}
+            onNavigateToUserManagement={() => setShowUserManagement(true)}
+            onNavigateToDBAdmin={() => setShowDBAdmin(true)}
+          />
+        }
+      />
       <SectionTabs active={navigation.activeSection} t={t} />
 
       {/* Conditional rendering based on current view */}
@@ -377,7 +396,10 @@ const App: React.FC = () => {
         <>
           {/* Predicted Budget */}
           <div id="planning" className="section-anchor"></div>
-          <div className="container-fluid py-4" style={{ padding: '1rem', margin: '0 auto', maxWidth: '100%' }}>
+          <div
+            className="container-fluid py-4"
+            style={{ padding: '1rem', margin: '0 auto', maxWidth: '100%' }}
+          >
             <PlanningSection
               isDarkMode={theme.isDarkMode}
               monthLabel={`${formatMonth(navigation.currentDate, 'long')} ${navigation.currentDate.getFullYear()}`}
@@ -390,25 +412,63 @@ const App: React.FC = () => {
                 updated[index] = next;
                 budgetState.setPredictedBudget((prev) => ({ ...prev, incomeSources: updated }));
               }}
-              onIncomeBlurSave={(index: number) => autoSaveIncomeSource({ ...budgetState.predictedBudget.incomeSources[index] })}
+              onIncomeBlurSave={(index: number) =>
+                autoSaveIncomeSource({ ...budgetState.predictedBudget.incomeSources[index] })
+              }
               onIncomeRemoveUnsaved={(index: number) => {
-                const updated = budgetState.predictedBudget.incomeSources.filter((_, i) => i !== index);
+                const updated = budgetState.predictedBudget.incomeSources.filter(
+                  (_, i) => i !== index
+                );
                 budgetState.setPredictedBudget((prev) => ({ ...prev, incomeSources: updated }));
               }}
-              onIncomeDeletePersisted={async (id: number) => { await deleteIncome(id); }}
-              onIncomeAddEmpty={() => budgetState.setPredictedBudget((prev) => ({ ...prev, incomeSources: [...prev.incomeSources, { id: 0, client_id: `tmp_inc_${Date.now()}_${Math.random().toString(36).slice(2)}`, name: '', amount_cents: 0 }] }))}
+              onIncomeDeletePersisted={async (id: number) => {
+                await deleteIncome(id);
+              }}
+              onIncomeAddEmpty={() =>
+                budgetState.setPredictedBudget((prev) => ({
+                  ...prev,
+                  incomeSources: [
+                    ...prev.incomeSources,
+                    {
+                      id: 0,
+                      client_id: `tmp_inc_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+                      name: '',
+                      amount_cents: 0,
+                    },
+                  ],
+                }))
+              }
               onOutcomeUpdate={(index: number, next: OutcomeSource) => {
                 const updated = [...budgetState.predictedBudget.outcomeSources];
                 updated[index] = next;
                 budgetState.setPredictedBudget((prev) => ({ ...prev, outcomeSources: updated }));
               }}
-              onOutcomeBlurSave={(index: number) => autoSaveOutcomeSource({ ...budgetState.predictedBudget.outcomeSources[index] })}
+              onOutcomeBlurSave={(index: number) =>
+                autoSaveOutcomeSource({ ...budgetState.predictedBudget.outcomeSources[index] })
+              }
               onOutcomeRemoveUnsaved={(index: number) => {
-                const updated = budgetState.predictedBudget.outcomeSources.filter((_, i) => i !== index);
+                const updated = budgetState.predictedBudget.outcomeSources.filter(
+                  (_, i) => i !== index
+                );
                 budgetState.setPredictedBudget((prev) => ({ ...prev, outcomeSources: updated }));
               }}
-              onOutcomeDeletePersisted={async (id: number) => { await deleteOutcome(id); }}
-              onOutcomeAddEmpty={() => budgetState.setPredictedBudget((prev) => ({ ...prev, outcomeSources: [...prev.outcomeSources, { id: 0, client_id: `tmp_out_${Date.now()}_${Math.random().toString(36).slice(2)}`, name: '', amount_cents: 0 }] }))}
+              onOutcomeDeletePersisted={async (id: number) => {
+                await deleteOutcome(id);
+              }}
+              onOutcomeAddEmpty={() =>
+                budgetState.setPredictedBudget((prev) => ({
+                  ...prev,
+                  outcomeSources: [
+                    ...prev.outcomeSources,
+                    {
+                      id: 0,
+                      client_id: `tmp_out_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+                      name: '',
+                      amount_cents: 0,
+                    },
+                  ],
+                }))
+              }
               totalIncome={budgetState.predictedBudget.totalIncome}
               totalOutcome={budgetState.predictedBudget.totalOutcome}
               difference={budgetState.predictedBudget.difference}

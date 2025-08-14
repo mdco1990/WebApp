@@ -39,14 +39,14 @@ describe('useBudgetState', () => {
           client_id: '1',
           name: 'Salary',
           amount_cents: 500000, // $5000
-        }
+        },
       ],
       outcomeSources: [
         {
           client_id: '2',
           name: 'Rent',
           amount_cents: 120000, // $1200
-        }
+        },
       ],
       totalIncome: 500000,
       totalOutcome: 120000,
@@ -92,12 +92,8 @@ describe('useBudgetState', () => {
 
     act(() => {
       result.current.setPredictedBudget({
-        incomeSources: [
-          { client_id: '1', name: 'Income with zero amount', amount_cents: 0 },
-        ],
-        outcomeSources: [
-          { client_id: '2', name: 'Expense with zero amount', amount_cents: 0 },
-        ],
+        incomeSources: [{ client_id: '1', name: 'Income with zero amount', amount_cents: 0 }],
+        outcomeSources: [{ client_id: '2', name: 'Expense with zero amount', amount_cents: 0 }],
         totalIncome: 0,
         totalOutcome: 0,
         difference: 0,
@@ -117,9 +113,7 @@ describe('useBudgetState', () => {
       currentAmount: 3000,
       monthlyContribution: 750,
       monthsToTarget: 16,
-      categories: [
-        { id: '1', name: 'Updated Travel', amount: 1500, color: '#FF6B6B' },
-      ],
+      categories: [{ id: '1', name: 'Updated Travel', amount: 1500, color: '#FF6B6B' }],
     };
 
     act(() => {

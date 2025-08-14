@@ -58,27 +58,25 @@ const SavingsSection = React.memo<SavingsSectionProps>(
         id: Date.now().toString(),
         name: '',
         amount: 0,
-        color: `#${Math.floor(Math.random() * 16777215).toString(16)}`
+        color: `#${Math.floor(Math.random() * 16777215).toString(16)}`,
       };
-      setSavingsTracker(prev => ({
+      setSavingsTracker((prev) => ({
         ...prev,
-        categories: [...prev.categories, newCategory]
+        categories: [...prev.categories, newCategory],
       }));
     };
 
     const updateCategory = (id: string, updates: Partial<SavingsCategory>) => {
-      setSavingsTracker(prev => ({
+      setSavingsTracker((prev) => ({
         ...prev,
-        categories: prev.categories.map(cat =>
-          cat.id === id ? { ...cat, ...updates } : cat
-        )
+        categories: prev.categories.map((cat) => (cat.id === id ? { ...cat, ...updates } : cat)),
       }));
     };
 
     const deleteCategory = (id: string) => {
-      setSavingsTracker(prev => ({
+      setSavingsTracker((prev) => ({
         ...prev,
-        categories: prev.categories.filter(cat => cat.id !== id)
+        categories: prev.categories.filter((cat) => cat.id !== id),
       }));
     };
 
@@ -89,11 +87,15 @@ const SavingsSection = React.memo<SavingsSectionProps>(
           <div className={`card h-100 ${isDarkMode ? 'bg-secondary text-light' : 'bg-white'}`}>
             <div className="card-header py-2 d-flex justify-content-between align-items-center">
               <h6 className="h6 mb-0">{savingsTitle}</h6>
-              <span className="badge bg-info text-uppercase">{t('label.tracker', { defaultValue: 'Tracker' })}</span>
+              <span className="badge bg-info text-uppercase">
+                {t('label.tracker', { defaultValue: 'Tracker' })}
+              </span>
             </div>
             <div className="card-body p-3">
               <p className="text-muted small mb-3">
-                {t('section.savings.desc', { defaultValue: 'Track your savings goals and allocations.' })}
+                {t('section.savings.desc', {
+                  defaultValue: 'Track your savings goals and allocations.',
+                })}
               </p>
               <div className="row g-2">
                 <div className="col-12">
@@ -154,21 +156,23 @@ const SavingsSection = React.memo<SavingsSectionProps>(
                     </div>
                     <div className="col-12">
                       <label className="form-label d-block">{monthsToTargetLabel}</label>
-                      <span className="badge bg-secondary">{(() => {
-                        const months = Math.ceil(
-                          (savingsTracker.targetAmount - savingsTracker.currentAmount) /
-                          Math.max(savingsTracker.monthlyContribution, 1)
-                        );
-                        let label: string;
-                        if (i18n.language?.startsWith('fr')) {
-                          label = t('label.months', { defaultValue: 'mois' });
-                        } else if (months === 1) {
-                          label = t('label.month', { defaultValue: 'month' });
-                        } else {
-                          label = t('label.months', { defaultValue: 'months' });
-                        }
-                        return `${months} ${label}`;
-                      })()}</span>
+                      <span className="badge bg-secondary">
+                        {(() => {
+                          const months = Math.ceil(
+                            (savingsTracker.targetAmount - savingsTracker.currentAmount) /
+                              Math.max(savingsTracker.monthlyContribution, 1)
+                          );
+                          let label: string;
+                          if (i18n.language?.startsWith('fr')) {
+                            label = t('label.months', { defaultValue: 'mois' });
+                          } else if (months === 1) {
+                            label = t('label.month', { defaultValue: 'month' });
+                          } else {
+                            label = t('label.months', { defaultValue: 'months' });
+                          }
+                          return `${months} ${label}`;
+                        })()}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -180,25 +184,46 @@ const SavingsSection = React.memo<SavingsSectionProps>(
         <div className="col-lg-6 col-12">
           <div className={`card h-100 ${isDarkMode ? 'bg-secondary text-light' : 'bg-white'}`}>
             <div className="card-header py-2 d-flex justify-content-between align-items-center">
-              <h6 className="h6 mb-0">{t('section.savingsCategories', { defaultValue: 'Savings Categories' })}</h6>
+              <h6 className="h6 mb-0">
+                {t('section.savingsCategories', { defaultValue: 'Savings Categories' })}
+              </h6>
               <div className="btn-group btn-group-sm">
-                <button className="btn btn-outline-primary" onClick={addCategory}>+ {t('btn.add', { defaultValue: 'Add' })}</button>
-                <button className="btn btn-outline-danger" disabled={savingsTracker.categories.length === 0} onClick={() => deleteCategory(savingsTracker.categories[savingsTracker.categories.length - 1].id)}>− {t('btn.remove', { defaultValue: 'Remove' })}</button>
+                <button className="btn btn-outline-primary" onClick={addCategory}>
+                  + {t('btn.add', { defaultValue: 'Add' })}
+                </button>
+                <button
+                  className="btn btn-outline-danger"
+                  disabled={savingsTracker.categories.length === 0}
+                  onClick={() =>
+                    deleteCategory(
+                      savingsTracker.categories[savingsTracker.categories.length - 1].id
+                    )
+                  }
+                >
+                  − {t('btn.remove', { defaultValue: 'Remove' })}
+                </button>
               </div>
             </div>
             <div className="card-body p-2">
-              <div className="table-responsive mb-2" style={{ maxHeight: '280px', overflowY: 'auto' }}>
+              <div
+                className="table-responsive mb-2"
+                style={{ maxHeight: '280px', overflowY: 'auto' }}
+              >
                 <table className={`table table-sm align-middle ${isDarkMode ? 'table-dark' : ''}`}>
                   <thead className="sticky-top" style={{ top: 0 }}>
                     <tr>
                       <th style={{ width: '40px' }}></th>
                       <th>{t('table.category', { defaultValue: 'Category' })}</th>
-                      <th style={{ width: '120px' }}>{t('table.amount', { defaultValue: 'Amount' })}</th>
-                      <th style={{ width: '60px' }}>{t('table.action', { defaultValue: 'Action' })}</th>
+                      <th style={{ width: '120px' }}>
+                        {t('table.amount', { defaultValue: 'Amount' })}
+                      </th>
+                      <th style={{ width: '60px' }}>
+                        {t('table.action', { defaultValue: 'Action' })}
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
-                    {savingsTracker.categories.map(cat => (
+                    {savingsTracker.categories.map((cat) => (
                       <tr key={cat.id}>
                         <td>
                           <input
@@ -223,21 +248,31 @@ const SavingsSection = React.memo<SavingsSectionProps>(
                           <input
                             type="number"
                             value={cat.amount}
-                            onChange={(e) => updateCategory(cat.id, { amount: parseFloat(e.target.value) || 0 })}
+                            onChange={(e) =>
+                              updateCategory(cat.id, { amount: parseFloat(e.target.value) || 0 })
+                            }
                             className={`form-control form-control-sm ${isDarkMode ? 'bg-dark text-light border-secondary' : ''}`}
                             step="0.01"
                             placeholder="0.00"
                           />
                         </td>
                         <td>
-                          <button className="btn btn-outline-danger btn-sm" onClick={() => deleteCategory(cat.id)} title={t('btn.delete', { defaultValue: 'Delete' })}>×</button>
+                          <button
+                            className="btn btn-outline-danger btn-sm"
+                            onClick={() => deleteCategory(cat.id)}
+                            title={t('btn.delete', { defaultValue: 'Delete' })}
+                          >
+                            ×
+                          </button>
                         </td>
                       </tr>
                     ))}
                     {savingsTracker.categories.length === 0 && (
                       <tr>
                         <td colSpan={4} className="text-center text-muted py-3 small">
-                          {t('empty.noCategories', { defaultValue: 'No categories yet. Add one to get started!' })}
+                          {t('empty.noCategories', {
+                            defaultValue: 'No categories yet. Add one to get started!',
+                          })}
                         </td>
                       </tr>
                     )}
@@ -248,13 +283,37 @@ const SavingsSection = React.memo<SavingsSectionProps>(
               {savingsTracker.categories.length > 0 && (
                 <div className="small">
                   <div className="d-flex justify-content-between">
-                    <span className="text-muted">{t('label.totalAllocated', { defaultValue: 'Allocated' })}</span>
-                    <strong className="text-info">{formatCurrency(Math.round(savingsTracker.categories.reduce((sum, c) => sum + c.amount, 0) * 100))}</strong>
+                    <span className="text-muted">
+                      {t('label.totalAllocated', { defaultValue: 'Allocated' })}
+                    </span>
+                    <strong className="text-info">
+                      {formatCurrency(
+                        Math.round(
+                          savingsTracker.categories.reduce((sum, c) => sum + c.amount, 0) * 100
+                        )
+                      )}
+                    </strong>
                   </div>
                   <div className="d-flex justify-content-between">
-                    <span className="text-muted">{t('label.unallocated', { defaultValue: 'Unallocated' })}</span>
-                    <strong className={savingsTracker.currentAmount - savingsTracker.categories.reduce((s, c) => s + c.amount, 0) >= 0 ? 'text-success' : 'text-warning'}>
-                      {formatCurrency(Math.round((savingsTracker.currentAmount - savingsTracker.categories.reduce((s, c) => s + c.amount, 0)) * 100))}
+                    <span className="text-muted">
+                      {t('label.unallocated', { defaultValue: 'Unallocated' })}
+                    </span>
+                    <strong
+                      className={
+                        savingsTracker.currentAmount -
+                          savingsTracker.categories.reduce((s, c) => s + c.amount, 0) >=
+                        0
+                          ? 'text-success'
+                          : 'text-warning'
+                      }
+                    >
+                      {formatCurrency(
+                        Math.round(
+                          (savingsTracker.currentAmount -
+                            savingsTracker.categories.reduce((s, c) => s + c.amount, 0)) *
+                            100
+                        )
+                      )}
                     </strong>
                   </div>
                 </div>

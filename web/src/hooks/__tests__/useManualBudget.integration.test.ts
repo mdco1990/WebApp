@@ -9,7 +9,9 @@ import * as api from '../../services/api';
 // Mock the API
 jest.mock('../../services/api');
 const mockGetManualBudget = api.getManualBudget as jest.MockedFunction<typeof api.getManualBudget>;
-const mockSaveManualBudget = api.saveManualBudget as jest.MockedFunction<typeof api.saveManualBudget>;
+const mockSaveManualBudget = api.saveManualBudget as jest.MockedFunction<
+  typeof api.saveManualBudget
+>;
 
 // Mock localStorage
 type LocalStorageMock = {
@@ -156,11 +158,11 @@ describe('useManualBudget - Integration Tests', () => {
     mockGetManualBudget
       .mockResolvedValueOnce({
         bank_amount_cents: 100000,
-        items: [{ id: '1', name: 'Jan Item', amount_cents: 50000 }]
+        items: [{ id: '1', name: 'Jan Item', amount_cents: 50000 }],
       })
       .mockResolvedValueOnce({
         bank_amount_cents: 0,
-        items: []
+        items: [],
       });
 
     const { result: janResult } = renderHook(() => useManualBudget(janDate));
@@ -206,10 +208,7 @@ describe('useManualBudget - Integration Tests', () => {
       const currentBudget = result.current.manualBudget;
       result.current.setManualBudget({
         ...currentBudget,
-        items: [
-          ...currentBudget.items,
-          { id: 'temp-groceries', name: 'Groceries', amount: -400 },
-        ],
+        items: [...currentBudget.items, { id: 'temp-groceries', name: 'Groceries', amount: -400 }],
       });
     });
 
@@ -218,10 +217,7 @@ describe('useManualBudget - Integration Tests', () => {
       const currentBudget = result.current.manualBudget;
       result.current.setManualBudget({
         ...currentBudget,
-        items: [
-          ...currentBudget.items,
-          { id: 'temp-utilities', name: 'Utilities', amount: -150 },
-        ],
+        items: [...currentBudget.items, { id: 'temp-utilities', name: 'Utilities', amount: -150 }],
       });
     });
 
@@ -276,14 +272,21 @@ describe('useManualBudget - Integration Tests', () => {
     const { result: reloadedResult } = renderHook(() => useManualBudget(testDate));
 
     await waitFor(() => {
-      console.log('   Budget after reload:', JSON.stringify(reloadedResult.current.manualBudget, null, 2));
+      console.log(
+        '   Budget after reload:',
+        JSON.stringify(reloadedResult.current.manualBudget, null, 2)
+      );
       expect(reloadedResult.current.manualBudget.items.length).toBe(4);
       expect(reloadedResult.current.manualBudget.bankAmount).toBe(3500);
     });
 
     // Verify specific items persisted
-    const groceriesItem = reloadedResult.current.manualBudget.items.find(item => item.name === 'Groceries');
-    const utilitiesItem = reloadedResult.current.manualBudget.items.find(item => item.name === 'Utilities');
+    const groceriesItem = reloadedResult.current.manualBudget.items.find(
+      (item) => item.name === 'Groceries'
+    );
+    const utilitiesItem = reloadedResult.current.manualBudget.items.find(
+      (item) => item.name === 'Utilities'
+    );
 
     expect(groceriesItem?.amount).toBe(-400);
     expect(utilitiesItem?.amount).toBe(-150);

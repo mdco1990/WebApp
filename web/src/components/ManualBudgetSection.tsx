@@ -119,7 +119,9 @@ const ManualBudgetSection: React.FC<Props> = ({
           <div className="card-body">
             <div className="row g-3 mb-3">
               <div className="col-md-4">
-                <label className="form-label" htmlFor="bank-amount">{bankLabel}</label>
+                <label className="form-label" htmlFor="bank-amount">
+                  {bankLabel}
+                </label>
                 <AmountInput
                   id="bank-amount"
                   value={manualBudget.bankAmount}
@@ -203,7 +205,7 @@ const ManualBudgetSection: React.FC<Props> = ({
                         {
                           id: Date.now().toString() + '-' + Math.random().toString(36).slice(2),
                           name: '',
-                          amount: 0
+                          amount: 0,
                         },
                       ],
                     });

@@ -30,11 +30,21 @@ const DBAdmin: React.FC<DBAdminProps> = ({ onBackToMain }) => {
       setLoading(true);
       // Fetch stats from API endpoints
       const [users, incomeSources, budgetSources, expenses, manualBudgets] = await Promise.all([
-        fetch('/api/v1/admin/users').then(res => res.json()).catch(() => []),
-        fetch('/api/v1/income-sources').then(res => res.json()).catch(() => []),
-        fetch('/api/v1/budget-sources').then(res => res.json()).catch(() => []),
-        fetch('/api/v1/expenses').then(res => res.json()).catch(() => []),
-        fetch('/api/v1/manual-budgets').then(res => res.json()).catch(() => [])
+        fetch('/api/v1/admin/users')
+          .then((res) => res.json())
+          .catch(() => []),
+        fetch('/api/v1/income-sources')
+          .then((res) => res.json())
+          .catch(() => []),
+        fetch('/api/v1/budget-sources')
+          .then((res) => res.json())
+          .catch(() => []),
+        fetch('/api/v1/expenses')
+          .then((res) => res.json())
+          .catch(() => []),
+        fetch('/api/v1/manual-budgets')
+          .then((res) => res.json())
+          .catch(() => []),
       ]);
 
       interface User {
@@ -54,10 +64,13 @@ const DBAdmin: React.FC<DBAdminProps> = ({ onBackToMain }) => {
         totalIncomeSources: incomeSources.length,
         totalBudgetSources: budgetSources.length,
         totalExpenses: expenses.length,
-        totalManualBudgets: manualBudgets.length
+        totalManualBudgets: manualBudgets.length,
       });
-    		} catch {
-      push(t('toast.errorLoadStats', { defaultValue: 'Failed to load database statistics' }), 'error');
+    } catch {
+      push(
+        t('toast.errorLoadStats', { defaultValue: 'Failed to load database statistics' }),
+        'error'
+      );
     } finally {
       setLoading(false);
     }
@@ -67,9 +80,13 @@ const DBAdmin: React.FC<DBAdminProps> = ({ onBackToMain }) => {
     loadStats();
   }, [loadStats]);
 
-  const StatCard: React.FC<{ title: string; value: number; icon: string; color: string; description?: string }> = ({
-    title, value, icon, color, description
-  }) => (
+  const StatCard: React.FC<{
+    title: string;
+    value: number;
+    icon: string;
+    color: string;
+    description?: string;
+  }> = ({ title, value, icon, color, description }) => (
     <div className="col-md-6 col-lg-3 mb-4">
       <div className={`card border-0 shadow-sm h-100 bg-gradient bg-${color} text-white`}>
         <div className="card-body">
@@ -90,13 +107,20 @@ const DBAdmin: React.FC<DBAdminProps> = ({ onBackToMain }) => {
     </div>
   );
 
-  const QuickActionCard: React.FC<{ title: string; description: string; icon: string; action: () => void; color: string }> = ({
-    title, description, icon, action, color
-  }) => (
+  const QuickActionCard: React.FC<{
+    title: string;
+    description: string;
+    icon: string;
+    action: () => void;
+    color: string;
+  }> = ({ title, description, icon, action, color }) => (
     <div className="col-md-6 col-lg-4 mb-4">
       <div className={`card border-0 shadow-sm h-100 card-hover`} onClick={action}>
         <div className="card-body text-center p-4">
-          <div className={`bg-${color} bg-opacity-10 rounded-circle d-inline-flex align-items-center justify-content-center mb-3`} style={{ width: '60px', height: '60px' }}>
+          <div
+            className={`bg-${color} bg-opacity-10 rounded-circle d-inline-flex align-items-center justify-content-center mb-3`}
+            style={{ width: '60px', height: '60px' }}
+          >
             <span className="fs-3">{icon}</span>
           </div>
           <h6 className="card-title mb-2">{title}</h6>
@@ -114,21 +138,23 @@ const DBAdmin: React.FC<DBAdminProps> = ({ onBackToMain }) => {
           <div className="d-flex justify-content-between align-items-center">
             <div>
               <h1 className="h3 mb-1">
-                <span className="text-primary">🗄️</span> {t('nav.dbAdmin', { defaultValue: 'Database Administration' })}
+                <span className="text-primary">🗄️</span>{' '}
+                {t('nav.dbAdmin', { defaultValue: 'Database Administration' })}
               </h1>
               <p className="text-muted mb-0">
-                {t('nav.dbAdminDescription', { defaultValue: 'Monitor and manage your application database' })}
+                {t('nav.dbAdminDescription', {
+                  defaultValue: 'Monitor and manage your application database',
+                })}
               </p>
             </div>
             <div className="d-flex gap-2">
-              <button
-                className="btn btn-outline-primary"
-                onClick={loadStats}
-                disabled={loading}
-              >
+              <button className="btn btn-outline-primary" onClick={loadStats} disabled={loading}>
                 {loading ? (
                   <>
-                    <span className="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+                    <span
+                      className="spinner-border spinner-border-sm me-2"
+                      aria-hidden="true"
+                    ></span>
                     {t('btn.loading', { defaultValue: 'Loading...' })}
                   </>
                 ) : (
@@ -138,10 +164,7 @@ const DBAdmin: React.FC<DBAdminProps> = ({ onBackToMain }) => {
                   </>
                 )}
               </button>
-              <button
-                className="btn btn-primary"
-                onClick={() => setActiveTab('sqlite-web')}
-              >
+              <button className="btn btn-primary" onClick={() => setActiveTab('sqlite-web')}>
                 <span className="me-2">🔧</span>
                 {t('btn.openSQLiteWeb', { defaultValue: 'Open SQLite Web' })}
               </button>
@@ -190,7 +213,9 @@ const DBAdmin: React.FC<DBAdminProps> = ({ onBackToMain }) => {
                 <div className="spinner-border text-primary mb-3" role="status">
                   <span className="visually-hidden">Loading...</span>
                 </div>
-                <p className="text-muted">{t('nav.loading', { defaultValue: 'Loading database statistics...' })}</p>
+                <p className="text-muted">
+                  {t('nav.loading', { defaultValue: 'Loading database statistics...' })}
+                </p>
               </div>
             </div>
           </div>
@@ -217,7 +242,9 @@ const DBAdmin: React.FC<DBAdminProps> = ({ onBackToMain }) => {
                       </div>
                       <div>
                         <div className="fw-bold">{stats.totalIncomeSources}</div>
-                        <small className="text-muted">{t('stats.incomeSources', { defaultValue: 'Income Sources' })}</small>
+                        <small className="text-muted">
+                          {t('stats.incomeSources', { defaultValue: 'Income Sources' })}
+                        </small>
                       </div>
                     </div>
                   </div>
@@ -228,7 +255,9 @@ const DBAdmin: React.FC<DBAdminProps> = ({ onBackToMain }) => {
                       </div>
                       <div>
                         <div className="fw-bold">{stats.totalBudgetSources}</div>
-                        <small className="text-muted">{t('stats.budgetSources', { defaultValue: 'Budget Sources' })}</small>
+                        <small className="text-muted">
+                          {t('stats.budgetSources', { defaultValue: 'Budget Sources' })}
+                        </small>
                       </div>
                     </div>
                   </div>
@@ -239,7 +268,9 @@ const DBAdmin: React.FC<DBAdminProps> = ({ onBackToMain }) => {
                       </div>
                       <div>
                         <div className="fw-bold">{stats.totalExpenses}</div>
-                        <small className="text-muted">{t('stats.expenses', { defaultValue: 'Expenses' })}</small>
+                        <small className="text-muted">
+                          {t('stats.expenses', { defaultValue: 'Expenses' })}
+                        </small>
                       </div>
                     </div>
                   </div>
@@ -250,7 +281,9 @@ const DBAdmin: React.FC<DBAdminProps> = ({ onBackToMain }) => {
                       </div>
                       <div>
                         <div className="fw-bold">{stats.totalManualBudgets}</div>
-                        <small className="text-muted">{t('stats.manualBudgets', { defaultValue: 'Manual Budgets' })}</small>
+                        <small className="text-muted">
+                          {t('stats.manualBudgets', { defaultValue: 'Manual Budgets' })}
+                        </small>
                       </div>
                     </div>
                   </div>
@@ -275,7 +308,9 @@ const DBAdmin: React.FC<DBAdminProps> = ({ onBackToMain }) => {
               <div className="row">
                 <QuickActionCard
                   title={t('nav.userManagement', { defaultValue: 'User Management' })}
-                  description={t('nav.userManagementDesc', { defaultValue: 'Manage user accounts and permissions' })}
+                  description={t('nav.userManagementDesc', {
+                    defaultValue: 'Manage user accounts and permissions',
+                  })}
                   icon="👥"
                   color="primary"
                   action={() => {
@@ -290,7 +325,9 @@ const DBAdmin: React.FC<DBAdminProps> = ({ onBackToMain }) => {
                 />
                 <QuickActionCard
                   title={t('nav.viewLogs', { defaultValue: 'View Logs' })}
-                  description={t('nav.viewLogsDesc', { defaultValue: 'Check application logs and errors' })}
+                  description={t('nav.viewLogsDesc', {
+                    defaultValue: 'Check application logs and errors',
+                  })}
                   icon="📋"
                   color="info"
                   action={() => {
@@ -327,11 +364,17 @@ const DBAdmin: React.FC<DBAdminProps> = ({ onBackToMain }) => {
                 />
                 <QuickActionCard
                   title={t('nav.clearCache', { defaultValue: 'Clear Cache' })}
-                  description={t('nav.clearCacheDesc', { defaultValue: 'Clear browser cache and storage' })}
+                  description={t('nav.clearCacheDesc', {
+                    defaultValue: 'Clear browser cache and storage',
+                  })}
                   icon="🧹"
                   color="warning"
                   action={() => {
-                    if (window.confirm(t('confirm.clearCache', { defaultValue: 'Clear application cache?' }))) {
+                    if (
+                      window.confirm(
+                        t('confirm.clearCache', { defaultValue: 'Clear application cache?' })
+                      )
+                    ) {
                       localStorage.clear();
                       sessionStorage.clear();
                       window.location.reload();
@@ -357,7 +400,9 @@ const DBAdmin: React.FC<DBAdminProps> = ({ onBackToMain }) => {
                 <span className="text-primary">🔧</span> SQLite Web Interface
               </h1>
               <p className="text-muted mb-0">
-                {t('nav.sqliteWebDescription', { defaultValue: 'Direct database management interface' })}
+                {t('nav.sqliteWebDescription', {
+                  defaultValue: 'Direct database management interface',
+                })}
               </p>
             </div>
             <div className="d-flex gap-2">
@@ -379,12 +424,20 @@ const DBAdmin: React.FC<DBAdminProps> = ({ onBackToMain }) => {
           <div className="card border-0 shadow-sm">
             <div className="card-body text-center py-5">
               <div className="mb-4">
-                <div className="bg-warning bg-opacity-10 rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style={{ width: '80px', height: '80px' }}>
+                <div
+                  className="bg-warning bg-opacity-10 rounded-circle d-inline-flex align-items-center justify-content-center mb-3"
+                  style={{ width: '80px', height: '80px' }}
+                >
                   <span className="fs-1">🔒</span>
                 </div>
-                <h3 className="h5 mb-3">{t('csp.title', { defaultValue: 'Security Policy Restriction' })}</h3>
+                <h3 className="h5 mb-3">
+                  {t('csp.title', { defaultValue: 'Security Policy Restriction' })}
+                </h3>
                 <p className="text-muted mb-4">
-                  {t('csp.description', { defaultValue: 'The SQLite Web interface cannot be embedded due to Content Security Policy restrictions. Please use the button below to open it in a new tab for direct database access.' })}
+                  {t('csp.description', {
+                    defaultValue:
+                      'The SQLite Web interface cannot be embedded due to Content Security Policy restrictions. Please use the button below to open it in a new tab for direct database access.',
+                  })}
                 </p>
               </div>
 
@@ -409,7 +462,10 @@ const DBAdmin: React.FC<DBAdminProps> = ({ onBackToMain }) => {
 
               <div className="mt-4 pt-4 border-top">
                 <small className="text-muted">
-                  {t('csp.techNote', { defaultValue: 'Technical note: This restriction is due to the frame-ancestors directive in the Content Security Policy header, which prevents embedding in iframes for security reasons.' })}
+                  {t('csp.techNote', {
+                    defaultValue:
+                      'Technical note: This restriction is due to the frame-ancestors directive in the Content Security Policy header, which prevents embedding in iframes for security reasons.',
+                  })}
                 </small>
               </div>
             </div>
@@ -428,7 +484,9 @@ const DBAdmin: React.FC<DBAdminProps> = ({ onBackToMain }) => {
             <div className="container-fluid">
               <div className="navbar-brand d-flex align-items-center">
                 <span className="text-primary fs-4 me-2">🗄️</span>
-                <span className="fw-bold">{t('nav.dbAdmin', { defaultValue: 'Database Admin' })}</span>
+                <span className="fw-bold">
+                  {t('nav.dbAdmin', { defaultValue: 'Database Admin' })}
+                </span>
               </div>
 
               <div className="navbar-nav ms-auto">
@@ -464,10 +522,7 @@ const DBAdmin: React.FC<DBAdminProps> = ({ onBackToMain }) => {
                 </div>
 
                 {onBackToMain && (
-                  <button
-                    className="btn btn-secondary ms-2"
-                    onClick={onBackToMain}
-                  >
+                  <button className="btn btn-secondary ms-2" onClick={onBackToMain}>
                     <span className="me-2">←</span>
                     {t('btn.back', { defaultValue: 'Back' })}
                   </button>

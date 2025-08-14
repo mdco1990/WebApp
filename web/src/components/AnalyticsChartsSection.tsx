@@ -247,12 +247,12 @@ const AnalyticsChartsSection = React.memo<AnalyticsChartsSectionProps>(
                   labels={[
                     t('label.bankAmount', { defaultValue: 'Bank' }),
                     t('label.items', { defaultValue: 'Items' }),
-                    t('label.remaining', { defaultValue: 'Remaining' })
+                    t('label.remaining', { defaultValue: 'Remaining' }),
                   ]}
                   data={[
                     manualBudget.bankAmount / 100,
                     manualBudgetItemsTotal / 100,
-                    (manualBudget.bankAmount + manualBudgetItemsTotal) / 100
+                    (manualBudget.bankAmount + manualBudgetItemsTotal) / 100,
                   ]}
                   legendLabel={t('legend.amount', { defaultValue: 'Amount' })}
                 />

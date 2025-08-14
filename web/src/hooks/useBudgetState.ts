@@ -63,9 +63,7 @@ export const useBudgetState = () => {
     };
   }, [budgetSources]);
 
-  const setPredictedBudget = (
-    updater: React.SetStateAction<PredictedBudget>
-  ) => {
+  const setPredictedBudget = (updater: React.SetStateAction<PredictedBudget>) => {
     setBudgetSources((prev) => {
       const currentBudget = {
         ...prev,
@@ -74,7 +72,7 @@ export const useBudgetState = () => {
         difference: 0, // Will be recalculated
       };
       currentBudget.difference = currentBudget.totalIncome - currentBudget.totalOutcome;
-      
+
       const newBudget = typeof updater === 'function' ? updater(currentBudget) : updater;
       return {
         incomeSources: newBudget.incomeSources,

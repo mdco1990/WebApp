@@ -4,7 +4,15 @@ import { getPendingUsers, getAllUsers, approveUser, rejectUser, deleteUser } fro
 import { useToast } from '../shared/toast';
 
 type PendingUser = { id: number; username: string; email: string; created_at: string };
-type AdminUser = { id: number; username: string; email: string; created_at: string; is_admin: boolean; is_approved: boolean; status?: string };
+type AdminUser = {
+  id: number;
+  username: string;
+  email: string;
+  created_at: string;
+  is_admin: boolean;
+  is_approved: boolean;
+  status?: string;
+};
 
 type TabKey = 'pending' | 'all' | 'approved' | 'rejected';
 
@@ -67,7 +75,11 @@ const UserManagement: React.FC<UserManagementProps> = ({ onBackToMain }) => {
   };
 
   const handleDeleteUser = async (userId: number) => {
-    if (!window.confirm(t('confirm.deleteUser', { defaultValue: 'Are you sure you want to delete this user?' }))) {
+    if (
+      !window.confirm(
+        t('confirm.deleteUser', { defaultValue: 'Are you sure you want to delete this user?' })
+      )
+    ) {
       return;
     }
     try {
@@ -83,36 +95,40 @@ const UserManagement: React.FC<UserManagementProps> = ({ onBackToMain }) => {
   };
 
   // Filter users by status - handle both is_approved boolean and status string
-  const approvedUsers = allUsers.filter(u => u.is_approved || u.status === 'approved');
-  const rejectedUsers = allUsers.filter(u => u.status === 'rejected');
+  const approvedUsers = allUsers.filter((u) => u.is_approved || u.status === 'approved');
+  const rejectedUsers = allUsers.filter((u) => u.status === 'rejected');
 
   // Tab button component
   const TabButton: React.FC<{ tab: TabKey; count: number }> = ({ tab, count }) => {
     const getTabClass = () => {
       if (activeTab !== tab) return 'btn btn-outline-secondary';
       switch (tab) {
-        case 'approved': return 'btn btn-success';
-        case 'rejected': return 'btn btn-danger';
+        case 'approved':
+          return 'btn btn-success';
+        case 'rejected':
+          return 'btn btn-danger';
         case 'pending':
         case 'all':
-        default: return 'btn btn-primary';
+        default:
+          return 'btn btn-primary';
       }
     };
 
     const getTabLabel = () => {
       switch (tab) {
-        case 'pending': return t('nav.pendingUsers', { defaultValue: 'Pending Users' });
-        case 'all': return t('nav.allUsers', { defaultValue: 'All Users' });
-        case 'approved': return t('nav.approvedUsers', { defaultValue: 'Approved Users' });
-        case 'rejected': return t('nav.rejectedUsers', { defaultValue: 'Rejected Users' });
+        case 'pending':
+          return t('nav.pendingUsers', { defaultValue: 'Pending Users' });
+        case 'all':
+          return t('nav.allUsers', { defaultValue: 'All Users' });
+        case 'approved':
+          return t('nav.approvedUsers', { defaultValue: 'Approved Users' });
+        case 'rejected':
+          return t('nav.rejectedUsers', { defaultValue: 'Rejected Users' });
       }
     };
 
     return (
-      <button
-        className={getTabClass()}
-        onClick={() => setActiveTab(tab)}
-      >
+      <button className={getTabClass()} onClick={() => setActiveTab(tab)}>
         {getTabLabel()} ({count})
       </button>
     );
@@ -143,7 +159,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ onBackToMain }) => {
                 </tr>
               </thead>
               <tbody>
-                {pendingUsers.map(user => (
+                {pendingUsers.map((user) => (
                   <tr key={user.id}>
                     <td>{user.username}</td>
                     <td>{user.email}</td>
@@ -202,7 +218,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ onBackToMain }) => {
                 </tr>
               </thead>
               <tbody>
-                {allUsers.map(user => {
+                {allUsers.map((user) => {
                   const status = user.status || (user.is_approved ? 'approved' : 'pending');
                   let statusClass = 'bg-warning text-dark';
                   if (status === 'approved') statusClass = 'bg-success';
@@ -219,7 +235,9 @@ const UserManagement: React.FC<UserManagementProps> = ({ onBackToMain }) => {
                       </td>
                       <td>
                         <span className={`badge ${user.is_admin ? 'bg-warning' : 'bg-secondary'}`}>
-                          {user.is_admin ? t('role.admin', { defaultValue: 'Admin' }) : t('role.user', { defaultValue: 'User' })}
+                          {user.is_admin
+                            ? t('role.admin', { defaultValue: 'Admin' })
+                            : t('role.user', { defaultValue: 'User' })}
                         </span>
                       </td>
                       <td>{new Date(user.created_at).toLocaleDateString()}</td>
@@ -290,13 +308,15 @@ const UserManagement: React.FC<UserManagementProps> = ({ onBackToMain }) => {
                 </tr>
               </thead>
               <tbody>
-                {approvedUsers.map(user => (
+                {approvedUsers.map((user) => (
                   <tr key={user.id}>
                     <td>{user.username}</td>
                     <td>{user.email}</td>
                     <td>
                       <span className={`badge ${user.is_admin ? 'bg-warning' : 'bg-secondary'}`}>
-                        {user.is_admin ? t('role.admin', { defaultValue: 'Admin' }) : t('role.user', { defaultValue: 'User' })}
+                        {user.is_admin
+                          ? t('role.admin', { defaultValue: 'Admin' })
+                          : t('role.user', { defaultValue: 'User' })}
                       </span>
                     </td>
                     <td>{new Date(user.created_at).toLocaleDateString()}</td>
@@ -345,7 +365,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ onBackToMain }) => {
                 </tr>
               </thead>
               <tbody>
-                {rejectedUsers.map(user => (
+                {rejectedUsers.map((user) => (
                   <tr key={user.id}>
                     <td>{user.username}</td>
                     <td>{user.email}</td>
@@ -401,27 +421,25 @@ const UserManagement: React.FC<UserManagementProps> = ({ onBackToMain }) => {
           <div className="row g-2 align-items-center">
             <div className="col">
               <div className="page-pretitle">Admin</div>
-              <h2 className="page-title">{t('nav.userManagement', { defaultValue: 'User Management' })}</h2>
+              <h2 className="page-title">
+                {t('nav.userManagement', { defaultValue: 'User Management' })}
+              </h2>
             </div>
             <div className="col-auto ms-auto">
               <div className="btn-group">
                 {onBackToMain && (
-                  <button
-                    className="btn btn-outline-secondary"
-                    onClick={onBackToMain}
-                  >
+                  <button className="btn btn-outline-secondary" onClick={onBackToMain}>
                     <span className="me-2">←</span>
                     {t('btn.back', { defaultValue: 'Back' })}
                   </button>
                 )}
-                <button
-                  className="btn btn-primary"
-                  onClick={loadUserData}
-                  disabled={loading}
-                >
+                <button className="btn btn-primary" onClick={loadUserData} disabled={loading}>
                   {loading ? (
                     <>
-                      <span className="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+                      <span
+                        className="spinner-border spinner-border-sm me-2"
+                        aria-hidden="true"
+                      ></span>
                       {t('nav.loading', { defaultValue: 'Loading...' })}
                     </>
                   ) : (
@@ -453,9 +471,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ onBackToMain }) => {
 
           {/* Tab Content */}
           <div className="row">
-            <div className="col">
-              {renderTabContent()}
-            </div>
+            <div className="col">{renderTabContent()}</div>
           </div>
         </div>
       </div>

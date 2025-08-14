@@ -42,8 +42,10 @@ const HeaderControls: React.FC<HeaderControlsProps> = ({
   // Helper to style toggle buttons with better contrast
   const activeBtnClass = isDarkMode ? 'btn-light text-dark' : 'btn-dark text-light';
   const inactiveBtnClass = 'btn-outline-secondary';
-  const langBtnClass = (lang: string) => `btn ${i18n.language === lang ? activeBtnClass : inactiveBtnClass}`;
-  const currencyBtnClass = (c: 'USD' | 'EUR') => `btn ${currency === c ? activeBtnClass : inactiveBtnClass}`;
+  const langBtnClass = (lang: string) =>
+    `btn ${i18n.language === lang ? activeBtnClass : inactiveBtnClass}`;
+  const currencyBtnClass = (c: 'USD' | 'EUR') =>
+    `btn ${currency === c ? activeBtnClass : inactiveBtnClass}`;
 
   // Admin tools: logs helpers for unified dropdown
   const openLogsWindow = async () => {
@@ -207,7 +209,9 @@ const HeaderControls: React.FC<HeaderControlsProps> = ({
           {/* Admin Panel Section - only show if user is admin */}
           {user?.is_admin && (
             <>
-              <li><hr className="dropdown-divider" /></li>
+              <li>
+                <hr className="dropdown-divider" />
+              </li>
               <li className="dropdown-header">
                 {t('nav.adminPanel', { defaultValue: 'Admin Panel' })}
               </li>
@@ -233,7 +237,11 @@ const HeaderControls: React.FC<HeaderControlsProps> = ({
                 <button
                   className="dropdown-item text-warning"
                   onClick={() => {
-                    if (window.confirm(t('confirm.clearCache', { defaultValue: 'Clear application cache?' }))) {
+                    if (
+                      window.confirm(
+                        t('confirm.clearCache', { defaultValue: 'Clear application cache?' })
+                      )
+                    ) {
                       localStorage.clear();
                       sessionStorage.clear();
                       window.location.reload();
@@ -250,15 +258,14 @@ const HeaderControls: React.FC<HeaderControlsProps> = ({
           {/* User Management Section - only show if user is admin */}
           {user?.is_admin && (
             <>
-              <li><hr className="dropdown-divider" /></li>
+              <li>
+                <hr className="dropdown-divider" />
+              </li>
               <li className="dropdown-header">
                 {t('nav.userManagement', { defaultValue: '👥 User Management' })}
               </li>
               <li>
-                <button
-                  className="dropdown-item"
-                  onClick={onNavigateToUserManagement}
-                >
+                <button className="dropdown-item" onClick={onNavigateToUserManagement}>
                   <span className="me-2">👥</span>
                   {t('nav.userManagement', { defaultValue: 'User Management' })}
                 </button>
@@ -267,7 +274,9 @@ const HeaderControls: React.FC<HeaderControlsProps> = ({
           )}
 
           {/* Logout Section */}
-          <li><hr className="dropdown-divider" /></li>
+          <li>
+            <hr className="dropdown-divider" />
+          </li>
           <li>
             <button className="dropdown-item text-danger" onClick={onLogout}>
               <span className="me-2">🚪</span>
@@ -280,8 +289,13 @@ const HeaderControls: React.FC<HeaderControlsProps> = ({
       {/* Loading indicator */}
       {userActionLoading && (
         <div className="d-flex align-items-center">
-          <span className="spinner-border spinner-border-sm text-info me-2" aria-hidden="true"></span>
-          <span className="text-muted small">{t('nav.loading', { defaultValue: 'Loading...' })}</span>
+          <span
+            className="spinner-border spinner-border-sm text-info me-2"
+            aria-hidden="true"
+          ></span>
+          <span className="text-muted small">
+            {t('nav.loading', { defaultValue: 'Loading...' })}
+          </span>
         </div>
       )}
     </div>

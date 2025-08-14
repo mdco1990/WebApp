@@ -104,7 +104,9 @@ const IncomeSources: React.FC<Props> = ({
                   type="text"
                   className={`form-control form-control-sm ${isDarkMode ? 'bg-dark text-light border-secondary' : ''}`}
                   value={source.name}
-                  placeholder={t('placeholder.incomeSourceName', { defaultValue: 'Income source name' })}
+                  placeholder={t('placeholder.incomeSourceName', {
+                    defaultValue: 'Income source name',
+                  })}
                   onChange={(e) => onUpdate(index, { ...source, name: e.target.value })}
                   onBlur={() => onBlurSave(index)}
                 />

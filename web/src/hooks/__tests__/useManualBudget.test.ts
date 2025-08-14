@@ -13,9 +13,15 @@ const localStorageMock = (() => {
   let store: Record<string, string> = {};
   return {
     getItem: (key: string) => store[key] || null,
-    setItem: (key: string, value: string) => { store[key] = value; },
-    removeItem: (key: string) => { delete store[key]; },
-    clear: () => { store = {}; },
+    setItem: (key: string, value: string) => {
+      store[key] = value;
+    },
+    removeItem: (key: string) => {
+      delete store[key];
+    },
+    clear: () => {
+      store = {};
+    },
   };
 })();
 
@@ -24,7 +30,9 @@ Object.defineProperty(window, 'localStorage', {
 });
 
 const mockGetManualBudget = api.getManualBudget as jest.MockedFunction<typeof api.getManualBudget>;
-const mockSaveManualBudget = api.saveManualBudget as jest.MockedFunction<typeof api.saveManualBudget>;
+const mockSaveManualBudget = api.saveManualBudget as jest.MockedFunction<
+  typeof api.saveManualBudget
+>;
 
 describe('useManualBudget', () => {
   beforeEach(() => {
@@ -147,10 +155,9 @@ describe('useManualBudget', () => {
   it('should handle month changes correctly', async () => {
     mockGetManualBudget.mockResolvedValue({ bank_amount_cents: 0, items: [] });
 
-    const { result, rerender } = renderHook(
-      ({ date }) => useManualBudget(date),
-      { initialProps: { date: testDate } }
-    );
+    const { result, rerender } = renderHook(({ date }) => useManualBudget(date), {
+      initialProps: { date: testDate },
+    });
 
     await waitFor(() => {
       expect(result.current.manualBudget.bankAmount).toBe(0);

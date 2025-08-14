@@ -30,16 +30,16 @@ export const useManualBudget = (currentDate: Date) => {
     if (!manualBudgetLoadedRef.current) return;
 
     // Debug: Log saving operation
-    		// console.log('💾 Manual Budget - Saving data:', {
-		// 	key,
-		// 	bankAmount: manualBudget.bankAmount,
-		// 	itemsCount: manualBudget.items.length,
-		// 	items: manualBudget.items
-		// });
+    // console.log('💾 Manual Budget - Saving data:', {
+    // 	key,
+    // 	bankAmount: manualBudget.bankAmount,
+    // 	itemsCount: manualBudget.items.length,
+    // 	items: manualBudget.items
+    // });
 
     try {
       localStorage.setItem(key, JSON.stringify(manualBudget));
-      		// console.log('✅ localStorage saved successfully');
+      // console.log('✅ localStorage saved successfully');
     } catch {
       console.error('❌ localStorage save failed');
       // ignore storage quota or availability issues
@@ -63,14 +63,14 @@ export const useManualBudget = (currentDate: Date) => {
     if (manualBudgetSaveTimer.current) window.clearTimeout(manualBudgetSaveTimer.current);
     manualBudgetSaveTimer.current = window.setTimeout(async () => {
       // console.log('📡 Attempting server save:', payload);
-      
+
       // Check if user is authenticated before trying server save
       const sessionId = localStorage.getItem('session_id');
       if (!sessionId) {
         console.log('⏭️ No session, skipping server save');
         return;
       }
-      
+
       try {
         await saveManualBudget(payload);
         // console.log('✅ Server save successful');
@@ -89,7 +89,7 @@ export const useManualBudget = (currentDate: Date) => {
     console.log('🔄 Manual Budget - Loading month data:', {
       year: currentDate.getFullYear(),
       month: currentDate.getMonth() + 1,
-      key
+      key,
     });
 
     const load = async () => {
@@ -106,7 +106,7 @@ export const useManualBudget = (currentDate: Date) => {
           console.log('📡 Attempting server load');
           const data = await getManualBudget({ year, month });
           console.log('📡 Server response:', data);
-          
+
           if (data && typeof data.bank_amount_cents === 'number' && Array.isArray(data.items)) {
             interface ServerItem {
               id?: string | number;

@@ -19,8 +19,24 @@ describe('AdminControls', () => {
           onApproveUser={onApproveUser}
           onRejectUser={onRejectUser}
           onDeleteUser={onDeleteUser}
-          pendingUsers={[{ id: 1, username: 'alice', email: 'a@example.com', created_at: new Date().toISOString() }]}
-          allUsers={[{ id: 1, username: 'alice', email: 'a@example.com', created_at: new Date().toISOString(), is_admin: false, is_approved: false }]}
+          pendingUsers={[
+            {
+              id: 1,
+              username: 'alice',
+              email: 'a@example.com',
+              created_at: new Date().toISOString(),
+            },
+          ]}
+          allUsers={[
+            {
+              id: 1,
+              username: 'alice',
+              email: 'a@example.com',
+              created_at: new Date().toISOString(),
+              is_admin: false,
+              is_approved: false,
+            },
+          ]}
           {...overrides}
         />
       </I18nextProvider>
@@ -56,8 +72,16 @@ describe('AdminControls', () => {
     const { onDeleteUser } = setup({
       pendingUsers: [],
       allUsers: [
-        { id: 2, username: 'bob', email: 'b@example.com', created_at: new Date().toISOString(), is_admin: false, is_approved: false, status: 'rejected' }
-      ]
+        {
+          id: 2,
+          username: 'bob',
+          email: 'b@example.com',
+          created_at: new Date().toISOString(),
+          is_admin: false,
+          is_approved: false,
+          status: 'rejected',
+        },
+      ],
     });
     fireEvent.click(screen.getByRole('button', { name: /Admin Panel|Panneau Admin/i }));
     // Fallback: label may show translation key if not in minimal test resource set
@@ -83,7 +107,12 @@ describe('AdminControls', () => {
         <AdminControls
           isDarkMode={false}
           user={{ is_admin: true }}
-          pendingUsers={Array.from({ length: 3 }).map((_, i) => ({ id: i + 1, username: `u${i}`, email: `u${i}@e.com`, created_at: new Date().toISOString() }))}
+          pendingUsers={Array.from({ length: 3 }).map((_, i) => ({
+            id: i + 1,
+            username: `u${i}`,
+            email: `u${i}@e.com`,
+            created_at: new Date().toISOString(),
+          }))}
           allUsers={[]}
         />
       </I18nextProvider>
@@ -115,7 +144,12 @@ describe('AdminControls', () => {
     window.localStorage.setItem('adminTab', 'approved');
     render(
       <I18nextProvider i18n={createTestI18n('en')}>
-        <AdminControls isDarkMode={false} user={{ is_admin: true }} pendingUsers={[]} allUsers={[]} />
+        <AdminControls
+          isDarkMode={false}
+          user={{ is_admin: true }}
+          pendingUsers={[]}
+          allUsers={[]}
+        />
       </I18nextProvider>
     );
     fireEvent.click(screen.getByRole('button', { name: /Admin Panel/ }));
@@ -126,7 +160,12 @@ describe('AdminControls', () => {
   test('logs buttons present', () => {
     render(
       <I18nextProvider i18n={createTestI18n('en')}>
-        <AdminControls isDarkMode={false} user={{ is_admin: true }} pendingUsers={[]} allUsers={[]} />
+        <AdminControls
+          isDarkMode={false}
+          user={{ is_admin: true }}
+          pendingUsers={[]}
+          allUsers={[]}
+        />
       </I18nextProvider>
     );
     fireEvent.click(screen.getByRole('button', { name: /Admin Panel/ }));
@@ -141,7 +180,12 @@ describe('AdminControls', () => {
     const confirmSpy = jest.spyOn(window, 'confirm').mockReturnValue(true);
     render(
       <I18nextProvider i18n={createTestI18n('en')}>
-        <AdminControls isDarkMode={false} user={{ is_admin: true }} pendingUsers={[]} allUsers={[]} />
+        <AdminControls
+          isDarkMode={false}
+          user={{ is_admin: true }}
+          pendingUsers={[]}
+          allUsers={[]}
+        />
       </I18nextProvider>
     );
     fireEvent.click(screen.getByRole('button', { name: /Admin Panel/ }));
@@ -157,7 +201,12 @@ describe('AdminControls', () => {
   test('French localization displays French labels', () => {
     render(
       <I18nextProvider i18n={createTestI18n('fr')}>
-        <AdminControls isDarkMode={false} user={{ is_admin: true }} pendingUsers={[]} allUsers={[]} />
+        <AdminControls
+          isDarkMode={false}
+          user={{ is_admin: true }}
+          pendingUsers={[]}
+          allUsers={[]}
+        />
       </I18nextProvider>
     );
     fireEvent.click(screen.getByRole('button', { name: /Panneau Admin/ }));
