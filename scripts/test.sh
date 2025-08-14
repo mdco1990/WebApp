@@ -1,15 +1,29 @@
 #!/bin/bash
-# Test script for WebApp
+# Comprehensive test script for WebApp (Go + Frontend)
 
 set -e
 
-echo "Running tests..."
+echo "🧪 Running comprehensive test suite..."
 
-# Run all tests with coverage
+# Go Tests
+echo "📋 Running Go tests..."
 go test -v -race -coverprofile=coverage.out ./...
 
-# Show coverage report
-go tool cover -html=coverage.out -o coverage.html
+# Generate coverage report
+if [ -f coverage.out ]; then
+    go tool cover -html=coverage.out -o coverage.html
+    echo "✓ Go tests completed - Coverage report: coverage.html"
+fi
 
-echo "✓ Tests completed"
-echo "Coverage report: coverage.html"
+# Frontend Tests
+if [ -d "web" ]; then
+    echo "📋 Running frontend tests..."
+    cd web
+    if [ -f package.json ]; then
+        npm test -- --coverage --watchAll=false
+        echo "✓ Frontend tests completed"
+    fi
+    cd ..
+fi
+
+echo "✅ All tests completed successfully!"

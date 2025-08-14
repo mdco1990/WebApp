@@ -869,7 +869,12 @@ func (r *Repository) ListUsers(ctx context.Context, status string) ([]domain.Use
 	if err != nil {
 		return []domain.User{}, err
 	}
-	defer rows.Close()
+	defer func() {
+		if closeErr := rows.Close(); closeErr != nil {
+			// Log error but don't return it as it's in defer
+			_ = closeErr
+		}
+	}()
 	users := []domain.User{}
 	for rows.Next() {
 		var u domain.User

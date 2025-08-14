@@ -1,23 +1,23 @@
 # WebApp
-Budget Web App - A modern full-stack application built with Go and React/TypeScript.
+WebApp - A modern full-stack budget tracking application built with Go and React/TypeScript.
 
 ## Quick Start
 
 ### Development
 ```bash
-# Start all services (SQLite + hot reloading)
-docker compose -f deployments/docker-compose.yml up
+# Docker Compose (Recommended)
+./scripts/docker.sh up --tools      # Start with SQLite admin
+./scripts/docker.sh up --detach     # Start in background
+make docker-dev                     # Alternative using Makefile
 
-# With development tools (SQLite admin)
-docker compose -f deployments/docker-compose.yml --profile tools up
+# Local Development
+make dev                            # Start API + frontend locally
+make dev-logs                       # View development logs  
+make dev-stop                       # Stop development services
 
-# Or run manually
-./scripts/dev.sh    # Start Go API
-cd web && npm run dev  # Start React frontend
-
-# Using Makefile
-make dev              # Start both API and frontend
-make docker-dev       # Start with Docker + tools
+# Manual Setup
+./scripts/dev.sh                    # Start Go API only
+cd web && npm run dev               # Start React frontend only
 ```
 
 ### Production
@@ -34,9 +34,16 @@ make build
 
 ### Test
 ```bash
-./scripts/test.sh  
-# OR
-make test
+# Backend Tests
+make test                           # Go unit tests
+make check-all                     # Format check + lint + tests
+
+# Frontend Tests  
+cd web && npm test                  # Jest unit tests
+cd web && npm run test:coverage    # With coverage report
+
+# All Tests
+./scripts/test.sh                   # Run full test suite
 ```
 
 ## Architecture
@@ -67,27 +74,45 @@ This application follows Clean Architecture principles with a clear separation o
 This project is designed for personal use and small datasets, with a clean separation of layers to allow future scaling.
 
 ## Features
-- Record monthly salary and budget targets
-- Add, list, and delete expenses by month
-- Monthly summary (salary, budget, expenses, remaining)
+
+### 💰 Budget Management
+- Monthly salary and budget target tracking
+- Income sources and budget categories management
+- Comprehensive expense tracking with categorization
+- Manual budget planning with bank deductions
+- Monthly financial summaries and analytics
+
+### 👥 User Management
 - User authentication and session management
-- Named income sources and budget categories
-- Comprehensive monthly data aggregation
-- Interactive API documentation with SwaggerUI
-- OpenAPI-like JSON responses
-- Optional API key header for simple protection
+- Role-based access control (admin/user)
+- User registration and approval workflows
+- Password management and security
+
+### 📊 Analytics & Reporting
+- Interactive charts and visualizations
+- Monthly data aggregation and insights
+- Export capabilities and data persistence
+- Real-time budget vs. actual tracking
+
+### 🛠️ Technical Features
+- Interactive API documentation (SwaggerUI, Scalar, ReDoc)
+- Internationalization (English/French)
+- Modern responsive UI with Bootstrap
+- RESTful API with OpenAPI specification
+- Database administration interface
+- Comprehensive logging and observability
 
 ## Project Layout
 - `cmd/webapp`: Application entrypoint
 - `internal/config`: Configuration loading
-- `internal/platform/database`: DB connection and schema
+- `internal/db`: Database connection and schema
 - `internal/domain`: Types/models and business logic
 - `internal/repository`: Data access layer
 - `internal/service`: Business logic layer
-- `internal/handler`: HTTP router and handlers
+- `internal/transport/http`: HTTP router and handlers
 - `internal/middleware`: Security middleware
 - `web/`: Vite React + TypeScript frontend
-- `configs/`: Environment configuration examples
+- `deployments/`: Docker and deployment configurations
 - `docs/`: Documentation and API specifications
 
 **Reference**: https://github.com/golang-standards/project-layout
@@ -227,10 +252,11 @@ The Docker Compose setup implements security best practices:
 - **Development Tools**: SQLite Admin (8080) - When using `--profile tools`
 
 ### Configuration Files
-Environment variables (see configs/ directory):
-- `configs/.env.docker`: Docker Compose setup (isolated API)
-- `configs/.env.local`: Local development setup (direct API access)
-- `configs/.env.example`: Template configuration
+Environment variables and configuration:
+- `.env.dev`: Development environment variables
+- `deployments/docker-compose.yml`: Docker Compose configuration
+- `deployments/nginx.conf`: Nginx reverse proxy configuration
+- `web/vite.config.ts`: Frontend build configuration
 
 ### Environment Variables
 - HTTP_ADDRESS: default 127.0.0.1:8082 (local) or 0.0.0.0:8082 (Docker)

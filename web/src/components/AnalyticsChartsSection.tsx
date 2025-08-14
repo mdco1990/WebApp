@@ -40,7 +40,7 @@ const BreakdownCard = React.memo<{
 }>(({ title, isDarkMode, hasItems, emptyText, children }) => (
   <div className={`card ${isDarkMode ? 'bg-secondary text-light' : 'bg-white'}`}>
     <div className="card-header">
-      <h3>{title}</h3>
+      <h6>{title}</h6>
     </div>
     <div className="card-body">
       <div style={{ height: '300px' }}>
@@ -219,7 +219,7 @@ const AnalyticsChartsSection = React.memo<AnalyticsChartsSectionProps>(
         <div className="col-lg-6 mb-4">
           <div className={`card ${isDarkMode ? 'bg-secondary text-light' : 'bg-white'}`}>
             <div className="card-header">
-              <h3>{budgetOverviewTitle}</h3>
+              <h6>{budgetOverviewTitle}</h6>
             </div>
             <div className="card-body">
               <Loadable loaded={dataLoaded}>
@@ -238,7 +238,7 @@ const AnalyticsChartsSection = React.memo<AnalyticsChartsSectionProps>(
         <div className="col-lg-6 mb-4">
           <div className={`card ${isDarkMode ? 'bg-secondary text-light' : 'bg-white'}`}>
             <div className="card-header">
-              <h3>{t('section.currentMonthBudget', { defaultValue: 'Current Month Budget' })}</h3>
+              <h6>{t('section.currentMonthBudget', { defaultValue: 'Current Month Budget' })}</h6>
             </div>
             <div className="card-body">
               <Loadable loaded={dataLoaded}>
@@ -265,7 +265,7 @@ const AnalyticsChartsSection = React.memo<AnalyticsChartsSectionProps>(
         <div className="col-12 mb-4">
           <div className={`card ${isDarkMode ? 'bg-secondary text-light' : 'bg-white'}`}>
             <div className="card-header">
-              <h3>{kpiTrendTitle}</h3>
+              <h6>{kpiTrendTitle}</h6>
             </div>
             <div className="card-body">
               <Loadable loaded={dataLoaded}>
@@ -286,7 +286,7 @@ const AnalyticsChartsSection = React.memo<AnalyticsChartsSectionProps>(
         <div className="col-12 mb-4">
           <div className={`card ${isDarkMode ? 'bg-secondary text-light' : 'bg-white'}`}>
             <div className="card-header">
-              <h3>{manualBudgetDailyTitle}</h3>
+              <h6>{manualBudgetDailyTitle}</h6>
             </div>
             <div className="card-body">
               <Loadable loaded={dataLoaded}>
@@ -310,7 +310,7 @@ const AnalyticsChartsSection = React.memo<AnalyticsChartsSectionProps>(
         <div className="col-lg-6 mb-4">
           <div className={`card ${isDarkMode ? 'bg-secondary text-light' : 'bg-white'}`}>
             <div className="card-header">
-              <h3>{t('section.savingsProgress', { defaultValue: 'Savings Progress' })}</h3>
+              <h6>{t('section.savingsProgress', { defaultValue: 'Savings Progress' })}</h6>
             </div>
             <div className="card-body">
               <Loadable loaded={dataLoaded}>
@@ -331,7 +331,7 @@ const AnalyticsChartsSection = React.memo<AnalyticsChartsSectionProps>(
         <div className="col-lg-6 mb-4">
           <div className={`card ${isDarkMode ? 'bg-secondary text-light' : 'bg-white'}`}>
             <div className="card-header">
-              <h3>{t('section.savingsCategories', { defaultValue: 'Savings Categories' })}</h3>
+              <h6>{t('section.savingsCategories', { defaultValue: 'Savings Categories' })}</h6>
             </div>
             <div className="card-body">
               <Loadable loaded={dataLoaded}>

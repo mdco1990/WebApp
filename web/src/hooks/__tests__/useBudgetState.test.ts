@@ -35,16 +35,16 @@ describe('useBudgetState', () => {
 
     const newBudget = {
       incomeSources: [
-        { 
-          client_id: '1', 
-          name: 'Salary', 
+        {
+          client_id: '1',
+          name: 'Salary',
           amount_cents: 500000, // $5000
         }
       ],
       outcomeSources: [
-        { 
-          client_id: '2', 
-          name: 'Rent', 
+        {
+          client_id: '2',
+          name: 'Rent',
           amount_cents: 120000, // $1200
         }
       ],

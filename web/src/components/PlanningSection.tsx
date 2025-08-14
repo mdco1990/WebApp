@@ -66,9 +66,9 @@ const PlanningSection: React.FC<Props> = ({
   return (
     <div className="planning-cards d-flex flex-wrap gap-3">
       {/* Incomes Card */}
-  <div className="card flex-grow-1 flex-shrink-0 planning-card-wide">
+      <div className="card flex-grow-1 flex-shrink-0 planning-card-wide">
         <div className="card-header py-1">
-          <h4 className="card-title h6 mb-0">{t('section.incomes', { defaultValue: 'Incomes' })}</h4>
+          <h6 className="card-title h6 mb-0">{t('section.incomes', { defaultValue: 'Incomes' })}</h6>
         </div>
         <div className="card-body p-1 small">
           <IncomeSources
@@ -86,10 +86,26 @@ const PlanningSection: React.FC<Props> = ({
           />
         </div>
       </div>
+      {/* Summary Card */}
+      <div className="card flex-grow-1 flex-shrink-0 planning-card-narrow">
+        <div className="card-header py-1 d-flex justify-content-between align-items-center">
+          <h6 className="card-title h6 mb-0">{t('section.summary', { defaultValue: 'Summary' })}</h6>
+          <span className="badge bg-secondary">{monthLabel}</span>
+        </div>
+        <div className="card-body p-1 small">
+          <div className="d-flex flex-column gap-2">
+            <div className="d-flex justify-content-between"><span>{totalIncomeLabel}</span><strong className="text-success">{formatCurrency(totalIncome)}</strong></div>
+            <div className="d-flex justify-content-between"><span>{totalOutcomeLabel}</span><strong className="text-warning">{formatCurrency(totalOutcome)}</strong></div>
+            <div className="d-flex justify-content-between"><span>{differenceLabel}</span><strong className={difference >= 0 ? 'text-success' : 'text-danger'}>{formatCurrency(difference)}</strong></div>
+          </div>
+          <hr className="my-2" />
+          <div className="small text-muted">{t('section.predictedBudget.desc', { defaultValue: 'Plan your month by defining income and outcome sources.' })}</div>
+        </div>
+      </div>
       {/* Outcomes Card */}
-  <div className="card flex-grow-1 flex-shrink-0 planning-card-wide">
+      <div className="card flex-grow-1 flex-shrink-0 planning-card-wide">
         <div className="card-header py-1">
-          <h4 className="card-title h6 mb-0">{t('section.outcomes', { defaultValue: 'Outcomes' })}</h4>
+          <h6 className="card-title h6 mb-0">{t('section.outcomes', { defaultValue: 'Outcomes' })}</h6>
         </div>
         <div className="card-body p-1 small">
           <OutcomeSources
@@ -105,22 +121,6 @@ const PlanningSection: React.FC<Props> = ({
             onAddEmpty={onOutcomeAddEmpty}
             addButtonText={t('btn.addOutcomeSource', { defaultValue: '+ Outcome' })}
           />
-        </div>
-      </div>
-      {/* Summary Card */}
-  <div className="card flex-grow-1 flex-shrink-0 planning-card-narrow">
-        <div className="card-header py-1 d-flex justify-content-between align-items-center">
-          <h4 className="card-title h6 mb-0">{t('section.summary', { defaultValue: 'Summary' })}</h4>
-          <span className="badge bg-secondary">{monthLabel}</span>
-        </div>
-        <div className="card-body p-1 small">
-          <div className="d-flex flex-column gap-2">
-            <div className="d-flex justify-content-between"><span>{totalIncomeLabel}</span><strong className="text-success">{formatCurrency(totalIncome)}</strong></div>
-            <div className="d-flex justify-content-between"><span>{totalOutcomeLabel}</span><strong className="text-warning">{formatCurrency(totalOutcome)}</strong></div>
-            <div className="d-flex justify-content-between"><span>{differenceLabel}</span><strong className={difference >= 0 ? 'text-success' : 'text-danger'}>{formatCurrency(difference)}</strong></div>
-          </div>
-          <hr className="my-2" />
-          <div className="small text-muted">{t('section.predictedBudget.desc', { defaultValue: 'Plan your month by defining income and outcome sources.' })}</div>
         </div>
       </div>
     </div>

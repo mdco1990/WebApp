@@ -50,7 +50,7 @@ const SavingsSection = React.memo<SavingsSectionProps>(
     const currentAmountLabel = React.useMemo(() => t('label.currentAmount'), [t]);
     const monthlyContributionLabel = React.useMemo(() => t('label.monthlyContribution'), [t]);
     const monthsToTargetLabel = React.useMemo(() => t('label.monthsToTarget'), [t]);
-  // Legends kept if reintroducing small inline visuals later
+    // Legends kept if reintroducing small inline visuals later
 
     // Category management functions
     const addCategory = () => {
@@ -58,7 +58,7 @@ const SavingsSection = React.memo<SavingsSectionProps>(
         id: Date.now().toString(),
         name: '',
         amount: 0,
-        color: `#${Math.floor(Math.random()*16777215).toString(16)}`
+        color: `#${Math.floor(Math.random() * 16777215).toString(16)}`
       };
       setSavingsTracker(prev => ({
         ...prev,
@@ -69,7 +69,7 @@ const SavingsSection = React.memo<SavingsSectionProps>(
     const updateCategory = (id: string, updates: Partial<SavingsCategory>) => {
       setSavingsTracker(prev => ({
         ...prev,
-        categories: prev.categories.map(cat => 
+        categories: prev.categories.map(cat =>
           cat.id === id ? { ...cat, ...updates } : cat
         )
       }));
@@ -88,7 +88,7 @@ const SavingsSection = React.memo<SavingsSectionProps>(
         <div className="col-lg-6 col-12">
           <div className={`card h-100 ${isDarkMode ? 'bg-secondary text-light' : 'bg-white'}`}>
             <div className="card-header py-2 d-flex justify-content-between align-items-center">
-              <h3 className="h6 mb-0">{savingsTitle}</h3>
+              <h6 className="h6 mb-0">{savingsTitle}</h6>
               <span className="badge bg-info text-uppercase">{t('label.tracker', { defaultValue: 'Tracker' })}</span>
             </div>
             <div className="card-body p-3">
@@ -157,7 +157,7 @@ const SavingsSection = React.memo<SavingsSectionProps>(
                       <span className="badge bg-secondary">{(() => {
                         const months = Math.ceil(
                           (savingsTracker.targetAmount - savingsTracker.currentAmount) /
-                            Math.max(savingsTracker.monthlyContribution, 1)
+                          Math.max(savingsTracker.monthlyContribution, 1)
                         );
                         let label: string;
                         if (i18n.language?.startsWith('fr')) {
@@ -180,10 +180,10 @@ const SavingsSection = React.memo<SavingsSectionProps>(
         <div className="col-lg-6 col-12">
           <div className={`card h-100 ${isDarkMode ? 'bg-secondary text-light' : 'bg-white'}`}>
             <div className="card-header py-2 d-flex justify-content-between align-items-center">
-              <h3 className="h6 mb-0">{t('section.savingsCategories', { defaultValue: 'Savings Categories' })}</h3>
+              <h6 className="h6 mb-0">{t('section.savingsCategories', { defaultValue: 'Savings Categories' })}</h6>
               <div className="btn-group btn-group-sm">
                 <button className="btn btn-outline-primary" onClick={addCategory}>+ {t('btn.add', { defaultValue: 'Add' })}</button>
-                <button className="btn btn-outline-danger" disabled={savingsTracker.categories.length===0} onClick={() => deleteCategory(savingsTracker.categories[savingsTracker.categories.length-1].id)}>− {t('btn.remove', { defaultValue: 'Remove' })}</button>
+                <button className="btn btn-outline-danger" disabled={savingsTracker.categories.length === 0} onClick={() => deleteCategory(savingsTracker.categories[savingsTracker.categories.length - 1].id)}>− {t('btn.remove', { defaultValue: 'Remove' })}</button>
               </div>
             </div>
             <div className="card-body p-2">

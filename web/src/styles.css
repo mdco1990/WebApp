@@ -101,7 +101,8 @@ body {
   margin-bottom: var(--spacing-2xl);
   box-shadow: var(--shadow-lg);
   position: relative;
-  overflow: hidden;
+  z-index: 1100; /* Ensure header (and its dropdowns) stacks above sticky tabs */
+  overflow: visible !important; /* Allow dropdowns in header to escape and overlay nav tabs */
 }
 
 .page-header::before {
@@ -114,7 +115,8 @@ body {
 
 .page-header .container-xl {
   position: relative;
-  z-index: 1;
+  z-index: 1100; /* Above .page-header-tabs (1030) so dropdowns render on top */
+  overflow: visible !important;
 }
 
 .page-pretitle {
@@ -374,6 +376,166 @@ body {
   gap: var(--spacing-sm);
 }
 
+/* Header controls container - ensure single line layout */
+.header-controls-container {
+  flex-wrap: nowrap;
+  overflow: auto hidden;
+  padding-bottom: 2px; /* Space for potential scrollbar */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
+}
+
+/* Allow dropdowns to extend beyond container */
+.header-controls-container:has(.dropdown.show) {
+  overflow: visible;
+}
+
+/* Fallback for browsers without :has() support */
+.header-controls-container .dropdown.show {
+  position: static;
+}
+
+.header-controls-container .dropdown.show .dropdown-menu {
+  position: absolute;
+  z-index: 9999;
+}
+
+/* Force dropdown to escape any clipping containers */
+.page-header * {
+  overflow: visible !important;
+}
+
+/* Ensure dropdown is positioned relative to viewport */
+
+.header-controls-container::-webkit-scrollbar {
+  height: 4px;
+}
+
+.header-controls-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.header-controls-container::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: 2px;
+}
+
+.header-controls-container::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(0, 0, 0, 0.3);
+}
+
+/* Compact button groups for header */
+.header-controls-container .btn-group {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.header-controls-container .btn {
+  white-space: nowrap;
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+}
+
+.header-controls-container .form-control {
+  width: auto;
+  min-width: 120px;
+  flex-shrink: 0;
+}
+
+.header-controls-container .dropdown {
+  flex-shrink: 0;
+  position: relative;
+}
+
+/* Enhanced dropdown styling for header controls */
+.header-controls-container .dropdown-menu {
+  min-width: 200px;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--bs-border-color);
+  padding: 0.5rem 0;
+  z-index: 9999 !important; /* Very high z-index to ensure it's on top */
+  position: absolute !important;
+}
+
+.header-controls-container .dropdown-item {
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  display: flex;
+  align-items: center;
+  transition: all var(--transition-fast);
+}
+
+.header-controls-container .dropdown-item:hover {
+  background-color: var(--bs-primary-bg-subtle);
+  color: var(--bs-primary);
+}
+
+.header-controls-container .dropdown-item.text-danger:hover {
+  background-color: var(--bs-danger-bg-subtle);
+  color: var(--bs-danger);
+}
+
+.header-controls-container .dropdown-item.text-warning:hover {
+  background-color: var(--bs-warning-bg-subtle);
+  color: var(--bs-warning);
+}
+
+.header-controls-container .dropdown-header {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--bs-secondary);
+  padding: 0.5rem 1rem 0.25rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.header-controls-container .dropdown-divider {
+  margin: 0.25rem 0;
+  border-color: var(--bs-border-color);
+}
+
+/* Fix dropdown clipping issues in page header */
+
+.page-header .row {
+  overflow: visible !important;
+}
+
+.page-header .col-auto {
+  overflow: visible !important;
+}
+
+/* Ensure dropdown appears above page header elements */
+.page-header .dropdown-menu {
+  z-index: 9999 !important;
+  position: fixed !important;
+}
+
+/* Ensure dropdown appears above page-header-tabs as well */
+.page-header-tabs ~ * .dropdown-menu,
+.dropdown-menu {
+  z-index: 1200 !important;
+}
+
+/* Specific override for any dropdown in header area */
+.page-header .dropdown,
+.page-header .dropdown-menu,
+.header-controls-container .dropdown,
+.header-controls-container .dropdown-menu {
+  z-index: 9999 !important;
+}
+
+/* Bootstrap dropdown specific fixes */
+.dropdown-menu.show {
+  z-index: 9999 !important;
+  position: absolute !important;
+}
+
+/* Ensure dropdown appears above everything */
+body .dropdown-menu {
+  z-index: 9999 !important;
+}
+
 /* High-contrast toggle states for header language/currency buttons */
 .btn-list .btn.btn-dark.text-light,
 .btn-list .btn.btn-light.text-dark,
@@ -485,10 +647,99 @@ canvas {
     padding: 0.75rem 0.875rem;
     font-size: 0.875rem;
   }
+}
+
+/* DB Admin enhanced styling */
+.card-hover {
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+}
+
+.bg-gradient {
+  background: linear-gradient(135deg, var(--bs-primary) 0%, var(--bs-primary-rgb) 100%);
+}
+
+.bg-gradient.bg-primary {
+  background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+}
+
+.bg-gradient.bg-success {
+  background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%);
+}
+
+.bg-gradient.bg-warning {
+  background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%);
+}
+
+.bg-gradient.bg-danger {
+  background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+}
+
+.bg-gradient.bg-info {
+  background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
+}
+
+/* Enhanced navbar styling */
+.navbar-light {
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%) !important;
+  border: 1px solid #dee2e6;
+}
+
+/* Iframe container styling */
+.iframe-container {
+  position: relative;
+  overflow: hidden;
+  border-radius: 0.375rem;
+}
+
+/* Loading overlay */
+.loading-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+
+/* Responsive adjustments for DB Admin */
+@media (max-width: 768px) {
+  .col-md-6.col-lg-3 {
+    margin-bottom: 1rem;
+  }
+  
+  .navbar-brand {
+    font-size: 1rem;
+  }
+  
+  .btn-group-sm .btn {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+  }
 
   .page-header-tabs .nav-link svg {
     width: 14px;
     height: 14px;
+  }
+
+  /* Header controls: maintain single line with horizontal scroll on md */
+  .page-header .header-controls-container {
+    gap: 0.25rem;
+    padding-bottom: 4px;
+  }
+  .page-header .header-controls-container .btn {
+    font-size: 0.7rem;
+    padding: 0.2rem 0.4rem;
+  }
+  .page-header .header-controls-container .form-control {
+    min-width: 100px;
+    font-size: 0.7rem;
   }
 }
 
@@ -504,6 +755,30 @@ canvas {
   .btn-sm {
     padding: 0.25rem 0.5rem;
     font-size: 0.75rem;
+  }
+
+  /* Header controls: maintain single line with horizontal scroll on xs */
+  .page-header .header-controls-container {
+    gap: 0.2rem;
+    padding-bottom: 6px;
+  }
+  .page-header .header-controls-container .btn {
+    font-size: 0.65rem;
+    padding: 0.15rem 0.3rem;
+  }
+  .page-header .header-controls-container .form-control {
+    min-width: 80px;
+    font-size: 0.65rem;
+  }
+  .page-header .header-controls-container .btn-group {
+    flex-shrink: 0;
+  }
+  /* Make admin dropdown easier to use on xs */
+  .page-header .dropdown-menu.dropdown-menu-lg {
+    min-width: 100%;
+    max-width: none;
+    left: 0 !important;
+    right: 0 !important;
   }
 }
 
@@ -562,11 +837,15 @@ canvas {
 /* Enhanced Card Hover Effects - Extended */
 
 /* Enhanced Dropdown Styles */
+.dropdown {
+  position: relative; /* Ensure absolute-positioned menu is anchored to the button container */
+}
+
 .dropdown-menu {
   border-radius: 12px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
   border: 1px solid var(--bs-border-color);
-  z-index: 1050; /* Higher than page-header-tabs */
+  z-index: 2000; /* Above sticky tabs and headers */
 }
 
 .dropdown-menu-lg {
@@ -618,6 +897,34 @@ canvas {
 
 /* Planning card width utility classes */
 .planning-card-wide { min-width: 280px; max-width: 420px; }
+
+/* Keep header controls on a single row with horizontal scroll on small screens */
+.page-header .btn-list {
+  flex-wrap: nowrap;            /* do not wrap to second line */
+  overflow-x: auto;             /* allow horizontal scroll when needed */
+  -webkit-overflow-scrolling: touch;
+  gap: 0.5rem;
+}
+.page-header .btn-list > .btn-group,
+.page-header .btn-list > button,
+.page-header .btn-list > .dropdown {
+  flex: 0 0 auto;               /* keep items sized to content; no stretching */
+}
+
+/* On md and down, enforce single-line row and reduce spacing */
+@media (max-width: 768px) {
+  .page-header .btn-list {
+    /* override previous stacking using shorthand to satisfy stylelint */
+    flex-flow: row nowrap !important;
+    gap: 0.375rem;
+  }
+  .page-header .btn-list > .btn-group,
+  .page-header .btn-list > button,
+  .page-header .btn-list > .dropdown {
+    flex: 0 0 auto;
+    min-width: auto;
+  }
+}
 .planning-card-narrow { min-width: 260px; max-width: 360px; }
 
 /* Enhanced Badge System */
@@ -811,4 +1118,134 @@ canvas {
   .page-header-tabs {
     box-shadow: none;
   }
+}
+
+/* DB Admin Page Styles */
+.db-admin-container {
+  padding: 2rem 0;
+}
+
+.db-admin-header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 2rem 0;
+  margin-bottom: 2rem;
+  border-radius: 0.5rem;
+}
+
+.db-admin-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.db-admin-stat-card {
+  background: white;
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.db-admin-stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+.db-admin-stat-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.db-admin-quick-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.db-admin-action-card {
+  background: white;
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  transition: all 0.2s ease;
+  cursor: pointer;
+  text-decoration: none;
+  color: inherit;
+}
+
+.db-admin-action-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+  text-decoration: none;
+  color: inherit;
+}
+
+.db-admin-tabs {
+  background: white;
+  border-radius: 0.75rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.db-admin-tab-content {
+  padding: 2rem;
+  min-height: 400px;
+}
+
+.db-admin-iframe-container {
+  position: relative;
+  width: 100%;
+  height: 600px;
+  border-radius: 0.5rem;
+  overflow: hidden;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.db-admin-iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  border-radius: 0.5rem;
+}
+
+.db-admin-iframe-loading {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  color: #6c757d;
+}
+
+.db-admin-iframe-loading .spinner-border {
+  margin-bottom: 1rem;
+}
+
+/* Dark mode support for DB Admin */
+[data-bs-theme="dark"] .db-admin-stat-card,
+[data-bs-theme="dark"] .db-admin-action-card,
+[data-bs-theme="dark"] .db-admin-tabs {
+  background: #2d3748;
+  border-color: #4a5568;
+  color: #e2e8f0;
+}
+
+[data-bs-theme="dark"] .db-admin-stat-card:hover,
+[data-bs-theme="dark"] .db-admin-action-card:hover {
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+}
+
+[data-bs-theme="dark"] .db-admin-iframe-loading {
+  color: #a0aec0;
 }

@@ -41,6 +41,7 @@
     "@types/react": "18.2.55",
     "@types/react-dom": "18.2.19",
     "@vitejs/plugin-react": "^4.7.0",
+    "connect-history-api-fallback": "^2.0.0",
     "eslint": "^9.33.0",
     "eslint-plugin-jsx-a11y": "^6.10.2",
     "eslint-plugin-react": "^7.37.5",

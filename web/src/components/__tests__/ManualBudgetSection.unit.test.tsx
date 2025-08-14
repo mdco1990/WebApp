@@ -7,7 +7,7 @@ describe('ManualBudgetSection (unit)', () => {
     const n = v.replace(/,/g, '.');
     return parseFloat(n) || 0;
   };
-  const format = (c: number) => `$${(c/100).toFixed(2)}`;
+  const format = (c: number) => `$${(c / 100).toFixed(2)}`;
 
   it('parses comma decimal values', () => {
     const mockSetManualBudget = jest.fn();
@@ -35,7 +35,7 @@ describe('ManualBudgetSection (unit)', () => {
     );
     const bankInput = getByLabelText('Bank');
     fireEvent.change(bankInput, { target: { value: '123,45' } });
-    
+
     // Check that setManualBudget was called with the correctly parsed value
     expect(mockSetManualBudget).toHaveBeenCalledWith({
       bankAmount: 123.45,

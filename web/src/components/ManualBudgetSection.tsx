@@ -100,7 +100,7 @@ const ManualBudgetSection: React.FC<Props> = ({
       <div className="col-lg-12 mb-4">
         <div className={`card ${isDarkMode ? 'bg-secondary text-light' : 'bg-white'}`}>
           <div className="card-header d-flex justify-content-between align-items-center">
-            <h3 className="mb-0">{title}</h3>
+            <h6 className="mb-0">{title}</h6>
             <div className="d-flex align-items-center gap-2">
               <span className="badge bg-secondary">{monthLabel}</span>
               <div className="small text-muted me-2">{formulaHint}</div>
@@ -197,10 +197,10 @@ const ManualBudgetSection: React.FC<Props> = ({
                       ...manualBudget,
                       items: [
                         ...manualBudget.items,
-                        { 
-                          id: Date.now().toString() + '-' + Math.random().toString(36).slice(2), 
-                          name: '', 
-                          amount: 0 
+                        {
+                          id: Date.now().toString() + '-' + Math.random().toString(36).slice(2),
+                          name: '',
+                          amount: 0
                         },
                       ],
                     });

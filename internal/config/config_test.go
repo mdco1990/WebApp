@@ -37,20 +37,44 @@ func TestLoad(t *testing.T) {
 
 func TestLoadWithEnvironment(t *testing.T) {
 	// Test environment variable override
-	os.Setenv("HTTP_ADDRESS", "0.0.0.0:8080")
-	os.Setenv("DB_DRIVER", "mysql")
-	os.Setenv("DB_DSN", "user:pass@tcp(localhost:3306)/db")
-	os.Setenv("ENV", "prod")
-	os.Setenv("LOG_LEVEL", "debug")
-	os.Setenv("LOG_FORMAT", "text")
+	if err := os.Setenv("HTTP_ADDRESS", "0.0.0.0:8080"); err != nil {
+		t.Fatalf("Failed to set HTTP_ADDRESS: %v", err)
+	}
+	if err := os.Setenv("DB_DRIVER", "mysql"); err != nil {
+		t.Fatalf("Failed to set DB_DRIVER: %v", err)
+	}
+	if err := os.Setenv("DB_DSN", "user:pass@tcp(localhost:3306)/db"); err != nil {
+		t.Fatalf("Failed to set DB_DSN: %v", err)
+	}
+	if err := os.Setenv("ENV", "prod"); err != nil {
+		t.Fatalf("Failed to set ENV: %v", err)
+	}
+	if err := os.Setenv("LOG_LEVEL", "debug"); err != nil {
+		t.Fatalf("Failed to set LOG_LEVEL: %v", err)
+	}
+	if err := os.Setenv("LOG_FORMAT", "text"); err != nil {
+		t.Fatalf("Failed to set LOG_FORMAT: %v", err)
+	}
 
 	defer func() {
-		os.Unsetenv("HTTP_ADDRESS")
-		os.Unsetenv("DB_DRIVER")
-		os.Unsetenv("DB_DSN")
-		os.Unsetenv("ENV")
-		os.Unsetenv("LOG_LEVEL")
-		os.Unsetenv("LOG_FORMAT")
+		if err := os.Unsetenv("HTTP_ADDRESS"); err != nil {
+			t.Logf("Failed to unset HTTP_ADDRESS: %v", err)
+		}
+		if err := os.Unsetenv("DB_DRIVER"); err != nil {
+			t.Logf("Failed to unset DB_DRIVER: %v", err)
+		}
+		if err := os.Unsetenv("DB_DSN"); err != nil {
+			t.Logf("Failed to unset DB_DSN: %v", err)
+		}
+		if err := os.Unsetenv("ENV"); err != nil {
+			t.Logf("Failed to unset ENV: %v", err)
+		}
+		if err := os.Unsetenv("LOG_LEVEL"); err != nil {
+			t.Logf("Failed to unset LOG_LEVEL: %v", err)
+		}
+		if err := os.Unsetenv("LOG_FORMAT"); err != nil {
+			t.Logf("Failed to unset LOG_FORMAT: %v", err)
+		}
 	}()
 
 	cfg := Load()
@@ -110,8 +134,14 @@ func TestCORSAllowedOrigins(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			os.Setenv("CORS_ALLOWED_ORIGINS", tt.env)
-			defer os.Unsetenv("CORS_ALLOWED_ORIGINS")
+			if err := os.Setenv("CORS_ALLOWED_ORIGINS", tt.env); err != nil {
+				t.Fatalf("Failed to set CORS_ALLOWED_ORIGINS: %v", err)
+			}
+			defer func() {
+				if err := os.Unsetenv("CORS_ALLOWED_ORIGINS"); err != nil {
+					t.Logf("Failed to unset CORS_ALLOWED_ORIGINS: %v", err)
+				}
+			}()
 
 			cfg := Load()
 
@@ -156,16 +186,32 @@ func TestHTTPTimeouts(t *testing.T) {
 }
 
 func TestHTTPTimeoutsWithEnvironment(t *testing.T) {
-	os.Setenv("HTTP_READ_HEADER_TIMEOUT_MS", "1000")
-	os.Setenv("HTTP_READ_TIMEOUT_MS", "2000")
-	os.Setenv("HTTP_WRITE_TIMEOUT_MS", "3000")
-	os.Setenv("HTTP_IDLE_TIMEOUT_MS", "4000")
+	if err := os.Setenv("HTTP_READ_HEADER_TIMEOUT_MS", "1000"); err != nil {
+		t.Fatalf("Failed to set HTTP_READ_HEADER_TIMEOUT_MS: %v", err)
+	}
+	if err := os.Setenv("HTTP_READ_TIMEOUT_MS", "2000"); err != nil {
+		t.Fatalf("Failed to set HTTP_READ_TIMEOUT_MS: %v", err)
+	}
+	if err := os.Setenv("HTTP_WRITE_TIMEOUT_MS", "3000"); err != nil {
+		t.Fatalf("Failed to set HTTP_WRITE_TIMEOUT_MS: %v", err)
+	}
+	if err := os.Setenv("HTTP_IDLE_TIMEOUT_MS", "4000"); err != nil {
+		t.Fatalf("Failed to set HTTP_IDLE_TIMEOUT_MS: %v", err)
+	}
 
 	defer func() {
-		os.Unsetenv("HTTP_READ_HEADER_TIMEOUT_MS")
-		os.Unsetenv("HTTP_READ_TIMEOUT_MS")
-		os.Unsetenv("HTTP_WRITE_TIMEOUT_MS")
-		os.Unsetenv("HTTP_IDLE_TIMEOUT_MS")
+		if err := os.Unsetenv("HTTP_READ_HEADER_TIMEOUT_MS"); err != nil {
+			t.Logf("Failed to unset HTTP_READ_HEADER_TIMEOUT_MS: %v", err)
+		}
+		if err := os.Unsetenv("HTTP_READ_TIMEOUT_MS"); err != nil {
+			t.Logf("Failed to unset HTTP_READ_TIMEOUT_MS: %v", err)
+		}
+		if err := os.Unsetenv("HTTP_WRITE_TIMEOUT_MS"); err != nil {
+			t.Logf("Failed to unset HTTP_WRITE_TIMEOUT_MS: %v", err)
+		}
+		if err := os.Unsetenv("HTTP_IDLE_TIMEOUT_MS"); err != nil {
+			t.Logf("Failed to unset HTTP_IDLE_TIMEOUT_MS: %v", err)
+		}
 	}()
 
 	cfg := Load()
@@ -200,8 +246,14 @@ func TestGetenv(t *testing.T) {
 	}
 
 	// Test environment variable override
-	os.Setenv("TEST_KEY", "test_value")
-	defer os.Unsetenv("TEST_KEY")
+	if err := os.Setenv("TEST_KEY", "test_value"); err != nil {
+		t.Fatalf("Failed to set TEST_KEY: %v", err)
+	}
+	defer func() {
+		if err := os.Unsetenv("TEST_KEY"); err != nil {
+			t.Logf("Failed to unset TEST_KEY: %v", err)
+		}
+	}()
 
 	value = getenv("TEST_KEY", "default_value")
 	if value != "test_value" {
@@ -217,8 +269,14 @@ func TestParseInt(t *testing.T) {
 	}
 
 	// Test valid integer
-	os.Setenv("TEST_INT", "123")
-	defer os.Unsetenv("TEST_INT")
+	if err := os.Setenv("TEST_INT", "123"); err != nil {
+		t.Fatalf("Failed to set TEST_INT: %v", err)
+	}
+	defer func() {
+		if err := os.Unsetenv("TEST_INT"); err != nil {
+			t.Logf("Failed to unset TEST_INT: %v", err)
+		}
+	}()
 
 	value = ParseInt("TEST_INT", 42)
 	if value != 123 {
@@ -226,8 +284,14 @@ func TestParseInt(t *testing.T) {
 	}
 
 	// Test invalid integer (should return default)
-	os.Setenv("TEST_INVALID", "not_a_number")
-	defer os.Unsetenv("TEST_INVALID")
+	if err := os.Setenv("TEST_INVALID", "not_a_number"); err != nil {
+		t.Fatalf("Failed to set TEST_INVALID: %v", err)
+	}
+	defer func() {
+		if err := os.Unsetenv("TEST_INVALID"); err != nil {
+			t.Logf("Failed to unset TEST_INVALID: %v", err)
+		}
+	}()
 
 	value = ParseInt("TEST_INVALID", 42)
 	if value != 42 {
@@ -261,8 +325,14 @@ func TestDurationFromMillis(t *testing.T) {
 
 func TestConfigValidation(t *testing.T) {
 	// Test empty HTTP_ADDRESS
-	os.Setenv("HTTP_ADDRESS", "")
-	defer os.Unsetenv("HTTP_ADDRESS")
+	if err := os.Setenv("HTTP_ADDRESS", ""); err != nil {
+		t.Fatalf("Failed to set HTTP_ADDRESS: %v", err)
+	}
+	defer func() {
+		if err := os.Unsetenv("HTTP_ADDRESS"); err != nil {
+			t.Logf("Failed to unset HTTP_ADDRESS: %v", err)
+		}
+	}()
 
 	// This should not panic and should use default
 	cfg := Load()
@@ -271,11 +341,19 @@ func TestConfigValidation(t *testing.T) {
 	}
 
 	// Test SQLite validation
-	os.Setenv("DB_DRIVER", "sqlite")
-	os.Setenv("DB_PATH", "")
+	if err := os.Setenv("DB_DRIVER", "sqlite"); err != nil {
+		t.Fatalf("Failed to set DB_DRIVER: %v", err)
+	}
+	if err := os.Setenv("DB_PATH", ""); err != nil {
+		t.Fatalf("Failed to set DB_PATH: %v", err)
+	}
 	defer func() {
-		os.Unsetenv("DB_DRIVER")
-		os.Unsetenv("DB_PATH")
+		if err := os.Unsetenv("DB_DRIVER"); err != nil {
+			t.Logf("Failed to unset DB_DRIVER: %v", err)
+		}
+		if err := os.Unsetenv("DB_PATH"); err != nil {
+			t.Logf("Failed to unset DB_PATH: %v", err)
+		}
 	}()
 
 	// This should not panic and should use default
@@ -285,11 +363,19 @@ func TestConfigValidation(t *testing.T) {
 	}
 
 	// Test MySQL validation - this should work with valid DSN
-	os.Setenv("DB_DRIVER", "mysql")
-	os.Setenv("DB_DSN", "user:pass@tcp(localhost:3306)/testdb")
+	if err := os.Setenv("DB_DRIVER", "mysql"); err != nil {
+		t.Fatalf("Failed to set DB_DRIVER: %v", err)
+	}
+	if err := os.Setenv("DB_DSN", "user:pass@tcp(localhost:3306)/testdb"); err != nil {
+		t.Fatalf("Failed to set DB_DSN: %v", err)
+	}
 	defer func() {
-		os.Unsetenv("DB_DRIVER")
-		os.Unsetenv("DB_DSN")
+		if err := os.Unsetenv("DB_DRIVER"); err != nil {
+			t.Logf("Failed to unset DB_DRIVER: %v", err)
+		}
+		if err := os.Unsetenv("DB_DSN"); err != nil {
+			t.Logf("Failed to unset DB_DSN: %v", err)
+		}
 	}()
 
 	// This should not panic with valid DSN

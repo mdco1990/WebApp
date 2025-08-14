@@ -30,14 +30,14 @@ describe('AdminControls', () => {
 
   test('renders admin panel button and opens dropdown', () => {
     setup();
-  const btn = screen.getByRole('button', { name: /Admin Panel|Panneau Admin/i });
+    const btn = screen.getByRole('button', { name: /Admin Panel|Panneau Admin/i });
     fireEvent.click(btn);
     expect(screen.getByText(/User Management/i)).toBeInTheDocument();
   });
 
   test('reject pending user triggers handler', () => {
     const { onRejectUser } = setup();
-  fireEvent.click(screen.getByRole('button', { name: /Admin Panel|Panneau Admin/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Admin Panel|Panneau Admin/i }));
     // Reject button has title containing Reject (translated); using symbol ✗ may not have accessible name, so query by title attribute via getByTitle fallback
     const rejectBtn = screen.getByTitle(/Reject|Rejeter/i);
     fireEvent.click(rejectBtn);
@@ -60,9 +60,9 @@ describe('AdminControls', () => {
       ]
     });
     fireEvent.click(screen.getByRole('button', { name: /Admin Panel|Panneau Admin/i }));
-  // Fallback: label may show translation key if not in minimal test resource set
-  const rejectedTab = screen.getByRole('button', { name: /rejected/i });
-  fireEvent.click(rejectedTab);
+    // Fallback: label may show translation key if not in minimal test resource set
+    const rejectedTab = screen.getByRole('button', { name: /rejected/i });
+    fireEvent.click(rejectedTab);
     const deleteBtn = screen.getByTitle(/Delete User|Supprimer l'utilisateur/i);
     fireEvent.click(deleteBtn);
     expect(onDeleteUser).toHaveBeenCalledWith(2);
@@ -83,7 +83,7 @@ describe('AdminControls', () => {
         <AdminControls
           isDarkMode={false}
           user={{ is_admin: true }}
-          pendingUsers={Array.from({ length: 3 }).map((_, i) => ({ id: i+1, username: `u${i}`, email: `u${i}@e.com`, created_at: new Date().toISOString() }))}
+          pendingUsers={Array.from({ length: 3 }).map((_, i) => ({ id: i + 1, username: `u${i}`, email: `u${i}@e.com`, created_at: new Date().toISOString() }))}
           allUsers={[]}
         />
       </I18nextProvider>
@@ -135,9 +135,9 @@ describe('AdminControls', () => {
   });
 
   test('clear cache confirmation triggers reload when confirmed', () => {
-  // Monitor cache clear side-effects instead of reload override (readonly)
-  const lsClear = jest.spyOn(window.localStorage.__proto__, 'clear');
-  const ssClear = jest.spyOn(window.sessionStorage.__proto__, 'clear');
+    // Monitor cache clear side-effects instead of reload override (readonly)
+    const lsClear = jest.spyOn(window.localStorage.__proto__, 'clear');
+    const ssClear = jest.spyOn(window.sessionStorage.__proto__, 'clear');
     const confirmSpy = jest.spyOn(window, 'confirm').mockReturnValue(true);
     render(
       <I18nextProvider i18n={createTestI18n('en')}>
@@ -147,11 +147,11 @@ describe('AdminControls', () => {
     fireEvent.click(screen.getByRole('button', { name: /Admin Panel/ }));
     fireEvent.click(screen.getByRole('button', { name: /Clear Cache/ }));
     expect(confirmSpy).toHaveBeenCalled();
-  expect(lsClear).toHaveBeenCalled();
-  expect(ssClear).toHaveBeenCalled();
+    expect(lsClear).toHaveBeenCalled();
+    expect(ssClear).toHaveBeenCalled();
     confirmSpy.mockRestore();
-  lsClear.mockRestore();
-  ssClear.mockRestore();
+    lsClear.mockRestore();
+    ssClear.mockRestore();
   });
 
   test('French localization displays French labels', () => {

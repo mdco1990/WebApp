@@ -19,8 +19,8 @@ const SavingsCategoriesChart: React.FC<SavingsCategoriesChartProps> = ({
   // No data case
   if (validCategories.length === 0) {
     return (
-      <div 
-        className={`d-flex justify-content-center align-items-center ${isDarkMode ? 'text-light' : 'text-muted'}`} 
+      <div
+        className={`d-flex justify-content-center align-items-center ${isDarkMode ? 'text-light' : 'text-muted'}`}
         style={{ height: '300px' }}
       >
         <div className="text-center">

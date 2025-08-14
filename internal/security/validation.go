@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"html"
 	"regexp"
+	"strconv"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -14,22 +15,34 @@ import (
 )
 
 const (
-	// Maximum lengths to prevent buffer overflow attacks
-	MaxUsernameLength    = 50
-	MaxPasswordLength    = 200
-	MaxEmailLength       = 254 // RFC 5321
-	MaxNameLength        = 100
+	// MaxUsernameLength is the maximum length for usernames to prevent buffer overflow attacks
+	MaxUsernameLength = 50
+	// MaxPasswordLength is the maximum length for passwords to prevent buffer overflow attacks
+	MaxPasswordLength = 200
+	// MaxEmailLength is the maximum allowed email length according to RFC 5321
+	MaxEmailLength = 254 // RFC 5321
+	// MaxNameLength is the maximum length for names
+	MaxNameLength = 100
+	// MaxDescriptionLength is the maximum length for descriptions
 	MaxDescriptionLength = 500
-	MaxCategoryLength    = 50
+	// MaxCategoryLength is the maximum length for categories
+	MaxCategoryLength = 50
 
-	// Numeric limits to prevent overflow
-	MinYear   = 1970
-	MaxYear   = 3000
-	MinMonth  = 1
-	MaxMonth  = 12
+	// MinYear is the minimum valid year to prevent overflow
+	MinYear = 1970
+	// MaxYear is the maximum allowed year value
+	MaxYear = 3000
+	// MinMonth is the minimum valid month value
+	MinMonth = 1
+	// MaxMonth is the maximum valid month value
+	MaxMonth = 12
+	// MinAmount is the minimum valid amount value
 	MinAmount = 0
+	// MaxAmount is the maximum allowed amount value
 	MaxAmount = 9223372036854775807 // int64 max for cents (approx 92 trillion dollars)
+	// MinUserID is the minimum valid user ID value
 	MinUserID = 1
+	// MaxUserID is the maximum allowed user ID value
 	MaxUserID = 9223372036854775807
 )
 
@@ -41,13 +54,19 @@ var (
 	categoryRegex    = regexp.MustCompile(`^[a-zA-Z0-9\s\-\_]{0,50}$`)
 	descriptionRegex = regexp.MustCompile(`^[a-zA-Z0-9\s\-\_\.\,\!\?\(\)\[\]]{1,500}$`)
 
-	// Error definitions
-	ErrInvalidInput      = errors.New("invalid input")
-	ErrInputTooLong      = errors.New("input too long")
-	ErrInvalidFormat     = errors.New("invalid format")
-	ErrInvalidRange      = errors.New("value out of valid range")
-	ErrSQLInjection      = errors.New("potential SQL injection detected")
-	ErrXSSAttempt        = errors.New("potential XSS attempt detected")
+	// ErrInvalidInput is returned when input validation fails
+	ErrInvalidInput = errors.New("invalid input")
+	// ErrInputTooLong is returned when input exceeds maximum length
+	ErrInputTooLong = errors.New("input too long")
+	// ErrInvalidFormat is returned when input format is invalid
+	ErrInvalidFormat = errors.New("invalid format")
+	// ErrInvalidRange is returned when a value is outside the valid range
+	ErrInvalidRange = errors.New("value out of valid range")
+	// ErrSQLInjection is returned when potential SQL injection is detected
+	ErrSQLInjection = errors.New("potential SQL injection detected")
+	// ErrXSSAttempt is returned when potential XSS is detected
+	ErrXSSAttempt = errors.New("potential XSS attempt detected")
+	// ErrInvalidCharacters is returned when invalid characters are detected
 	ErrInvalidCharacters = errors.New("invalid characters detected")
 )
 
@@ -59,10 +78,12 @@ type ValidationError struct {
 	Err     error
 }
 
+// Error returns the error message
 func (v ValidationError) Error() string {
 	return fmt.Sprintf("validation error in field '%s': %s", v.Field, v.Message)
 }
 
+// Unwrap returns the underlying error
 func (v ValidationError) Unwrap() error {
 	return v.Err
 }
@@ -411,7 +432,7 @@ func ValidateYearMonth(ym domain.YearMonth) error {
 	if ym.Year < MinYear || ym.Year > MaxYear {
 		return ValidationError{
 			Field:   "year",
-			Value:   fmt.Sprintf("%d", ym.Year),
+			Value:   strconv.Itoa(ym.Year),
 			Message: fmt.Sprintf("year must be between %d and %d", MinYear, MaxYear),
 			Err:     ErrInvalidRange,
 		}
@@ -420,7 +441,7 @@ func ValidateYearMonth(ym domain.YearMonth) error {
 	if ym.Month < MinMonth || ym.Month > MaxMonth {
 		return ValidationError{
 			Field:   "month",
-			Value:   fmt.Sprintf("%d", ym.Month),
+			Value:   strconv.Itoa(ym.Month),
 			Message: fmt.Sprintf("month must be between %d and %d", MinMonth, MaxMonth),
 			Err:     ErrInvalidRange,
 		}
@@ -444,7 +465,7 @@ func ValidateAmount(amount domain.Money, fieldName string) error {
 		return ValidationError{
 			Field:   fieldName,
 			Value:   fmt.Sprintf("%d", amount),
-			Message: fmt.Sprintf("amount exceeds maximum allowed value"),
+			Message: "amount exceeds maximum allowed value",
 			Err:     ErrInvalidRange,
 		}
 	}
@@ -457,7 +478,7 @@ func ValidateUserID(userID int64) error {
 	if userID < MinUserID || userID > MaxUserID {
 		return ValidationError{
 			Field:   "user_id",
-			Value:   fmt.Sprintf("%d", userID),
+			Value:   strconv.FormatInt(userID, 10),
 			Message: "invalid user ID",
 			Err:     ErrInvalidRange,
 		}
@@ -471,7 +492,7 @@ func ValidateID(id int64, fieldName string) error {
 	if id <= 0 || id > MaxUserID {
 		return ValidationError{
 			Field:   fieldName,
-			Value:   fmt.Sprintf("%d", id),
+			Value:   strconv.FormatInt(id, 10),
 			Message: "invalid ID value",
 			Err:     ErrInvalidRange,
 		}
@@ -638,7 +659,7 @@ func ValidateLoginRequest(req domain.LoginRequest) (*domain.LoginRequest, error)
 	return &validated, nil
 }
 
-// Status validation for user status updates
+// ValidateUserStatus validates user status updates
 func ValidateUserStatus(status string) (string, error) {
 	validStatuses := map[string]bool{
 		"pending":  true,
@@ -656,4 +677,28 @@ func ValidateUserStatus(status string) (string, error) {
 	}
 
 	return status, nil
+}
+
+// ValidateManualBudget validates manual budget data
+func ValidateManualBudget(budget domain.ManualBudget) error {
+	if err := ValidateYearMonth(budget.YearMonth); err != nil {
+		return err
+	}
+
+	if err := ValidateAmount(budget.BankAmountCents, "bank_amount_cents"); err != nil {
+		return err
+	}
+
+	// Validate items
+	for i, item := range budget.Items {
+		if _, err := ValidateName(item.Name, "items["+strconv.Itoa(i)+"].name"); err != nil {
+			return err
+		}
+
+		if err := ValidateAmount(item.AmountCents, "items["+strconv.Itoa(i)+"].amount_cents"); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

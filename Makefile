@@ -1,6 +1,6 @@
 SHELL := /bin/bash
 GO ?= go
-GOTOOLCHAIN ?= go1.24.5
+GOTOOLCHAIN ?= go1.23.0
 BIN_DIR := bin
 BIN := $(BIN_DIR)/webapp
 PORT ?= 8082
@@ -8,7 +8,7 @@ PORT_WEB ?= 5173
 DEV_DIR := .dev
 
 
-.PHONY: all tidy build run stop free-port test fmt vet clean web-setup web-dev web-build health dev dev-stop dev-logs \
+.PHONY: all tidy build run stop free-port test test-web test-all fmt vet clean web-setup web-dev web-build health dev dev-stop dev-logs \
 	lint lint-install lint-fix format format-check check-all lint-web lint-web-fix format-web lint-verify lint-linters \
 	lint-css lint-css-fix lint-vite lint-all docker-dev docker-dev-detached docker-stop security web-security sonar \
 	go-audit web-audit
@@ -39,6 +39,8 @@ help:
 	@echo ""
 	@echo "🧪 Testing:"
 	@echo "  test                 Run Go unit tests"
+	@echo "  test-web             Run frontend tests (Jest)"
+	@echo "  test-all             Run all tests (Go + Frontend)"
 	@echo "  check-all            Run format check + lint + tests"
 	@echo ""
 	@echo "✨ Code Quality:"
@@ -126,9 +128,17 @@ free-port:
 		echo "Port $(PORT) is free."; \
 	fi
 
-# Unit tests
+# Unit tests (Go only)
 test:
 	GOTOOLCHAIN=$(GOTOOLCHAIN) $(GO) test ./...
+
+# Frontend tests
+test-web:
+	cd web && npm test
+
+# Full test suite (Go + Frontend)
+test-all: test test-web
+	@echo "All tests completed successfully!"
 
 # Basic Go formatting (legacy - use 'format' target instead)
 fmt:
@@ -149,7 +159,7 @@ lint-install:
 	fi
 	@if ! command -v golangci-lint >/dev/null 2>&1; then \
 		echo "Installing golangci-lint..."; \
-		curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/install.sh | sh -s -- -b $$(go env GOPATH)/bin v2.3.1; \
+		curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/install.sh | sh -s -- -b $$(go env GOPATH)/bin v1.62.2; \
 	fi
 	@echo "Go linting tools installed"
 
@@ -229,9 +239,9 @@ format-check:
 	fi
 	@echo "✓ All Go files are properly formatted and imports are organized"
 
-# Run all Go quality checks (format, static analysis, security, test)
-check-all: format-check lint test
-	@echo "All Go quality checks completed!"
+# Run all quality checks (Go + Frontend: format, static analysis, tests)
+check-all: format-check lint test lint-web test-web
+	@echo "All quality checks completed (Go + Frontend)!"
 
 # Frontend linting
 lint-web:
@@ -260,7 +270,7 @@ format-web:
 
 # Clean up
 clean:
-	rm -rf $(BIN_DIR) data/app.db
+	rm -rf $(BIN_DIR) data/app.db $(DEV_DIR) web/dist web/node_modules/.vite
 
 # Frontend setup
 web-setup:

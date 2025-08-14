@@ -49,7 +49,7 @@ describe('useManualBudget - Debug manual budget disappearing', () => {
         { id: '2', name: 'Income', amount_cents: 50000 }, // $500
       ],
     };
-    
+
     mockGetManualBudget.mockResolvedValue(serverData);
     mockSaveManualBudget.mockResolvedValue({} as Response);
 
@@ -207,7 +207,7 @@ describe('useManualBudget - Debug manual budget disappearing', () => {
   it('should debug manual budget lifecycle with detailed logging', async () => {
     console.log('\n=== 🔍 DEBUGGING MANUAL BUDGET DISAPPEARING ISSUE ===');
     console.log('📋 Test Scenario: User creates items → saves → reloads → items should persist');
-    
+
     // Scenario 1: Fresh load with server data
     const initialServerData = {
       bank_amount_cents: 250000,
@@ -216,27 +216,27 @@ describe('useManualBudget - Debug manual budget disappearing', () => {
         { id: '2', name: 'Rent', amount_cents: -150000 },
       ],
     };
-    
+
     console.log('\n📡 Step 1: Mock server response for initial load');
     console.log('   Server will return:', JSON.stringify(initialServerData, null, 2));
-    
+
     mockGetManualBudget.mockResolvedValue(initialServerData);
-    
+
     const { result } = renderHook(() => useManualBudget(testDate));
-    
+
     await waitFor(() => {
       console.log('\n🎯 Step 2: Initial load completed');
       console.log('   Hook state:', JSON.stringify(result.current.manualBudget, null, 2));
       console.log('   Items count:', result.current.manualBudget.items.length);
       console.log('   LocalStorage key used: manualBudget:2024-1');
-      
+
       // Check what's in localStorage
       const localData = localStorageMock.getItem('manualBudget:2024-1');
       console.log('   LocalStorage backup:', localData ? JSON.parse(localData) : 'null');
-      
+
       expect(result.current.manualBudget.items.length).toBe(2);
     });
-    
+
     // Scenario 2: User adds an item
     const updatedBudget = {
       bankAmount: 2500,
@@ -246,44 +246,44 @@ describe('useManualBudget - Debug manual budget disappearing', () => {
         { id: '3', name: 'New Expense', amount: -200 }, // User adds this
       ],
     };
-    
+
     console.log('\n👤 Step 3: User adds new manual budget item');
     console.log('   New budget structure:', JSON.stringify(updatedBudget, null, 2));
-    
+
     act(() => {
       result.current.setManualBudget(updatedBudget);
     });
-    
+
     console.log('\n✅ Step 4: State updated immediately');
     console.log('   Current state:', JSON.stringify(result.current.manualBudget, null, 2));
     console.log('   Items count after add:', result.current.manualBudget.items.length);
     expect(result.current.manualBudget.items.length).toBe(3);
-    
+
     // Check localStorage was updated immediately
     const localDataAfterUpdate = localStorageMock.getItem('manualBudget:2024-1');
     console.log('   LocalStorage after update:', localDataAfterUpdate ? JSON.parse(localDataAfterUpdate) : 'null');
-    
+
     // Scenario 3: Trigger debounced save (simulating auto-save after 400ms)
     console.log('\n⏱️  Step 5: Triggering debounced server save (400ms delay)');
     act(() => {
       jest.advanceTimersByTime(500);
     });
-    
+
     await waitFor(() => {
       expect(mockSaveManualBudget).toHaveBeenCalled();
     });
-    
+
     const saveCallArgs = mockSaveManualBudget.mock.calls[0][0];
     console.log('   Server save API called with:', JSON.stringify(saveCallArgs, null, 2));
     console.log('   ✓ Server should now persist the updated budget');
-    
+
     // Scenario 4: Simulate what happens on page reload
     console.log('\n🔄 Step 6: Simulating page reload/refresh');
-    
+
     // Clear mocks to simulate fresh state
     mockGetManualBudget.mockClear();
     mockSaveManualBudget.mockClear();
-    
+
     // Server should return the updated data (what the backend should have saved)
     const afterSaveServerData = {
       bank_amount_cents: 250000,
@@ -293,26 +293,26 @@ describe('useManualBudget - Debug manual budget disappearing', () => {
         { id: '3', name: 'New Expense', amount_cents: -20000 }, // This should be persisted
       ],
     };
-    
+
     console.log('   Mock server response after reload:', JSON.stringify(afterSaveServerData, null, 2));
     mockGetManualBudget.mockResolvedValue(afterSaveServerData);
-    
+
     // Simulate re-mount/reload by creating new hook instance
     const { result: reloadResult } = renderHook(() => useManualBudget(testDate));
-    
+
     console.log('\n🎬 Step 7: New hook instance created (page reloaded)');
-    
+
     await waitFor(() => {
       console.log('   Server GET request made:', mockGetManualBudget.mock.calls.length, 'times');
       console.log('   Final hook state after reload:', JSON.stringify(reloadResult.current.manualBudget, null, 2));
       console.log('   Final items count:', reloadResult.current.manualBudget.items.length);
-      
+
       const finalLocalData = localStorageMock.getItem('manualBudget:2024-1');
       console.log('   Final localStorage state:', finalLocalData ? JSON.parse(finalLocalData) : 'null');
-      
+
       expect(reloadResult.current.manualBudget.items.length).toBe(3);
     });
-    
+
     console.log('\n✅ DEBUGGING RESULT: Manual budget persisted correctly');
     console.log('📝 DEBUGGING NOTES:');
     console.log('   - Hook correctly loads from server on initialization');
@@ -326,7 +326,7 @@ describe('useManualBudget - Debug manual budget disappearing', () => {
 
   it('should test edge cases that could cause data loss', async () => {
     console.log('\n🧪 EDGE CASE TESTING - Potential data loss scenarios');
-    
+
     // Edge Case 1: Rapid consecutive updates (race conditions)
     mockGetManualBudget.mockResolvedValue({ bank_amount_cents: 0, items: [] });
     mockSaveManualBudget.mockResolvedValue({} as Response);
@@ -338,7 +338,7 @@ describe('useManualBudget - Debug manual budget disappearing', () => {
     });
 
     console.log('\n📦 Edge Case 1: Rapid consecutive updates');
-    
+
     // Simulate rapid user updates (like typing quickly)
     act(() => {
       result.current.setManualBudget({
@@ -380,7 +380,7 @@ describe('useManualBudget - Debug manual budget disappearing', () => {
 
     // Edge Case 2: Server save fails but localStorage succeeds
     console.log('\n💥 Edge Case 2: Server save failure with localStorage fallback');
-    
+
     mockSaveManualBudget.mockClear();
     mockSaveManualBudget.mockRejectedValue(new Error('Network error'));
 
@@ -411,7 +411,7 @@ describe('useManualBudget - Debug manual budget disappearing', () => {
 
     // Edge Case 3: Month change during unsaved changes
     console.log('\n📅 Edge Case 3: Month change with unsaved data');
-    
+
     const febDate = new Date(2024, 1, 15); // February 2024
     mockGetManualBudget.mockResolvedValue({ bank_amount_cents: 0, items: [] });
 
@@ -445,7 +445,7 @@ describe('useManualBudget - Debug manual budget disappearing', () => {
     mockGetManualBudget.mockResolvedValue(existingData);
     mockSaveManualBudget.mockResolvedValue({} as Response);
 
-    const { result, rerender } = renderHook(() => useManualBudget(testDate));
+    const { result } = renderHook(() => useManualBudget(testDate));
 
     await waitFor(() => {
       console.log('   Loaded budget:', JSON.stringify(result.current.manualBudget, null, 2));
@@ -519,7 +519,7 @@ describe('useManualBudget - Debug manual budget disappearing', () => {
 
     // Step 7: User navigates away and comes back (page reload)
     console.log('\n🔄 User navigates away and returns (page reload simulation)');
-    
+
     mockGetManualBudget.mockClear();
     mockSaveManualBudget.mockClear();
 
@@ -535,7 +535,7 @@ describe('useManualBudget - Debug manual budget disappearing', () => {
     };
 
     mockGetManualBudget.mockResolvedValue(savedData);
-    
+
     // Simulate page reload by creating new hook
     const { result: reloadedResult } = renderHook(() => useManualBudget(testDate));
 
@@ -548,7 +548,7 @@ describe('useManualBudget - Debug manual budget disappearing', () => {
     // Verify all data persisted correctly
     const groceriesItem = reloadedResult.current.manualBudget.items.find(item => item.name === 'Groceries');
     const utilitiesItem = reloadedResult.current.manualBudget.items.find(item => item.name === 'Utilities');
-    
+
     expect(groceriesItem?.amount).toBe(-400);
     expect(utilitiesItem?.amount).toBe(-150);
 

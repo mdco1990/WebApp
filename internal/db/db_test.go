@@ -10,7 +10,11 @@ func TestOpenSQLite(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to open SQLite database: %v", err)
 	}
-	defer db.Close()
+	defer func() {
+		if err := db.Close(); err != nil {
+			t.Logf("Failed to close database: %v", err)
+		}
+	}()
 
 	// Test basic query
 	var result int
@@ -52,7 +56,11 @@ func TestMigrate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to open SQLite database: %v", err)
 	}
-	defer db.Close()
+	defer func() {
+		if err := db.Close(); err != nil {
+			t.Logf("Failed to close database: %v", err)
+		}
+	}()
 
 	// Run migrations
 	err = Migrate(db)
@@ -79,7 +87,11 @@ func TestDatabasePing(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to open SQLite database: %v", err)
 	}
-	defer db.Close()
+	defer func() {
+		if err := db.Close(); err != nil {
+			t.Logf("Failed to close database: %v", err)
+		}
+	}()
 
 	// Test ping
 	err = db.Ping()
@@ -93,7 +105,11 @@ func TestDatabaseStats(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to open SQLite database: %v", err)
 	}
-	defer db.Close()
+	defer func() {
+		if err := db.Close(); err != nil {
+			t.Logf("Failed to close database: %v", err)
+		}
+	}()
 
 	// Test database stats
 	stats := db.Stats()
@@ -115,8 +131,16 @@ func TestDatabaseClose(t *testing.T) {
 	}
 
 	// Test that we can't use closed database
-	_, err = db.Query("SELECT 1")
+	rows, err := db.Query("SELECT 1")
 	if err == nil {
+		defer func() {
+			if err := rows.Close(); err != nil {
+				t.Logf("Failed to close rows: %v", err)
+			}
+		}()
+		if err := rows.Err(); err != nil {
+			t.Logf("Rows error: %v", err)
+		}
 		t.Error("Expected error when querying closed database")
 	}
 }
@@ -126,7 +150,11 @@ func TestDatabaseConcurrency(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to open SQLite database: %v", err)
 	}
-	defer db.Close()
+	defer func() {
+		if err := db.Close(); err != nil {
+			t.Logf("Failed to close database: %v", err)
+		}
+	}()
 
 	// Test concurrent queries
 	done := make(chan bool, 10)
@@ -157,7 +185,11 @@ func TestDatabaseTransaction(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to open SQLite database: %v", err)
 	}
-	defer db.Close()
+	defer func() {
+		if err := db.Close(); err != nil {
+			t.Logf("Failed to close database: %v", err)
+		}
+	}()
 
 	// Run migrations first
 	err = Migrate(db)

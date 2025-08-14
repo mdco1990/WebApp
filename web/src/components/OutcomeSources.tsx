@@ -89,7 +89,7 @@ const OutcomeSources: React.FC<Props> = ({
     addButtonText ?? t('btn.addOutcomeSource', { defaultValue: '+ Add Outcome Source' });
   return (
     <div className="mb-2">
-      {title ? <h5 className="h6 mb-2">{title}</h5> : null}
+      {title ? <h6 className="h6 mb-2">{title}</h6> : null}
       {helpText ? <p className="text-muted small mb-3">{helpText}</p> : null}
       <div className="row g-2">
         {sources.map((source, index) => (

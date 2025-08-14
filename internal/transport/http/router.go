@@ -55,7 +55,7 @@ func NewRouter(cfg config.Config, db *sql.DB) http.Handler {
 	r.Use(middleware.RequestID())
 
 	// Enhanced security middleware
-	r.Use(security.SecurityHeadersMiddleware)
+	r.Use(security.HeadersMiddleware)
 	r.Use(security.InputValidationMiddleware)
 	r.Use(security.RequestSizeLimit(security.MaxRequestBodySize))
 	// Recover from panics to avoid 500s without response
@@ -130,6 +130,9 @@ func NewRouter(cfg config.Config, db *sql.DB) http.Handler {
 
 	// Protected API routes (require valid session + API key)
 	registerAPIRoutes(r, cfg, repo, svc)
+
+	// Secure API routes with enhanced OWASP validation
+	registerSecureAPIRoutes(r, repo, svc)
 
 	return r
 }

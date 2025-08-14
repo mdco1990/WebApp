@@ -13,6 +13,7 @@ import (
 
 // setupTestDB creates an in-memory database for testing
 func setupTestDB(t *testing.T) *sql.DB {
+	t.Helper()
 	database, err := db.Open("sqlite", ":memory:", "")
 	if err != nil {
 		t.Fatalf("Failed to create test database: %v", err)
@@ -20,28 +21,13 @@ func setupTestDB(t *testing.T) *sql.DB {
 
 	// Run migrations
 	if err := db.Migrate(database); err != nil {
-		database.Close()
+		if err := database.Close(); err != nil {
+			t.Logf("Failed to close database: %v", err)
+		}
 		t.Fatalf("Failed to run migrations: %v", err)
 	}
 
 	return database
-}
-
-// setupTestRouter creates a test router with database
-func setupTestRouter(t *testing.T) (http.Handler, *sql.DB) {
-	cfg := config.Config{
-		HTTPAddress:        "127.0.0.1:8082",
-		DBDriver:           "sqlite",
-		DBPath:             ":memory:",
-		CORSAllowedOrigins: []string{"http://localhost:3000"},
-		Env:                "test",
-		LogLevel:           "debug",
-		LogFormat:          "text",
-	}
-
-	database := setupTestDB(t)
-	router := NewRouter(cfg, database)
-	return router, database
 }
 
 func TestNewRouter(t *testing.T) {
@@ -58,7 +44,11 @@ func TestNewRouter(t *testing.T) {
 
 	// Create test database
 	database := setupTestDB(t)
-	defer database.Close()
+	defer func() {
+		if err := database.Close(); err != nil {
+			t.Logf("Failed to close database: %v", err)
+		}
+	}()
 
 	// Create router with real database
 	router := NewRouter(cfg, database)
@@ -81,13 +71,17 @@ func TestHealthEndpoint(t *testing.T) {
 
 	// Create test database
 	database := setupTestDB(t)
-	defer database.Close()
+	defer func() {
+		if err := database.Close(); err != nil {
+			t.Logf("Failed to close database: %v", err)
+		}
+	}()
 
 	// Create router
 	router := NewRouter(cfg, database)
 
 	// Create test request
-	req := httptest.NewRequest("GET", "/healthz", nil)
+	req := httptest.NewRequest(http.MethodGet, "/healthz", nil)
 	w := httptest.NewRecorder()
 
 	// Serve request
@@ -119,13 +113,17 @@ func TestCORSHeaders(t *testing.T) {
 
 	// Create test database
 	database := setupTestDB(t)
-	defer database.Close()
+	defer func() {
+		if err := database.Close(); err != nil {
+			t.Logf("Failed to close database: %v", err)
+		}
+	}()
 
 	// Create router
 	router := NewRouter(cfg, database)
 
 	// Test preflight request
-	req := httptest.NewRequest("OPTIONS", "/api/test", nil)
+	req := httptest.NewRequest(http.MethodOptions, "/api/test", nil)
 	req.Header.Set("Origin", "http://localhost:3000")
 	req.Header.Set("Access-Control-Request-Method", "POST")
 	req.Header.Set("Access-Control-Request-Headers", "Content-Type")
@@ -162,13 +160,17 @@ func TestNotFoundHandler(t *testing.T) {
 
 	// Create test database
 	database := setupTestDB(t)
-	defer database.Close()
+	defer func() {
+		if err := database.Close(); err != nil {
+			t.Logf("Failed to close database: %v", err)
+		}
+	}()
 
 	// Create router
 	router := NewRouter(cfg, database)
 
 	// Test non-existent endpoint
-	req := httptest.NewRequest("GET", "/nonexistent", nil)
+	req := httptest.NewRequest(http.MethodGet, "/nonexistent", nil)
 	w := httptest.NewRecorder()
 
 	// Serve request
@@ -194,13 +196,17 @@ func TestMethodNotAllowed(t *testing.T) {
 
 	// Create test database
 	database := setupTestDB(t)
-	defer database.Close()
+	defer func() {
+		if err := database.Close(); err != nil {
+			t.Logf("Failed to close database: %v", err)
+		}
+	}()
 
 	// Create router
 	router := NewRouter(cfg, database)
 
 	// Test POST to health endpoint (should not be allowed)
-	req := httptest.NewRequest("POST", "/healthz", nil)
+	req := httptest.NewRequest(http.MethodPost, "/healthz", nil)
 	w := httptest.NewRecorder()
 
 	// Serve request
@@ -226,13 +232,17 @@ func TestRouterMiddleware(t *testing.T) {
 
 	// Create test database
 	database := setupTestDB(t)
-	defer database.Close()
+	defer func() {
+		if err := database.Close(); err != nil {
+			t.Logf("Failed to close database: %v", err)
+		}
+	}()
 
 	// Create router
 	router := NewRouter(cfg, database)
 
 	// Test that middleware is applied (check for common headers)
-	req := httptest.NewRequest("GET", "/healthz", nil)
+	req := httptest.NewRequest(http.MethodGet, "/healthz", nil)
 	w := httptest.NewRecorder()
 
 	// Serve request
@@ -259,7 +269,11 @@ func TestRouterWithDatabase(t *testing.T) {
 
 	// Create test database
 	database := setupTestDB(t)
-	defer database.Close()
+	defer func() {
+		if err := database.Close(); err != nil {
+			t.Logf("Failed to close database: %v", err)
+		}
+	}()
 
 	// Should not panic
 	router := NewRouter(cfg, database)
@@ -282,7 +296,11 @@ func TestRouterConcurrency(t *testing.T) {
 
 	// Create test database
 	database := setupTestDB(t)
-	defer database.Close()
+	defer func() {
+		if err := database.Close(); err != nil {
+			t.Logf("Failed to close database: %v", err)
+		}
+	}()
 
 	// Create router
 	router := NewRouter(cfg, database)
@@ -293,7 +311,7 @@ func TestRouterConcurrency(t *testing.T) {
 		go func(id int) {
 			defer func() { done <- true }()
 
-			req := httptest.NewRequest("GET", "/healthz", nil)
+			req := httptest.NewRequest(http.MethodGet, "/healthz", nil)
 			w := httptest.NewRecorder()
 
 			router.ServeHTTP(w, req)

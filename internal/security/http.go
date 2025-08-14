@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
@@ -14,16 +15,21 @@ import (
 )
 
 const (
-	// Maximum request body size to prevent DoS attacks
+	// MaxRequestBodySize is the maximum request body size to prevent DoS attacks
 	MaxRequestBodySize = 1024 * 1024 // 1MB
 
-	// Security headers
-	HeaderContentType         = "Content-Type"
-	HeaderContentLength       = "Content-Length"
+	// HeaderContentType is the Content-Type header name
+	HeaderContentType = "Content-Type"
+	// HeaderContentLength is the Content-Length header name
+	HeaderContentLength = "Content-Length"
+	// HeaderXContentTypeOptions is the X-Content-Type-Options header name
 	HeaderXContentTypeOptions = "X-Content-Type-Options"
-	HeaderXFrameOptions       = "X-Frame-Options"
-	HeaderXXSSProtection      = "X-XSS-Protection"
+	// HeaderXFrameOptions is the X-Frame-Options header name
+	HeaderXFrameOptions = "X-Frame-Options"
+	// HeaderXXSSProtection is the X-XSS-Protection header name
+	HeaderXXSSProtection = "X-XSS-Protection"
 
+	// ContentTypeJSON is the JSON content type
 	ContentTypeJSON = "application/json"
 )
 
@@ -103,7 +109,7 @@ func (s *SecureHTTPHandler) ValidateAndParseURLParam(r *http.Request, paramName 
 		return 0, ValidationError{
 			Field:   paramName,
 			Value:   paramStr,
-			Message: fmt.Sprintf("%s parameter is required", paramName),
+			Message: paramName + " parameter is required",
 			Err:     ErrInvalidInput,
 		}
 	}
@@ -201,7 +207,10 @@ func (s *SecureHTTPHandler) SecureJSONResponse(w http.ResponseWriter, status int
 	if err := json.NewEncoder(w).Encode(data); err != nil {
 		// If we can't encode the response, send a generic error
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(`{"error":"internal server error"}`))
+		if _, writeErr := w.Write([]byte(`{"error":"internal server error"}`)); writeErr != nil {
+			// Log the write error but can't do much more since we're already in an error state
+			slog.Error("Failed to write error response", "error", writeErr)
+		}
 	}
 }
 
@@ -231,8 +240,8 @@ func RequestSizeLimit(maxSize int64) func(http.Handler) http.Handler {
 	}
 }
 
-// SecurityHeadersMiddleware adds security headers to all responses
-func SecurityHeadersMiddleware(next http.Handler) http.Handler {
+// HeadersMiddleware adds security headers to all responses
+func HeadersMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Security headers
 		w.Header().Set("X-Content-Type-Options", "nosniff")
@@ -285,7 +294,9 @@ func InputValidationMiddleware(next http.Handler) http.Handler {
 
 		next.ServeHTTP(w, r)
 	})
-} // RateLimitMiddleware provides basic rate limiting per IP
+}
+
+// RateLimitMiddleware provides basic rate limiting per IP address
 func RateLimitMiddleware(requestsPerMinute int) func(http.Handler) http.Handler {
 	// Simple in-memory rate limiting - in production, use Redis or similar
 	type client struct {
@@ -340,7 +351,7 @@ func getCurrentTimestamp() int64 {
 	return 1700000000 // Placeholder timestamp
 }
 
-// Helper function to validate session tokens
+// ValidateSessionToken validates session tokens
 func ValidateSessionToken(token string) error {
 	if len(token) == 0 {
 		return ValidationError{

@@ -12,9 +12,9 @@ describe('ManualBudgetSection basic render', () => {
 				monthLabel="Jan"
 				currencySymbol="$"
 				manualBudget={state}
-				setManualBudget={()=>{}}
-				parseLocaleAmount={(v)=>parseFloat(v)||0}
-				formatCurrency={(c)=>`$${(c/100).toFixed(2)}`}
+				setManualBudget={() => { }}
+				parseLocaleAmount={(v) => parseFloat(v) || 0}
+				formatCurrency={(c) => `$${(c / 100).toFixed(2)}`}
 				resetLabel="Reset"
 				bankLabel="Bank"
 				plannedLabel="Planned"
@@ -23,7 +23,7 @@ describe('ManualBudgetSection basic render', () => {
 				deleteLabel="Del"
 				addItemLabel="Add"
 				remainingLabel="Remaining"
-				positiveNegativeHint="+/-"/>
+				positiveNegativeHint="+/-" />
 		);
 		expect(getByText('Manual Budget')).toBeInTheDocument();
 	});

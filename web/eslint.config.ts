@@ -43,25 +43,25 @@ export default [
       "react/prop-types": "off",
       "react/no-unescaped-entities": "warn",
       "react/jsx-key": "error",
-      
+
       // React Hooks rules
       "react-hooks/rules-of-hooks": "error",
       "react-hooks/exhaustive-deps": "warn",
-      
+
       // TypeScript rules
       "@typescript-eslint/no-explicit-any": "warn",
-      "@typescript-eslint/no-unused-vars": ["warn", { 
+      "@typescript-eslint/no-unused-vars": ["warn", {
         "argsIgnorePattern": "^_",
         "varsIgnorePattern": "^_"
       }],
-      
+
       // General JavaScript rules
       "no-console": "warn",
       "no-debugger": "warn",
       "no-empty": "warn",
       "no-var": "error",
       "prefer-const": "error",
-      
+
       // Code quality
       "complexity": ["warn", 15],
       "max-depth": ["warn", 4],

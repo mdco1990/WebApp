@@ -26,6 +26,8 @@ import HeaderControls from './components/HeaderControls';
 import AuthScreen from './components/AuthScreen';
 import AnalyticsChartsSection from './components/AnalyticsChartsSection';
 import PlanningSection from './components/PlanningSection';
+import UserManagement from './components/UserManagement';
+import DBAdmin from './components/DBAdmin';
 import { useToast } from './shared/toast';
 
 ChartJS.register(
@@ -51,10 +53,10 @@ const PageHeader: React.FC<PageHeaderProps> = ({ title, loading, HeaderControlsC
       <div className="row g-2 align-items-center">
         <div className="col">
           <div className="page-pretitle">Personal Finance</div>
-          <h2 className="page-title d-flex align-items-center gap-2">
+          <h5 className="page-title d-flex align-items-center gap-2">
             {title}
             {loading && <span className="spinner-border spinner-border-sm text-light" aria-live="polite" aria-label="Loading"></span>}
-          </h2>
+          </h5>
         </div>
         <div className="col-auto ms-auto d-print-none">{HeaderControlsComp}</div>
       </div>
@@ -62,15 +64,15 @@ const PageHeader: React.FC<PageHeaderProps> = ({ title, loading, HeaderControlsC
   </div>
 );
 
-interface SectionTabsProps { active: string; t: (k:string, opts?:Record<string,unknown>)=>string }
+interface SectionTabsProps { active: string; t: (k: string, opts?: Record<string, unknown>) => string }
 const SectionTabs: React.FC<SectionTabsProps> = ({ active, t }) => (
   <div className="page-header-tabs">
     <div className="container-xl">
       <ul className="nav nav-tabs nav-pills nav-fill" aria-label="Sections">
-        {['planning','tracking','savings','analytics'].map(id => (
+        {['planning', 'tracking', 'savings', 'analytics'].map(id => (
           <li key={id} className="nav-item">
-            <a href={`#${id}`} className={`nav-link ${active===id?'active':''}`} aria-current={active===id? 'page': undefined}>
-              {t(`nav.${id}`, { defaultValue: id.charAt(0).toUpperCase()+id.slice(1) })}
+            <a href={`#${id}`} className={`nav-link ${active === id ? 'active' : ''}`} aria-current={active === id ? 'page' : undefined}>
+              {t(`nav.${id}`, { defaultValue: id.charAt(0).toUpperCase() + id.slice(1) })}
             </a>
           </li>
         ))}
@@ -106,6 +108,8 @@ const App: React.FC = () => {
   const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
   const [autoUpdate] = useState(false); // Disabled to prevent interference with editing
+  const [showUserManagement, setShowUserManagement] = useState(false);
+  const [showDBAdmin, setShowDBAdmin] = useState(false);
 
   // Helper to merge server list with any unsaved client-only items (id missing or 0)
   const mergeSources = useCallback(
@@ -154,23 +158,23 @@ const App: React.FC = () => {
 
   const parseLocaleAmount = (value: string): number => {
     if (!value || value.trim() === '') return 0;
-    
+
     // Remove everything except digits, comma, dot, and minus/plus
     let cleaned = value.trim().replace(/[^0-9,.\-+]/g, '');
-    
+
     // Handle sign
     const isNegative = cleaned.startsWith('-');
     const isPositive = cleaned.startsWith('+');
     if (isNegative || isPositive) {
       cleaned = cleaned.substring(1);
     }
-    
+
     // Count separators
     const commaCount = (cleaned.match(/,/g) || []).length;
     const dotCount = (cleaned.match(/\./g) || []).length;
-    
+
     let normalized = cleaned;
-    
+
     if (commaCount === 0 && dotCount <= 1) {
       // Simple case: "12.56" or "12"
       normalized = cleaned;
@@ -181,7 +185,7 @@ const App: React.FC = () => {
       // Mixed separators: determine which is decimal
       const lastComma = cleaned.lastIndexOf(',');
       const lastDot = cleaned.lastIndexOf('.');
-      
+
       if (lastDot > lastComma) {
         // Dot is decimal separator: "1,234.56"
         normalized = cleaned.replace(/,/g, '');
@@ -193,18 +197,18 @@ const App: React.FC = () => {
       // Multiple separators of same type: keep last as decimal
       if (commaCount > 1) {
         const lastCommaIndex = cleaned.lastIndexOf(',');
-        normalized = cleaned.substring(0, lastCommaIndex).replace(/,/g, '') + 
-                     '.' + cleaned.substring(lastCommaIndex + 1);
+        normalized = cleaned.substring(0, lastCommaIndex).replace(/,/g, '') +
+          '.' + cleaned.substring(lastCommaIndex + 1);
       } else if (dotCount > 1) {
         const lastDotIndex = cleaned.lastIndexOf('.');
-        normalized = cleaned.substring(0, lastDotIndex).replace(/\./g, '') + 
-                     '.' + cleaned.substring(lastDotIndex + 1);
+        normalized = cleaned.substring(0, lastDotIndex).replace(/\./g, '') +
+          '.' + cleaned.substring(lastDotIndex + 1);
       }
     }
-    
+
     const parsed = Number.parseFloat(normalized);
     const result = Number.isFinite(parsed) ? parsed : 0;
-    
+
     return (isNegative && result !== 0) ? -result : result;
   };
 
@@ -259,7 +263,7 @@ const App: React.FC = () => {
       });
       setDataLoaded(true);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [monthly, monthlyLoading, mergeSources]);
 
   // Add default data if none exists
@@ -371,29 +375,38 @@ const App: React.FC = () => {
         onSubmit={handlePasswordUpdate}
       />
       {/* Page Header */}
-  <PageHeader title={getPageTitle()} loading={loading} HeaderControlsComp={<HeaderControls
-                isDarkMode={theme.isDarkMode}
-                onToggleDarkMode={() => theme.setIsDarkMode(!theme.isDarkMode)}
-                currency={theme.currency}
-                onSetCurrency={theme.setCurrency}
-                navigateMonth={navigation.navigateMonth}
-                goToToday={navigation.goToToday}
-                monthInputValue={navigation.monthInputValue}
-                onMonthChange={navigation.onMonthChange}
-                user={auth.user}
-                onChangePasswordClick={() => setShowPasswordForm(true)}
-                onLogout={auth.logout}
-              />} />
+      <PageHeader title={getPageTitle()} loading={loading} HeaderControlsComp={<HeaderControls
+        isDarkMode={theme.isDarkMode}
+        onToggleDarkMode={() => theme.setIsDarkMode(!theme.isDarkMode)}
+        currency={theme.currency}
+        onSetCurrency={theme.setCurrency}
+        navigateMonth={navigation.navigateMonth}
+        goToToday={navigation.goToToday}
+        monthInputValue={navigation.monthInputValue}
+        onMonthChange={navigation.onMonthChange}
+        user={auth.user}
+        onChangePasswordClick={() => setShowPasswordForm(true)}
+        onLogout={auth.logout}
+        onNavigateToUserManagement={() => setShowUserManagement(true)}
+        onNavigateToDBAdmin={() => setShowDBAdmin(true)}
+      />} />
       <SectionTabs active={navigation.activeSection} t={t} />
 
-      {/* Predicted Budget */}
-      <div id="planning" className="section-anchor"></div>
-      <div className="container-fluid py-4" style={{ padding: '1rem', margin: '0 auto', maxWidth: '100%' }}>
-        <PlanningSection
-          isDarkMode={theme.isDarkMode}
-          monthLabel={`${formatMonth(navigation.currentDate, 'long')} ${navigation.currentDate.getFullYear()}`}
-          incomeSources={budgetState.predictedBudget.incomeSources}
-          outcomeSources={budgetState.predictedBudget.outcomeSources}
+      {/* Conditional rendering based on current view */}
+      {showUserManagement ? (
+        <UserManagement onBackToMain={() => setShowUserManagement(false)} />
+      ) : showDBAdmin ? (
+        <DBAdmin onBackToMain={() => setShowDBAdmin(false)} />
+      ) : (
+        <>
+          {/* Predicted Budget */}
+          <div id="planning" className="section-anchor"></div>
+          <div className="container-fluid py-4" style={{ padding: '1rem', margin: '0 auto', maxWidth: '100%' }}>
+            <PlanningSection
+              isDarkMode={theme.isDarkMode}
+              monthLabel={`${formatMonth(navigation.currentDate, 'long')} ${navigation.currentDate.getFullYear()}`}
+              incomeSources={budgetState.predictedBudget.incomeSources}
+              outcomeSources={budgetState.predictedBudget.outcomeSources}
               parseLocaleAmount={parseLocaleAmount}
               formatCurrency={formatCurrency}
               onIncomeUpdate={(index: number, next: IncomeSource) => {
@@ -427,75 +440,77 @@ const App: React.FC = () => {
               totalOutcomeLabel={t('label.totalOutcomes')}
               differenceLabel={t('label.difference')}
               incomeHelp={t('section.predictedIncome.desc')}
-          outcomeHelp={t('section.predictedOutcome.desc')}
-        />
-      </div>
+              outcomeHelp={t('section.predictedOutcome.desc')}
+            />
+          </div>
 
-      {/* Manual Current Month Budget (Bank and planned deductions) */}
-      <div id="tracking" className="section-anchor"></div>
-      <ManualBudgetSection
-        isDarkMode={theme.isDarkMode}
-        title={t('section.manualBudget', {
-          defaultValue: 'Manual Budget (Bank and Planned Deductions)',
-        })}
-        monthLabel={`${formatMonth(navigation.currentDate, 'long')} ${navigation.currentDate.getFullYear()}`}
-        currencySymbol={currencySymbol}
-        manualBudget={manualBudget.manualBudget}
-        setManualBudget={manualBudget.setManualBudget}
-        parseLocaleAmount={parseLocaleAmount}
-        formatCurrency={formatCurrency}
-        resetLabel={t('btn.reset', { defaultValue: 'Reset' })}
-        bankLabel={t('label.bankAmount')}
-        plannedLabel={t('label.plannedExpenses')}
-        formulaHint={t('label.formula')}
-        toggleTitle={t('btn.toggleSign') ?? 'Toggle sign'}
-        deleteLabel={t('btn.delete')}
-        addItemLabel={t('btn.addItem')}
-        remainingLabel={t('label.remaining')}
-        positiveNegativeHint={
-          t('label.positiveNegativeHint') ??
-          'Tip: positive values add to remaining; negative values subtract.'
-        }
-      />
+          {/* Manual Current Month Budget (Bank and planned deductions) */}
+          <div id="tracking" className="section-anchor"></div>
+          <ManualBudgetSection
+            isDarkMode={theme.isDarkMode}
+            title={t('section.manualBudget', {
+              defaultValue: 'Manual Budget (Bank and Planned Deductions)',
+            })}
+            monthLabel={`${formatMonth(navigation.currentDate, 'long')} ${navigation.currentDate.getFullYear()}`}
+            currencySymbol={currencySymbol}
+            manualBudget={manualBudget.manualBudget}
+            setManualBudget={manualBudget.setManualBudget}
+            parseLocaleAmount={parseLocaleAmount}
+            formatCurrency={formatCurrency}
+            resetLabel={t('btn.reset', { defaultValue: 'Reset' })}
+            bankLabel={t('label.bankAmount')}
+            plannedLabel={t('label.plannedExpenses')}
+            formulaHint={t('label.formula')}
+            toggleTitle={t('btn.toggleSign') ?? 'Toggle sign'}
+            deleteLabel={t('btn.delete')}
+            addItemLabel={t('btn.addItem')}
+            remainingLabel={t('label.remaining')}
+            positiveNegativeHint={
+              t('label.positiveNegativeHint') ??
+              'Tip: positive values add to remaining; negative values subtract.'
+            }
+          />
 
-      {/* Savings Section */}
-      <div id="savings" className="section-anchor"></div>
-      <SavingsSection
-        isDarkMode={theme.isDarkMode}
-        dataLoaded={dataLoaded}
-        savingsTracker={budgetState.savingsTracker}
-        setSavingsTracker={budgetState.setSavingsTracker}
-        formatCurrency={formatCurrency}
-      />
+          {/* Savings Section */}
+          <div id="savings" className="section-anchor"></div>
+          <SavingsSection
+            isDarkMode={theme.isDarkMode}
+            dataLoaded={dataLoaded}
+            savingsTracker={budgetState.savingsTracker}
+            setSavingsTracker={budgetState.setSavingsTracker}
+            formatCurrency={formatCurrency}
+          />
 
-      {/* Additional Charts Row */}
-      <div id="analytics" className="section-anchor"></div>
-      <AnalyticsChartsSection
-        isDarkMode={theme.isDarkMode}
-        dataLoaded={dataLoaded}
-        predictedBudget={budgetState.predictedBudget}
-        savingsTracker={budgetState.savingsTracker}
-        currentDate={navigation.currentDate}
-        manualBudget={manualBudget.manualBudget}
-        formatCurrency={formatCurrency}
-      />
+          {/* Additional Charts Row */}
+          <div id="analytics" className="section-anchor"></div>
+          <AnalyticsChartsSection
+            isDarkMode={theme.isDarkMode}
+            dataLoaded={dataLoaded}
+            predictedBudget={budgetState.predictedBudget}
+            savingsTracker={budgetState.savingsTracker}
+            currentDate={navigation.currentDate}
+            manualBudget={manualBudget.manualBudget}
+            formatCurrency={formatCurrency}
+          />
 
-      {/* Back to top */}
-      {navigation.showBackToTop && (
-        <button
-          type="button"
-          className="btn btn-primary position-fixed"
-          style={{
-            right: '1rem',
-            bottom: '1.25rem',
-            borderRadius: '999px',
-            boxShadow: '0 0.5rem 1rem rgba(0,0,0,0.15)',
-          }}
-          onClick={navigation.scrollToTop}
-          aria-label="Back to top"
-        >
-          ↑
-        </button>
+          {/* Back to top */}
+          {navigation.showBackToTop && (
+            <button
+              type="button"
+              className="btn btn-primary position-fixed"
+              style={{
+                right: '1rem',
+                bottom: '1.25rem',
+                borderRadius: '999px',
+                boxShadow: '0 0.5rem 1rem rgba(0,0,0,0.15)',
+              }}
+              onClick={navigation.scrollToTop}
+              aria-label="Back to top"
+            >
+              ↑
+            </button>
+          )}
+        </>
       )}
     </div>
   );

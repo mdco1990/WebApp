@@ -68,14 +68,14 @@ func setupSimpleAPI(tb testing.TB) (*chi.Mux, func()) {
 	// Test middleware for user ID
 	r.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			ctx := context.WithValue(r.Context(), "userID", int64(1))
+			ctx := context.WithValue(r.Context(), userIDKey, int64(1))
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	})
 
 	// Simple test endpoints
 	r.Route("/api/v1", func(api chi.Router) {
-		api.Get("/manual-budget", func(w http.ResponseWriter, r *http.Request) {
+		api.Get("/manual-budget", func(w http.ResponseWriter, _ *http.Request) {
 			response := map[string]interface{}{
 				"bank_amount_cents": 0,
 				"items":             []interface{}{},

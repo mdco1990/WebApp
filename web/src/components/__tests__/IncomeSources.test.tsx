@@ -64,11 +64,11 @@ describe('IncomeSources', () => {
   it('should call onUpdate when source name is changed', () => {
     const sources = [{ client_id: '1', name: 'Old Name', amount_cents: 100000 }];
     const onUpdate = jest.fn();
-    
+
     render(
-      <IncomeSources 
-        {...defaultProps} 
-        sources={sources} 
+      <IncomeSources
+        {...defaultProps}
+        sources={sources}
         onUpdate={onUpdate}
       />
     );
@@ -76,21 +76,21 @@ describe('IncomeSources', () => {
     const nameInput = screen.getByDisplayValue('Old Name');
     fireEvent.change(nameInput, { target: { value: 'New Name' } });
 
-    expect(onUpdate).toHaveBeenCalledWith(0, { 
-      client_id: '1', 
-      name: 'New Name', 
-      amount_cents: 100000 
+    expect(onUpdate).toHaveBeenCalledWith(0, {
+      client_id: '1',
+      name: 'New Name',
+      amount_cents: 100000
     });
   });
 
   it('should call onBlurSave when name input loses focus', () => {
     const sources = [{ client_id: '1', name: 'Salary', amount_cents: 100000 }];
     const onBlurSave = jest.fn();
-    
+
     render(
-      <IncomeSources 
-        {...defaultProps} 
-        sources={sources} 
+      <IncomeSources
+        {...defaultProps}
+        sources={sources}
         onBlurSave={onBlurSave}
       />
     );
@@ -104,11 +104,11 @@ describe('IncomeSources', () => {
   it('should call onUpdate when amount is changed', () => {
     const sources = [{ client_id: '1', name: 'Salary', amount_cents: 100000 }];
     const onUpdate = jest.fn();
-    
+
     render(
-      <IncomeSources 
-        {...defaultProps} 
-        sources={sources} 
+      <IncomeSources
+        {...defaultProps}
+        sources={sources}
         onUpdate={onUpdate}
       />
     );
@@ -116,9 +116,9 @@ describe('IncomeSources', () => {
     const amountInput = screen.getByDisplayValue('1000');
     fireEvent.change(amountInput, { target: { value: '2000' } });
 
-    expect(onUpdate).toHaveBeenCalledWith(0, { 
-      client_id: '1', 
-      name: 'Salary', 
+    expect(onUpdate).toHaveBeenCalledWith(0, {
+      client_id: '1',
+      name: 'Salary',
       amount_cents: 200000 // $2000 in cents
     });
   });
@@ -126,11 +126,11 @@ describe('IncomeSources', () => {
   it('should call onBlurSave when amount input loses focus', () => {
     const sources = [{ client_id: '1', name: 'Salary', amount_cents: 100000 }];
     const onBlurSave = jest.fn();
-    
+
     render(
-      <IncomeSources 
-        {...defaultProps} 
-        sources={sources} 
+      <IncomeSources
+        {...defaultProps}
+        sources={sources}
         onBlurSave={onBlurSave}
       />
     );
@@ -144,11 +144,11 @@ describe('IncomeSources', () => {
   it('should call onRemoveUnsaved for sources without id', () => {
     const sources = [{ client_id: '1', name: 'Unsaved', amount_cents: 100000 }];
     const onRemoveUnsaved = jest.fn();
-    
+
     render(
-      <IncomeSources 
-        {...defaultProps} 
-        sources={sources} 
+      <IncomeSources
+        {...defaultProps}
+        sources={sources}
         onRemoveUnsaved={onRemoveUnsaved}
       />
     );
@@ -162,11 +162,11 @@ describe('IncomeSources', () => {
   it('should call onDeletePersisted for sources with id', async () => {
     const sources = [{ id: 123, client_id: '1', name: 'Saved', amount_cents: 100000 }];
     const onDeletePersisted = jest.fn().mockResolvedValue(undefined);
-    
+
     render(
-      <IncomeSources 
-        {...defaultProps} 
-        sources={sources} 
+      <IncomeSources
+        {...defaultProps}
+        sources={sources}
         onDeletePersisted={onDeletePersisted}
       />
     );
@@ -181,21 +181,21 @@ describe('IncomeSources', () => {
 
   it('should apply dark mode styles', () => {
     const sources = [{ client_id: '1', name: 'Salary', amount_cents: 100000 }];
-    
+
     render(<IncomeSources {...defaultProps} sources={sources} isDarkMode={true} />);
 
     const nameInput = screen.getByDisplayValue('Salary');
     const amountInput = screen.getByDisplayValue('1000');
-    
+
     expect(nameInput).toHaveClass('bg-dark', 'text-light', 'border-secondary');
     expect(amountInput).toHaveClass('bg-dark', 'text-light', 'border-secondary');
   });
 
   it('should display custom title and help text', () => {
     render(
-      <IncomeSources 
-        {...defaultProps} 
-        title="Custom Title" 
+      <IncomeSources
+        {...defaultProps}
+        title="Custom Title"
         helpText="This is help text"
       />
     );
@@ -206,8 +206,8 @@ describe('IncomeSources', () => {
 
   it('should use custom button text', () => {
     render(
-      <IncomeSources 
-        {...defaultProps} 
+      <IncomeSources
+        {...defaultProps}
         addButtonText="Custom Add Button"
       />
     );
@@ -217,15 +217,15 @@ describe('IncomeSources', () => {
 
   it('should handle amount input focus and maintain local state', () => {
     const sources = [{ client_id: '1', name: 'Salary', amount_cents: 100000 }];
-    
+
     render(<IncomeSources {...defaultProps} sources={sources} />);
 
     const amountInput = screen.getByDisplayValue('1000');
-    
+
     // Focus should maintain the display
     fireEvent.focus(amountInput);
     expect(amountInput).toHaveValue(1000);
-    
+
     // Change value while focused
     fireEvent.change(amountInput, { target: { value: '1500' } });
     expect(amountInput).toHaveValue(1500);
@@ -234,17 +234,17 @@ describe('IncomeSources', () => {
   it('should handle parseLocaleAmount errors gracefully', () => {
     const sources = [{ client_id: '1', name: 'Salary', amount_cents: 100000 }];
     const parseLocaleAmount = jest.fn(() => { throw new Error('Parse error'); });
-    
+
     render(
-      <IncomeSources 
-        {...defaultProps} 
-        sources={sources} 
+      <IncomeSources
+        {...defaultProps}
+        sources={sources}
         parseLocaleAmount={parseLocaleAmount}
       />
     );
 
     const amountInput = screen.getByDisplayValue('1000');
-    
+
     // Should not crash when parseLocaleAmount throws
     expect(() => {
       fireEvent.change(amountInput, { target: { value: 'invalid' } });

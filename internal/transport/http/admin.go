@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
-	"net/http/httputil"
-	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -371,25 +369,9 @@ func registerAdminRoutes(r chi.Router, repo *repository.Repository) {
 		})
 	})
 
-	// Internal DB Admin UI reverse proxy (kept inside the docker network)
+	// Note: SQLite Admin UI is now proxied directly by nginx to sqlite-admin:8080
+	// This route is kept for backward compatibility but redirects to nginx
 	r.With(AdminOnly(repo)).Get(pathDBAdmin, func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/db-admin/", http.StatusFound)
-	})
-	r.Route(pathDBAdmin, func(adm chi.Router) {
-		adm.Use(AdminOnly(repo))
-		targetURL, _ := url.Parse("http://sqlite-admin:8080")
-		proxy := httputil.NewSingleHostReverseProxy(targetURL)
-		proxy.Director = func(req *http.Request) {
-			req.URL.Scheme = targetURL.Scheme
-			req.URL.Host = targetURL.Host
-			host := req.Host
-			if host == "" {
-				host = "api"
-			}
-			req.Header.Set("X-Forwarded-Host", host)
-			req.Header.Set("X-Forwarded-Proto", "http")
-			req.Header.Set("X-Forwarded-Prefix", "/db-admin")
-		}
-		adm.Mount("/", http.StripPrefix(pathDBAdmin, proxy))
 	})
 }

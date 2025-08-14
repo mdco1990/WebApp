@@ -9,9 +9,9 @@ web/build/
 web/.vite/
 **/dist/
 **/build/
+bin/
 
 # Go build artifacts
-bin/
 *.exe
 *.exe~
 *.dll
@@ -83,20 +83,14 @@ sonar-project.properties
 
 # Package manager files (keep only what's needed)
 # package-lock.json and go.sum are needed for dependency resolution
-# but we can exclude other package manager files
 yarn.lock
 pnpm-lock.yaml
 package-lock.json.bak
 
 # OS specific files
-.dockerignore
 Dockerfile*
 docker-compose*.yml
-
-# Additional Docker optimizations
 .dockerignore
-.dockerignore.bak
-*.dockerignore
 
 # Backup and temporary files
 *.bak

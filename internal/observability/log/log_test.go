@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func TestSetup(t *testing.T) {
+func TestSetup(_ *testing.T) {
 	// Test JSON format setup
 	Setup("debug", "json")
 
@@ -21,7 +21,7 @@ func TestSetup(t *testing.T) {
 	Setup("warn", "invalid")
 }
 
-func TestLogLevels(t *testing.T) {
+func TestLogLevels(_ *testing.T) {
 	// Test debug level
 	Setup("debug", "text")
 	slog.Debug("debug message")
@@ -67,18 +67,26 @@ func TestLogFormat(t *testing.T) {
 
 func TestEnvironmentVariables(t *testing.T) {
 	// Test with environment variables
-	os.Setenv("LOG_LEVEL", "debug")
-	os.Setenv("LOG_FORMAT", "json")
+	if err := os.Setenv("LOG_LEVEL", "debug"); err != nil {
+		t.Fatalf("Failed to set LOG_LEVEL: %v", err)
+	}
+	if err := os.Setenv("LOG_FORMAT", "json"); err != nil {
+		t.Fatalf("Failed to set LOG_FORMAT: %v", err)
+	}
 	defer func() {
-		os.Unsetenv("LOG_LEVEL")
-		os.Unsetenv("LOG_FORMAT")
+		if err := os.Unsetenv("LOG_LEVEL"); err != nil {
+			t.Logf("Failed to unset LOG_LEVEL: %v", err)
+		}
+		if err := os.Unsetenv("LOG_FORMAT"); err != nil {
+			t.Logf("Failed to unset LOG_FORMAT: %v", err)
+		}
 	}()
 
 	// This should use environment variables
 	Setup("", "")
 }
 
-func TestLogWithContext(t *testing.T) {
+func TestLogWithContext(_ *testing.T) {
 	Setup("debug", "text")
 
 	// Test structured logging
@@ -89,7 +97,7 @@ func TestLogWithContext(t *testing.T) {
 	)
 }
 
-func TestLogPerformance(t *testing.T) {
+func TestLogPerformance(_ *testing.T) {
 	Setup("info", "text")
 
 	// Test logging performance (should not be too slow)
@@ -98,7 +106,7 @@ func TestLogPerformance(t *testing.T) {
 	}
 }
 
-func TestLogConcurrency(t *testing.T) {
+func TestLogConcurrency(_ *testing.T) {
 	Setup("info", "text")
 
 	// Test concurrent logging
