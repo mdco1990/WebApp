@@ -1,9 +1,13 @@
 services:
   # Main API service - Development mode with live reloading
   api:
-    image: golang:1.24-alpine
+    build:
+      context: ..
+      dockerfile: deployments/Docker/Dockerfile.api
+      target: dev
+    image: webapp-api-dev:local
     container_name: webapp-api-dev
-    platform: linux/arm64
+    platform: ${DOCKER_PLATFORM:-linux/arm64}
     working_dir: /app
     volumes:
       - ..:/app
@@ -13,12 +17,12 @@ services:
       - HTTP_ADDRESS=0.0.0.0:8082
       - DB_DRIVER=sqlite
       - DB_PATH=/db/app.db
-      - CORS_ALLOWED_ORIGINS=http://web:5173,http://localhost:5173,http://instance-agent.subnet05071228.vcn05071228.oraclevcn.com:5173
+      - CORS_ALLOWED_ORIGINS=http://localhost:31080,https://localhost:31443,http://instance-agent.subnet05071228.vcn05071228.oraclevcn.com:31080,https://instance-agent.subnet05071228.vcn05071228.oraclevcn.com:31443
       - ENV=dev
       - LOG_LEVEL=debug
       - LOG_FORMAT=text
       - GOFLAGS=-buildvcs=false
-    command: ["sh", "-c", "apk add --no-cache git wget && go install github.com/air-verse/air@latest && go mod download && air -c .air.toml"]
+    command: ["air", "-c", ".air.toml"]
     depends_on:
       db:
         condition: service_started
@@ -35,7 +39,7 @@ services:
   db:
     image: arm64v8/alpine:3.19
     container_name: webapp-db-dev
-    platform: linux/arm64
+    platform: ${DOCKER_PLATFORM:-linux/arm64}
     command: sh -c "apk add --no-cache sqlite sqlite-libs >/dev/null 2>&1 && sqlite3 /db/app.db 'PRAGMA user_version;' || true; tail -f /dev/null"
     volumes:
       - ../data:/db  # same host folder as API for persistence
@@ -48,11 +52,31 @@ services:
       retries: 5
       start_period: 10s
 
+  # HTTPS Reverse Proxy
+  https-proxy:
+    build:
+      context: ..
+      dockerfile: deployments/Docker/Dockerfile.nginx
+    image: webapp-https-proxy:local
+    container_name: webapp-https-proxy
+    platform: ${DOCKER_PLATFORM:-linux/arm64}
+    ports:
+      - "31443:31443"
+      - "31080:31080"
+    networks:
+      - webapp-network
+    depends_on:
+      - web
+
   # Frontend React/TypeScript application
   web:
-    image: node:18-alpine
+    build:
+      context: ..
+      dockerfile: deployments/Docker/Dockerfile.web
+      target: dev
+    image: webapp-web-dev:local
     container_name: webapp-web
-    platform: linux/arm64
+    platform: ${DOCKER_PLATFORM:-linux/arm64}
     working_dir: /app/web
     env_file:
       - ../web/.env.dev
@@ -62,9 +86,8 @@ services:
     environment:
       - NODE_ENV=development
       - VITE_PROXY_TARGET=http://api:8082
-    command: sh -c "npm ci && npm run dev -- --host 0.0.0.0 --port 5173"
-    ports:
-      - "5173:5173"
+    command: ["sh", "-c", "npm ci || npm install && npm run dev -- --host 0.0.0.0 --port 5173"]
+    # Remove external port exposure since we'll go through HTTPS proxy
     networks:
       - webapp-network
     depends_on:
@@ -73,13 +96,16 @@ services:
 
   # SQLite Admin UI (always on in dev)
   sqlite-admin:
-    image: python:3.12-alpine
+    build:
+      context: ..
+      dockerfile: deployments/Docker/Dockerfile.sqlite-admin
+    image: webapp-sqlite-admin:local
     container_name: webapp-sqlite-admin
-    platform: linux/arm64
+    platform: ${DOCKER_PLATFORM:-linux/arm64}
     working_dir: /app
     volumes:
       - ../data:/db  # same host folder as API for persistence
-    command: sh -c "pip install --no-cache-dir sqlite-web && sqlite_web --host 0.0.0.0 --port 8080 /db/app.db"
+    command: ["sqlite_web", "--host", "0.0.0.0", "--port", "8080", "/db/app.db"]
     networks:
       - webapp-network
     depends_on:

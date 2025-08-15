@@ -57,6 +57,7 @@ type User struct {
 	CreatedAt time.Time  `json:"created_at"`
 	LastLogin *time.Time `json:"last_login,omitempty"`
 	IsAdmin   bool       `json:"is_admin,omitempty"`
+	Status    string     `json:"status,omitempty"` // pending, approved, rejected
 }
 
 // Session represents a user session

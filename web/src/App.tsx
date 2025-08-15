@@ -18,12 +18,16 @@ import { useTheme } from './hooks/useTheme';
 import { useNavigation } from './hooks/useNavigation';
 import { useBudgetState } from './hooks/useBudgetState';
 import { useManualBudget } from './hooks/useManualBudget';
-import PlanningSection from './components/PlanningSection';
+// Removed PlanningSectionWrapper wrapper to reduce indirection
 import ManualBudgetSection from './components/ManualBudgetSection';
+import SavingsSection from './components/SavingsSection';
 import PasswordModal from './components/PasswordModal';
 import HeaderControls from './components/HeaderControls';
 import AuthScreen from './components/AuthScreen';
 import AnalyticsChartsSection from './components/AnalyticsChartsSection';
+import PlanningSection from './components/PlanningSection';
+import UserManagement from './components/UserManagement';
+import DBAdmin from './components/DBAdmin';
 import { useToast } from './shared/toast';
 
 ChartJS.register(
@@ -40,6 +44,55 @@ ChartJS.register(
 
 // Types
 import type { IncomeSource, OutcomeSource } from './types/budget';
+
+// Lightweight sub components to reduce App complexity
+type PageHeaderProps = { title: string; loading: boolean; HeaderControlsComp: React.ReactNode };
+const PageHeader: React.FC<PageHeaderProps> = ({ title, loading, HeaderControlsComp }) => (
+  <div className="page-header d-print-none">
+    <div className="container-xl">
+      <div className="row g-2 align-items-center">
+        <div className="col">
+          <div className="page-pretitle">Personal Finance</div>
+          <h5 className="page-title d-flex align-items-center gap-2">
+            {title}
+            {loading && (
+              <span
+                className="spinner-border spinner-border-sm text-light"
+                aria-live="polite"
+                aria-label="Loading"
+              ></span>
+            )}
+          </h5>
+        </div>
+        <div className="col-auto ms-auto d-print-none">{HeaderControlsComp}</div>
+      </div>
+    </div>
+  </div>
+);
+
+interface SectionTabsProps {
+  active: string;
+  t: (k: string, opts?: Record<string, unknown>) => string;
+}
+const SectionTabs: React.FC<SectionTabsProps> = ({ active, t }) => (
+  <div className="page-header-tabs">
+    <div className="container-xl">
+      <ul className="nav nav-tabs nav-pills nav-fill" aria-label="Sections">
+        {['planning', 'tracking', 'savings', 'analytics'].map((id) => (
+          <li key={id} className="nav-item">
+            <a
+              href={`#${id}`}
+              className={`nav-link ${active === id ? 'active' : ''}`}
+              aria-current={active === id ? 'page' : undefined}
+            >
+              {t(`nav.${id}`, { defaultValue: id.charAt(0).toUpperCase() + id.slice(1) })}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </div>
+  </div>
+);
 
 const App: React.FC = () => {
   const { t, i18n } = useTranslation();
@@ -67,7 +120,9 @@ const App: React.FC = () => {
   const [registerValidated, setRegisterValidated] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [autoUpdate] = useState(true); // Enabled by default
+  const [autoUpdate] = useState(false); // Disabled to prevent interference with editing
+  const [showUserManagement, setShowUserManagement] = useState(false);
+  const [showDBAdmin, setShowDBAdmin] = useState(false);
 
   // Helper to merge server list with any unsaved client-only items (id missing or 0)
   const mergeSources = useCallback(
@@ -80,7 +135,10 @@ const App: React.FC = () => {
       const dedupUnsaved = unsaved.filter(
         (u) => !incoming.some((s) => s.name === u.name && s.amount_cents === u.amount_cents)
       );
-      return [...incoming, ...dedupUnsaved];
+      return [
+        ...incoming.map((s) => ({ ...s })),
+        ...dedupUnsaved.map((u) => ({ ...u })), // keep client_id
+      ];
     },
     []
   );
@@ -112,10 +170,35 @@ const App: React.FC = () => {
   }, [navigation.currentDate, t, formatMonth]);
 
   const parseLocaleAmount = (value: string): number => {
-    if (!value) return 0;
-    const normalized = value.replace(/\s+/g, '').replace(',', '.');
-    const parsed = parseFloat(normalized);
-    return isNaN(parsed) ? 0 : parsed;
+    if (!value || value.trim() === '') return 0;
+
+    // Remove everything except digits, comma, dot, and minus/plus
+    let cleaned = value.trim().replace(/[^0-9,.\-+]/g, '');
+
+    // Handle sign
+    const isNegative = cleaned.startsWith('-');
+    if (isNegative || cleaned.startsWith('+')) {
+      cleaned = cleaned.substring(1);
+    }
+
+    // Optimized separator handling
+    const lastComma = cleaned.lastIndexOf(',');
+    const lastDot = cleaned.lastIndexOf('.');
+
+    let normalized = cleaned;
+    if (lastComma > lastDot) {
+      // Comma is decimal separator: "1.234,56" or "12,56"
+      normalized = cleaned.replace(/\./g, '').replace(',', '.');
+    } else if (lastDot > lastComma) {
+      // Dot is decimal separator: "1,234.56" or "12.56"
+      normalized = cleaned.replace(/,/g, '');
+    }
+    // If no separators or equal positions, use as-is
+
+    const parsed = Number.parseFloat(normalized);
+    const result = Number.isFinite(parsed) ? parsed : 0;
+
+    return isNegative ? -result : result;
   };
 
   // Hook: monthly data (budget sources) for current year-month
@@ -169,7 +252,8 @@ const App: React.FC = () => {
       });
       setDataLoaded(true);
     }
-  }, [monthly, monthlyLoading, budgetState, mergeSources]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [monthly, monthlyLoading, mergeSources]);
 
   // Add default data if none exists
   const addDefaultData = useCallback(async () => {
@@ -280,205 +364,189 @@ const App: React.FC = () => {
         onSubmit={handlePasswordUpdate}
       />
       {/* Page Header */}
-      <div className="page-header d-print-none">
-        <div className="container-xl">
-          <div className="row g-2 align-items-center">
-            <div className="col">
-              <div className="page-pretitle">Personal Finance</div>
-              <h2 className="page-title d-flex align-items-center gap-2">
-                {getPageTitle()}
-                {loading && (
-                  <span
-                    className="spinner-border spinner-border-sm text-light"
-                    aria-live="polite"
-                    aria-label={t('label.loading', { defaultValue: 'Loading' })}
-                  ></span>
-                )}
-              </h2>
-            </div>
-            <div className="col-auto ms-auto d-print-none">
-              <HeaderControls
-                isDarkMode={theme.isDarkMode}
-                onToggleDarkMode={() => theme.setIsDarkMode(!theme.isDarkMode)}
-                currency={theme.currency}
-                onSetCurrency={theme.setCurrency}
-                navigateMonth={navigation.navigateMonth}
-                goToToday={navigation.goToToday}
-                monthInputValue={navigation.monthInputValue}
-                onMonthChange={navigation.onMonthChange}
-                user={auth.user}
-                onChangePasswordClick={() => setShowPasswordForm(true)}
-                onLogout={auth.logout}
-              />
-            </div>
+      <PageHeader
+        title={getPageTitle()}
+        loading={loading}
+        HeaderControlsComp={
+          <HeaderControls
+            isDarkMode={theme.isDarkMode}
+            onToggleDarkMode={() => theme.setIsDarkMode(!theme.isDarkMode)}
+            currency={theme.currency}
+            onSetCurrency={theme.setCurrency}
+            navigateMonth={navigation.navigateMonth}
+            goToToday={navigation.goToToday}
+            monthInputValue={navigation.monthInputValue}
+            onMonthChange={navigation.onMonthChange}
+            user={auth.user}
+            onChangePasswordClick={() => setShowPasswordForm(true)}
+            onLogout={auth.logout}
+            onNavigateToUserManagement={() => setShowUserManagement(true)}
+            onNavigateToDBAdmin={() => setShowDBAdmin(true)}
+          />
+        }
+      />
+      <SectionTabs active={navigation.activeSection} t={t} />
+
+      {/* Conditional rendering based on current view */}
+      {showUserManagement ? (
+        <UserManagement onBackToMain={() => setShowUserManagement(false)} />
+      ) : showDBAdmin ? (
+        <DBAdmin onBackToMain={() => setShowDBAdmin(false)} />
+      ) : (
+        <>
+          {/* Predicted Budget */}
+          <div id="planning" className="section-anchor"></div>
+          <div
+            className="container-fluid py-4"
+            style={{ padding: '1rem', margin: '0 auto', maxWidth: '100%' }}
+          >
+            <PlanningSection
+              isDarkMode={theme.isDarkMode}
+              monthLabel={`${formatMonth(navigation.currentDate, 'long')} ${navigation.currentDate.getFullYear()}`}
+              incomeSources={budgetState.predictedBudget.incomeSources}
+              outcomeSources={budgetState.predictedBudget.outcomeSources}
+              parseLocaleAmount={parseLocaleAmount}
+              formatCurrency={formatCurrency}
+              onIncomeUpdate={(index: number, next: IncomeSource) => {
+                const updated = [...budgetState.predictedBudget.incomeSources];
+                updated[index] = next;
+                budgetState.setPredictedBudget((prev) => ({ ...prev, incomeSources: updated }));
+              }}
+              onIncomeBlurSave={(index: number) =>
+                autoSaveIncomeSource({ ...budgetState.predictedBudget.incomeSources[index] })
+              }
+              onIncomeRemoveUnsaved={(index: number) => {
+                const updated = budgetState.predictedBudget.incomeSources.filter(
+                  (_, i) => i !== index
+                );
+                budgetState.setPredictedBudget((prev) => ({ ...prev, incomeSources: updated }));
+              }}
+              onIncomeDeletePersisted={async (id: number) => {
+                await deleteIncome(id);
+              }}
+              onIncomeAddEmpty={() =>
+                budgetState.setPredictedBudget((prev) => ({
+                  ...prev,
+                  incomeSources: [
+                    ...prev.incomeSources,
+                    {
+                      id: 0,
+                      client_id: `tmp_inc_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+                      name: '',
+                      amount_cents: 0,
+                    },
+                  ],
+                }))
+              }
+              onOutcomeUpdate={(index: number, next: OutcomeSource) => {
+                const updated = [...budgetState.predictedBudget.outcomeSources];
+                updated[index] = next;
+                budgetState.setPredictedBudget((prev) => ({ ...prev, outcomeSources: updated }));
+              }}
+              onOutcomeBlurSave={(index: number) =>
+                autoSaveOutcomeSource({ ...budgetState.predictedBudget.outcomeSources[index] })
+              }
+              onOutcomeRemoveUnsaved={(index: number) => {
+                const updated = budgetState.predictedBudget.outcomeSources.filter(
+                  (_, i) => i !== index
+                );
+                budgetState.setPredictedBudget((prev) => ({ ...prev, outcomeSources: updated }));
+              }}
+              onOutcomeDeletePersisted={async (id: number) => {
+                await deleteOutcome(id);
+              }}
+              onOutcomeAddEmpty={() =>
+                budgetState.setPredictedBudget((prev) => ({
+                  ...prev,
+                  outcomeSources: [
+                    ...prev.outcomeSources,
+                    {
+                      id: 0,
+                      client_id: `tmp_out_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+                      name: '',
+                      amount_cents: 0,
+                    },
+                  ],
+                }))
+              }
+              totalIncome={budgetState.predictedBudget.totalIncome}
+              totalOutcome={budgetState.predictedBudget.totalOutcome}
+              difference={budgetState.predictedBudget.difference}
+              totalIncomeLabel={t('label.totalIncomes')}
+              totalOutcomeLabel={t('label.totalOutcomes')}
+              differenceLabel={t('label.difference')}
+              incomeHelp={t('section.predictedIncome.desc')}
+              outcomeHelp={t('section.predictedOutcome.desc')}
+            />
           </div>
-        </div>
-      </div>
 
-      {/* Quick Nav Tabs */}
-      <div className="page-header-tabs">
-        <div className="container-xl">
-          <ul className="nav nav-tabs nav-pills nav-fill" aria-label="Sections">
-            <li className="nav-item">
-              <a
-                href="#planning"
-                className={`nav-link ${navigation.activeSection === 'planning' ? 'active' : ''}`}
-                role="tab"
-                aria-current={navigation.activeSection === 'planning' ? 'page' : undefined}
-              >
-                {t('nav.planning', { defaultValue: 'Planning' })}
-              </a>
-            </li>
-            <li className="nav-item">
-              <a
-                href="#tracking"
-                className={`nav-link ${navigation.activeSection === 'tracking' ? 'active' : ''}`}
-                role="tab"
-                aria-current={navigation.activeSection === 'tracking' ? 'page' : undefined}
-              >
-                {t('nav.tracking', { defaultValue: 'Tracking' })}
-              </a>
-            </li>
-            <li className="nav-item">
-              <a
-                href="#analytics"
-                className={`nav-link ${navigation.activeSection === 'analytics' ? 'active' : ''}`}
-                role="tab"
-                aria-current={navigation.activeSection === 'analytics' ? 'page' : undefined}
-              >
-                {t('nav.analytics', { defaultValue: 'Analytics' })}
-              </a>
-            </li>
-          </ul>
-        </div>
-      </div>
+          {/* Manual Current Month Budget (Bank and planned deductions) */}
+          <div id="tracking" className="section-anchor"></div>
+          <ManualBudgetSection
+            isDarkMode={theme.isDarkMode}
+            title={t('section.manualBudget', {
+              defaultValue: 'Manual Budget (Bank and Planned Deductions)',
+            })}
+            monthLabel={`${formatMonth(navigation.currentDate, 'long')} ${navigation.currentDate.getFullYear()}`}
+            currencySymbol={currencySymbol}
+            manualBudget={manualBudget.manualBudget}
+            setManualBudget={manualBudget.setManualBudget}
+            parseLocaleAmount={parseLocaleAmount}
+            formatCurrency={formatCurrency}
+            resetLabel={t('btn.reset', { defaultValue: 'Reset' })}
+            bankLabel={t('label.bankAmount')}
+            plannedLabel={t('label.plannedExpenses')}
+            formulaHint={t('label.formula')}
+            toggleTitle={t('btn.toggleSign') ?? 'Toggle sign'}
+            deleteLabel={t('btn.delete')}
+            addItemLabel={t('btn.addItem')}
+            remainingLabel={t('label.remaining')}
+            positiveNegativeHint={
+              t('label.positiveNegativeHint') ??
+              'Tip: positive values add to remaining; negative values subtract.'
+            }
+          />
 
-      <div className="container-fluid py-4">
-        {/* Anchor: Planning */}
-        <div id="planning" className="section-anchor"></div>
+          {/* Savings Section */}
+          <div id="savings" className="section-anchor"></div>
+          <SavingsSection
+            isDarkMode={theme.isDarkMode}
+            dataLoaded={dataLoaded}
+            savingsTracker={budgetState.savingsTracker}
+            setSavingsTracker={budgetState.setSavingsTracker}
+            formatCurrency={formatCurrency}
+          />
 
-        <PlanningSection
-          isDarkMode={theme.isDarkMode}
-          title={t('section.predictedBudget', {
-            month: formatMonth(navigation.currentDate, 'long'),
-            year: navigation.currentDate.getFullYear(),
-          })}
-          monthLabel={`${formatMonth(navigation.currentDate, 'long')} ${navigation.currentDate.getFullYear()}`}
-          incomeSources={budgetState.predictedBudget.incomeSources}
-          outcomeSources={budgetState.predictedBudget.outcomeSources}
-          parseLocaleAmount={parseLocaleAmount}
-          formatCurrency={formatCurrency}
-          onIncomeUpdate={(index, next) => {
-            const updated = [...budgetState.predictedBudget.incomeSources];
-            updated[index] = next;
-            budgetState.setPredictedBudget((prev) => ({ ...prev, incomeSources: updated }));
-          }}
-          onIncomeBlurSave={(index) =>
-            autoSaveIncomeSource({ ...budgetState.predictedBudget.incomeSources[index] })
-          }
-          onIncomeRemoveUnsaved={(index) => {
-            const updated = budgetState.predictedBudget.incomeSources.filter((_, i) => i !== index);
-            budgetState.setPredictedBudget((prev) => ({ ...prev, incomeSources: updated }));
-          }}
-          onIncomeDeletePersisted={async (id) => {
-            await deleteIncome(id);
-          }}
-          onIncomeAddEmpty={() =>
-            budgetState.setPredictedBudget((prev) => ({
-              ...prev,
-              incomeSources: [...prev.incomeSources, { id: 0, name: '', amount_cents: 0 }],
-            }))
-          }
-          onOutcomeUpdate={(index, next) => {
-            const updated = [...budgetState.predictedBudget.outcomeSources];
-            updated[index] = next;
-            budgetState.setPredictedBudget((prev) => ({ ...prev, outcomeSources: updated }));
-          }}
-          onOutcomeBlurSave={(index) =>
-            autoSaveOutcomeSource({ ...budgetState.predictedBudget.outcomeSources[index] })
-          }
-          onOutcomeRemoveUnsaved={(index) => {
-            const updated = budgetState.predictedBudget.outcomeSources.filter(
-              (_, i) => i !== index
-            );
-            budgetState.setPredictedBudget((prev) => ({ ...prev, outcomeSources: updated }));
-          }}
-          onOutcomeDeletePersisted={async (id) => {
-            await deleteOutcome(id);
-          }}
-          onOutcomeAddEmpty={() =>
-            budgetState.setPredictedBudget((prev) => ({
-              ...prev,
-              outcomeSources: [...prev.outcomeSources, { id: 0, name: '', amount_cents: 0 }],
-            }))
-          }
-          totalIncome={budgetState.predictedBudget.totalIncome}
-          totalOutcome={budgetState.predictedBudget.totalOutcome}
-          difference={budgetState.predictedBudget.difference}
-          totalIncomeLabel={t('label.totalIncomes')}
-          totalOutcomeLabel={t('label.totalOutcomes')}
-          differenceLabel={t('label.difference')}
-          incomeHelp={t('section.predictedIncome.desc')}
-          outcomeHelp={t('section.predictedOutcome.desc')}
-        />
+          {/* Additional Charts Row */}
+          <div id="analytics" className="section-anchor"></div>
+          <AnalyticsChartsSection
+            isDarkMode={theme.isDarkMode}
+            dataLoaded={dataLoaded}
+            predictedBudget={budgetState.predictedBudget}
+            savingsTracker={budgetState.savingsTracker}
+            currentDate={navigation.currentDate}
+            manualBudget={manualBudget.manualBudget}
+            formatCurrency={formatCurrency}
+          />
 
-        {/* Manual Current Month Budget (Bank and planned deductions) */}
-        <div id="tracking" className="section-anchor"></div>
-        <ManualBudgetSection
-          isDarkMode={theme.isDarkMode}
-          title={t('section.manualBudget', {
-            defaultValue: 'Manual Budget (Bank and Planned Deductions)',
-          })}
-          monthLabel={`${formatMonth(navigation.currentDate, 'long')} ${navigation.currentDate.getFullYear()}`}
-          currencySymbol={currencySymbol}
-          manualBudget={manualBudget.manualBudget}
-          setManualBudget={manualBudget.setManualBudget}
-          parseLocaleAmount={parseLocaleAmount}
-          formatCurrency={formatCurrency}
-          resetLabel={t('btn.reset', { defaultValue: 'Reset' })}
-          bankLabel={t('label.bankAmount')}
-          plannedLabel={t('label.plannedExpenses')}
-          formulaHint={t('label.formula')}
-          toggleTitle={t('btn.toggleSign') ?? 'Toggle sign'}
-          deleteLabel={t('btn.delete')}
-          addItemLabel={t('btn.addItem')}
-          remainingLabel={t('label.remaining')}
-          positiveNegativeHint={
-            t('label.positiveNegativeHint') ??
-            'Tip: positive values add to remaining; negative values subtract.'
-          }
-        />
-
-        {/* Additional Charts Row */}
-        <div id="analytics" className="section-anchor"></div>
-        <AnalyticsChartsSection
-          isDarkMode={theme.isDarkMode}
-          dataLoaded={dataLoaded}
-          predictedBudget={budgetState.predictedBudget}
-          savingsTracker={budgetState.savingsTracker}
-          setSavingsTracker={budgetState.setSavingsTracker}
-          currentDate={navigation.currentDate}
-          manualBudget={manualBudget.manualBudget}
-          formatCurrency={formatCurrency}
-        />
-      </div>
-
-      {/* Back to top */}
-      {navigation.showBackToTop && (
-        <button
-          type="button"
-          className="btn btn-primary position-fixed"
-          style={{
-            right: '1rem',
-            bottom: '1.25rem',
-            borderRadius: '999px',
-            boxShadow: '0 0.5rem 1rem rgba(0,0,0,0.15)',
-          }}
-          onClick={navigation.scrollToTop}
-          aria-label="Back to top"
-        >
-          ↑
-        </button>
+          {/* Back to top */}
+          {navigation.showBackToTop && (
+            <button
+              type="button"
+              className="btn btn-primary position-fixed"
+              style={{
+                right: '1rem',
+                bottom: '1.25rem',
+                borderRadius: '999px',
+                boxShadow: '0 0.5rem 1rem rgba(0,0,0,0.15)',
+              }}
+              onClick={navigation.scrollToTop}
+              aria-label="Back to top"
+            >
+              ↑
+            </button>
+          )}
+        </>
       )}
     </div>
   );

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 
 export interface ManualBudgetItem {
   id: string;
@@ -30,6 +30,52 @@ interface Props {
   positiveNegativeHint: string;
 }
 
+// Helper component for amount input with proper decimal handling
+const AmountInput: React.FC<{
+  value: number;
+  onChange: (newAmount: number) => void;
+  parseLocaleAmount: (v: string) => number;
+  className?: string;
+  placeholder?: string;
+  id?: string;
+}> = ({ value, onChange, parseLocaleAmount, className, placeholder, id }) => {
+  const [displayValue, setDisplayValue] = useState<string>(value.toString());
+  const [isFocused, setIsFocused] = useState(false);
+
+  // Update display value when value prop changes (but only when not focused)
+  React.useEffect(() => {
+    if (!isFocused) {
+      setDisplayValue(value.toString());
+    }
+  }, [value, isFocused]);
+
+  return (
+    <input
+      type="text"
+      id={id}
+      className={className}
+      placeholder={placeholder}
+      value={displayValue}
+      onChange={(e) => {
+        const newValue = e.target.value;
+        setDisplayValue(newValue);
+        // Parse and update immediately for live calculations
+        const parsed = parseLocaleAmount(newValue);
+        onChange(parsed);
+      }}
+      onFocus={() => setIsFocused(true)}
+      onBlur={() => {
+        setIsFocused(false);
+        // Clean up display value on blur
+        const parsed = parseLocaleAmount(displayValue);
+        setDisplayValue(parsed.toString());
+      }}
+      inputMode="decimal"
+      step="0.01"
+    />
+  );
+};
+
 const ManualBudgetSection: React.FC<Props> = ({
   isDarkMode,
   title,
@@ -56,7 +102,7 @@ const ManualBudgetSection: React.FC<Props> = ({
       <div className="col-lg-12 mb-4">
         <div className={`card ${isDarkMode ? 'bg-secondary text-light' : 'bg-white'}`}>
           <div className="card-header d-flex justify-content-between align-items-center">
-            <h3 className="mb-0">{title}</h3>
+            <h6 className="mb-0">{title}</h6>
             <div className="d-flex align-items-center gap-2">
               <span className="badge bg-secondary">{monthLabel}</span>
               <div className="small text-muted me-2">{formulaHint}</div>
@@ -73,18 +119,21 @@ const ManualBudgetSection: React.FC<Props> = ({
           <div className="card-body">
             <div className="row g-3 mb-3">
               <div className="col-md-4">
-                <label className="form-label">{bankLabel}</label>
-                <input
-                  type="text"
-                  className={`form-control ${isDarkMode ? 'bg-dark text-light border-secondary' : ''}`}
+                <label className="form-label" htmlFor="bank-amount">
+                  {bankLabel}
+                </label>
+                <AmountInput
+                  id="bank-amount"
                   value={manualBudget.bankAmount}
-                  onChange={(e) =>
+                  onChange={(newAmount) =>
                     setManualBudget({
                       ...manualBudget,
-                      bankAmount: parseLocaleAmount(e.target.value),
+                      bankAmount: newAmount,
                     })
                   }
-                  inputMode="decimal"
+                  parseLocaleAmount={parseLocaleAmount}
+                  className={`form-control ${isDarkMode ? 'bg-dark text-light border-secondary' : ''}`}
+                  placeholder="0.00"
                 />
               </div>
               <div className="col-md-8">
@@ -105,20 +154,19 @@ const ManualBudgetSection: React.FC<Props> = ({
                           }}
                         />
                         <span className="input-group-text">{currencySymbol}</span>
-                        <input
-                          type="text"
-                          className={`form-control ${isDarkMode ? 'bg-dark text-light border-secondary' : ''}`}
-                          placeholder={'Amount'}
+                        <AmountInput
                           value={it.amount}
-                          onChange={(e) => {
+                          onChange={(newAmount) => {
                             const items = [...manualBudget.items];
                             items[idx] = {
                               ...items[idx],
-                              amount: parseLocaleAmount(e.target.value),
+                              amount: newAmount,
                             };
                             setManualBudget({ ...manualBudget, items });
                           }}
-                          inputMode="decimal"
+                          parseLocaleAmount={parseLocaleAmount}
+                          className={`form-control ${isDarkMode ? 'bg-dark text-light border-secondary' : ''}`}
+                          placeholder="0.00"
                         />
                         <button
                           type="button"
@@ -154,7 +202,11 @@ const ManualBudgetSection: React.FC<Props> = ({
                       ...manualBudget,
                       items: [
                         ...manualBudget.items,
-                        { id: Math.random().toString(36).slice(2), name: '', amount: 0 },
+                        {
+                          id: Date.now().toString() + '-' + Math.random().toString(36).slice(2),
+                          name: '',
+                          amount: 0,
+                        },
                       ],
                     });
                   }}

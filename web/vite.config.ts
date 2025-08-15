@@ -8,7 +8,7 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
   // Use service name for Docker Compose, fallback to localhost for local dev
   const target = env.VITE_PROXY_TARGET || 'http://api:8082'
-  
+
   // Normalize allowed hosts: accept comma-separated list that may include scheme/port
   const parseAllowedHosts = (val?: string) => {
     if (!val) return ['localhost', '127.0.0.1']
@@ -22,13 +22,13 @@ export default defineConfig(({ mode }) => {
         if (u.hostname) uniq.add(u.hostname)
       } catch {
         // Fallback: strip protocol prefix and trailing :port if any
-  const cleaned = s.replace(/^https?:\/\//, '').replace(/:\d+$/, '')
+        const cleaned = s.replace(/^https?:\/\//, '').replace(/:\d+$/, '')
         if (cleaned) uniq.add(cleaned)
       }
     }
     return Array.from(uniq)
   }
-  
+
   return {
     plugins: [
       react(),
@@ -51,8 +51,9 @@ export default defineConfig(({ mode }) => {
       host: true,
       port: 5173,
       strictPort: false,
-  // loadEnv reads from .env files; also fall back to process.env (e.g., docker-compose env)
-  allowedHosts: parseAllowedHosts(env.VITE_ALLOWED_HOSTS || process.env.VITE_ALLOWED_HOSTS),
+      // loadEnv reads from .env files; also fall back to process.env (e.g., docker-compose env)
+      allowedHosts: parseAllowedHosts(env.VITE_ALLOWED_HOSTS || process.env.VITE_ALLOWED_HOSTS),
+
       proxy: {
         '/api': {
           target,
@@ -99,12 +100,6 @@ export default defineConfig(({ mode }) => {
           target,
           changeOrigin: true,
           secure: false
-        },
-        '/db-admin': {
-          target,
-          changeOrigin: true,
-          secure: false,
-          rewrite: (path) => path // allow API to handle prefix stripping
         }
       }
     },

@@ -1,12 +1,32 @@
 #!/bin/bash
-# Build script for WebApp
+# Comprehensive build script for WebApp (Go + Frontend)
 
 set -e
 
-echo "Building WebApp..."
+echo "🏗️  Building WebApp..."
 
-# Build the main application
-go build -o bin/webapp ./cmd/webapp
+# Create bin directory if it doesn't exist
+mkdir -p bin
 
-echo "✓ Build completed successfully"
-echo "Binary location: bin/webapp"
+# Build the Go backend
+echo "📦 Building Go backend..."
+go build -ldflags="-s -w" -o bin/webapp ./cmd/webapp
+echo "✓ Go backend built: bin/webapp"
+
+# Build the frontend
+if [ -d "web" ]; then
+    echo "📦 Building frontend..."
+    cd web
+    if [ -f package.json ]; then
+        npm install --production=false
+        npm run build
+        echo "✓ Frontend built: web/dist/"
+    fi
+    cd ..
+fi
+
+echo "✅ Build completed successfully!"
+echo "Backend binary: bin/webapp"
+if [ -d "web/dist" ]; then
+    echo "Frontend assets: web/dist/"
+fi

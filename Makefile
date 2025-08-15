@@ -1,6 +1,6 @@
 SHELL := /bin/bash
 GO ?= go
-GOTOOLCHAIN ?= go1.24.5
+GOTOOLCHAIN ?= go1.23.0
 BIN_DIR := bin
 BIN := $(BIN_DIR)/webapp
 PORT ?= 8082
@@ -8,9 +8,10 @@ PORT_WEB ?= 5173
 DEV_DIR := .dev
 
 
-.PHONY: all tidy build run stop free-port test fmt vet clean web-setup web-dev web-build health dev dev-stop dev-logs \
+.PHONY: all tidy build run stop free-port test test-web test-all fmt vet clean web-setup web-dev web-build health dev dev-stop dev-logs \
 	lint lint-install lint-fix format format-check check-all lint-web lint-web-fix format-web lint-verify lint-linters \
-	lint-css lint-css-fix lint-vite lint-all docker-dev docker-dev-detached docker-stop
+	lint-css lint-css-fix lint-vite lint-all docker-dev docker-dev-detached docker-stop security web-security sonar \
+	go-audit web-audit
 
 all: build
 
@@ -38,6 +39,8 @@ help:
 	@echo ""
 	@echo "🧪 Testing:"
 	@echo "  test                 Run Go unit tests"
+	@echo "  test-web             Run frontend tests (Jest)"
+	@echo "  test-all             Run all tests (Go + Frontend)"
 	@echo "  check-all            Run format check + lint + tests"
 	@echo ""
 	@echo "✨ Code Quality:"
@@ -58,6 +61,18 @@ help:
 	@echo "  lint-vite            Validate Vite build (quick smoke)"
 	@echo "  lint-all             Run Go + Web + CSS linters"
 	@echo "  format-web           Format frontend code"
+	@echo ""
+	@echo "🔒 Security:"
+	@echo "  security             Run security checks"
+	@echo "  web-security         Run frontend security checks"
+	@echo "  go-audit             Run Go audit checks"
+	@echo "  web-audit            Run frontend audit checks"
+	@echo "  sonar                Run Sonar checks"
+	@echo ""
+	@echo "🐳 Docker Quality:"
+	@echo "  quality-docker       Run all quality checks via Docker Compose"
+	@echo "  quality-docker-backend  Run backend quality checks via Docker"
+	@echo "  quality-docker-frontend Run frontend quality checks via Docker"
 	@echo ""
 	@echo "🧹 Cleanup:"
 	@echo "  clean                Remove build artifacts"
@@ -118,9 +133,17 @@ free-port:
 		echo "Port $(PORT) is free."; \
 	fi
 
-# Unit tests
+# Unit tests (Go only)
 test:
 	GOTOOLCHAIN=$(GOTOOLCHAIN) $(GO) test ./...
+
+# Frontend tests
+test-web:
+	cd web && npm test
+
+# Full test suite (Go + Frontend)
+test-all: test test-web
+	@echo "All tests completed successfully!"
 
 # Basic Go formatting (legacy - use 'format' target instead)
 fmt:
@@ -141,7 +164,7 @@ lint-install:
 	fi
 	@if ! command -v golangci-lint >/dev/null 2>&1; then \
 		echo "Installing golangci-lint..."; \
-		curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/install.sh | sh -s -- -b $$(go env GOPATH)/bin v2.3.1; \
+		curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/install.sh | sh -s -- -b $$(go env GOPATH)/bin v1.62.2; \
 	fi
 	@echo "Go linting tools installed"
 
@@ -221,9 +244,9 @@ format-check:
 	fi
 	@echo "✓ All Go files are properly formatted and imports are organized"
 
-# Run all Go quality checks (format, static analysis, security, test)
-check-all: format-check lint test
-	@echo "All Go quality checks completed!"
+# Run all quality checks (Go + Frontend: format, static analysis, tests)
+check-all: format-check lint test lint-web test-web
+	@echo "All quality checks completed (Go + Frontend)!"
 
 # Frontend linting
 lint-web:
@@ -234,14 +257,14 @@ lint-web-fix:
 
 # Frontend CSS linting
 lint-css:
- 	cd web && npm run lint:css
+	cd web && npm run lint:css
 
 lint-css-fix:
- 	cd web && npm run lint:css:fix
+	cd web && npm run lint:css:fix
 
 # Quick Vite build smoke test (useful in CI for catching TS/asset issues)
 lint-vite:
- 	cd web && npm run build --silent
+	cd web && npm run build --silent
 
 # Run all linters (Go + web + CSS)
 lint-all: lint lint-web lint-css
@@ -250,18 +273,56 @@ lint-all: lint lint-web lint-css
 format-web:
 	cd web && npm run format
 
+# Clean up
 clean:
-	rm -rf $(BIN_DIR) data/app.db
+	rm -rf $(BIN_DIR) data/app.db $(DEV_DIR) web/dist web/node_modules/.vite
 
-# Frontend tasks
+# Frontend setup
 web-setup:
 	cd web && npm install
 
+# Frontend development
 web-dev:
 	cd web && npm run dev
 
+# Frontend build
 web-build:
 	cd web && npm run build
+
+# Security checks
+security:
+	go list -m -u all
+
+# Frontend security checks
+web-security:
+	cd web && npm audit || true
+
+# Go audit checks
+go-audit:
+	go-audit -v
+
+# Frontend audit checks
+web-audit:
+	cd web && npm audit
+
+# Sonar checks
+sonar:
+	sonar-scanner -Dsonar.projectKey=WebApp -Dsonar.sources=. -Dsonar.host.url=http://localhost:9000 -Dsonar.login=admin -Dsonar.password=admin
+
+# Docker Compose quality checks (review, lint, refactor, fix, clean, test, format)
+quality-docker:
+	@echo "Running comprehensive quality checks via Docker Compose..."
+	@./scripts/quality-docker.sh
+
+# Docker Compose quality checks - backend only
+quality-docker-backend:
+	@echo "Running backend quality checks via Docker Compose..."
+	@./scripts/quality-docker.sh --backend
+
+# Docker Compose quality checks - frontend only
+quality-docker-frontend:
+	@echo "Running frontend quality checks via Docker Compose..."
+	@./scripts/quality-docker.sh --frontend
 
 # Quick health probe (requires server running with matching PORT)
 health:
@@ -293,14 +354,17 @@ docker-dev:
 	@echo "Starting Docker development environment..."
 	@./scripts/docker.sh up --tools
 
+# Start Docker development environment in background
 docker-dev-detached:
 	@echo "Starting Docker development environment in background..."
 	@./scripts/docker.sh up --detach --tools
 
+# Stop Docker development environment
 docker-stop:
 	@echo "Stopping Docker development environment..."
 	@./scripts/docker.sh down
 
+# Stop dev processes
 dev-stop:
 	@echo "Stopping dev processes..."
 	@test -f $(DEV_DIR)/web.pid && kill $$(cat $(DEV_DIR)/web.pid) 2>/dev/null || true
@@ -312,6 +376,7 @@ dev-stop:
 	@$(MAKE) stop >/dev/null 2>&1 || true
 	@echo "All dev processes stopped."
 
+# Tail dev logs
 dev-logs:
 	@echo "Tailing logs (Ctrl+C to stop)"
 	@tail -n +1 -f $(DEV_DIR)/api.log $(DEV_DIR)/web.log

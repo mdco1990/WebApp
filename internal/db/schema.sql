@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS users (
     email TEXT,
     -- Optional admin flag (will be added automatically if missing on existing DBs)
     is_admin INTEGER NOT NULL DEFAULT 0,
+    status TEXT NOT NULL DEFAULT 'pending', -- user approval workflow: pending|approved|rejected
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     last_login DATETIME
 );
@@ -98,8 +99,9 @@ CREATE TABLE IF NOT EXISTS manual_budget_items (
 );
 
 -- Seed admin user only if it doesn't exist (do not overwrite password on subsequent migrations)
+-- Default password is 'password'
 INSERT OR IGNORE INTO users (username, password_hash, email) VALUES 
-('admin', '$2a$10$d6drRj7UUyiGwqskDPuSSuOy4yMWKJdfXJfNtLA98rE2Pw0SIfxxa', 'admin@localhost');
+('admin', '$2a$10$iGA36YPAUXifb8H5/vj1buW6rKE7EDIUxNONpDDFTMKfUBYfVmCLW', 'admin@localhost');
 
 
 -- Indexes

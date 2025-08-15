@@ -1,0 +1,15 @@
+# syntax=docker/dockerfile:1.7
+FROM node:18-alpine AS base
+WORKDIR /app/web
+ENV NODE_ENV=development
+RUN apk add --no-cache bash ca-certificates
+# Cache deps layers
+COPY web/package.json web/package-lock.json* ./
+RUN --mount=type=cache,target=/app/web/.npm \
+    npm ci || npm install
+# Copy the rest only for build stage; in dev we'll mount volumes
+COPY web .
+
+FROM base AS dev
+# Default command runs Vite dev server
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]

@@ -55,8 +55,9 @@ CREATE TABLE IF NOT EXISTS expense (
 );
 
 -- Seed admin user only if absent (do not overwrite password on re-runs)
+-- Default password is 'password'
 INSERT IGNORE INTO users (username, password_hash, email)
-VALUES ('admin', '$2a$10$d6drRj7UUyiGwqskDPuSSuOy4yMWKJdfXJfNtLA98rE2Pw0SIfxxa', 'admin@localhost');
+VALUES ('admin', '$2a$10$iGA36YPAUXifb8H5/vj1buW6rKE7EDIUxNONpDDFTMKfUBYfVmCLW', 'admin@localhost');
 
 -- Promote admin user
 UPDATE users SET is_admin = 1 WHERE username = 'admin';

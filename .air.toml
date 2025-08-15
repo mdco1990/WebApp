@@ -1,12 +1,44 @@
-# Air config for Go live reload in dev (v1.62+ schema)
+# Air config for Go live reload in development
+# See: https://github.com/air-verse/air
+
 root = "."
+testdata_dir = "testdata"
 tmp_dir = "tmp"
 
 [build]
+# Main executable build command
 cmd = "go build -buildvcs=false -o ./bin/webapp ./cmd/webapp"
+# Binary to run
 bin = "./bin/webapp"
-include_ext = ["go"]
-exclude_dir = ["bin", "web", "node_modules", ".git"]
+# Include these file extensions for hot reload
+include_ext = ["go", "tpl", "tmpl", "html"]
+# Include these directories (relative to root)
+include_dir = []
+# Exclude these file extensions
+exclude_file = []
+# Exclude these directories (relative to root)
+exclude_dir = ["bin", "web", "node_modules", ".git", "tmp", "docs", "scripts", "deployments"]
+# Exclude unchanged files or not
+exclude_unchanged = false
+# Follow symlinks for directories
+follow_symlink = false
+# This log file places to the tmp_dir
+log = "errors.log"
+# Poll files for changes instead of using fsnotify
+poll = false
+# Poll interval (defaults to the minimum interval of 500ms)
+poll_interval = 0
+# Delay after each execution
+delay = 0
+# Stop running old binary when build errors occur
+stop_on_error = false
+# Send Interrupt signal before killing process (windows does not support this feature)
+send_interrupt = false
+# Delay after sending Interrupt signal
+kill_delay = "0s"
 
 [log]
-color = true
+# Show log time
+time = false
+# Only show main log (silences the watcher, build, runner)
+main_only = false

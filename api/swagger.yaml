@@ -30,6 +30,10 @@ tags:
     description: Named budget category management
   - name: Monthly Data
     description: Aggregated monthly financial data
+  - name: Manual Budget
+    description: Manual budget bank amount and ad-hoc items
+  - name: Utilities
+    description: Seeding and maintenance operations
 
 paths:
   /healthz:
@@ -228,6 +232,111 @@ paths:
                 $ref: '#/components/schemas/MonthlyData'
         '400':
           description: Invalid year or month
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/seed-defaults:
+    post:
+      tags:
+        - Utilities
+      summary: Seed default income and budget sources
+      description: Seed default income and budget sources for the specified month if none exist
+      security:
+        - APIKeyAuth: []
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/YearMonth'
+      responses:
+        '200':
+          description: Defaults seeding result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  seeded_income:
+                    type: integer
+                    example: 3
+                  seeded_budget:
+                    type: integer
+                    example: 12
+        '400':
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/manual-budget:
+    get:
+      tags:
+        - Manual Budget
+      summary: Get manual budget data
+      description: Get bank amount and manual budget items for the specified month
+      security:
+        - APIKeyAuth: []
+        - BearerAuth: []
+      parameters:
+        - name: year
+          in: query
+          required: true
+          schema:
+            type: integer
+            example: 2025
+        - name: month
+          in: query
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 12
+            example: 8
+      responses:
+        '200':
+          description: Manual budget data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ManualBudgetResponse'
+        '400':
+          description: Invalid year or month
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    put:
+      tags:
+        - Manual Budget
+      summary: Save manual budget data
+      description: Upsert manual budget bank amount and replace all items for the specified month
+      security:
+        - APIKeyAuth: []
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ManualBudgetSaveRequest'
+      responses:
+        '200':
+          description: Manual budget saved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+        '400':
+          description: Invalid request body
           content:
             application/json:
               schema:
@@ -840,6 +949,57 @@ components:
           minimum: 1
           maximum: 12
           example: 8
+
+    ManualBudgetItem:
+      type: object
+      properties:
+        name:
+          type: string
+          example: "Rent"
+        amount_cents:
+          type: integer
+          format: int64
+          example: -120000
+          description: Amount in cents (can be negative)
+
+    ManualBudgetResponse:
+      type: object
+      properties:
+        bank_amount_cents:
+          type: integer
+          format: int64
+          example: 250000
+          description: Bank amount in cents
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ManualBudgetItem'
+
+    ManualBudgetSaveRequest:
+      type: object
+      required:
+        - year
+        - month
+        - bank_amount_cents
+        - items
+      properties:
+        year:
+          type: integer
+          example: 2025
+        month:
+          type: integer
+          minimum: 1
+          maximum: 12
+          example: 8
+        bank_amount_cents:
+          type: integer
+          format: int64
+          example: 250000
+          description: Bank amount in cents
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ManualBudgetItem'
 
     IncomeSource:
       type: object

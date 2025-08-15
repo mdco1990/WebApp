@@ -204,3 +204,36 @@ export async function deleteExpense(id: number) {
   const res = await fetchWithTimeout(`/api/v1/expenses/${id}`, { method: 'DELETE' });
   return res;
 }
+
+// User management APIs for admin
+export async function getPendingUsers() {
+  const res = await fetchWithTimeout('/api/v1/admin/users/pending');
+  return res.json();
+}
+
+export async function getAllUsers() {
+  const res = await fetchWithTimeout('/api/v1/admin/users');
+  return res.json();
+}
+
+export async function approveUser(userId: number) {
+  const res = await fetchWithTimeout(`/api/v1/admin/users/${userId}/approve`, {
+    method: 'POST',
+  });
+  return res;
+}
+
+export async function deleteUser(userId: number) {
+  const res = await fetchWithTimeout(`/api/v1/admin/users/${userId}`, { method: 'DELETE' });
+  return res;
+}
+
+export async function getLogs() {
+  const res = await fetchWithTimeout('/api/v1/admin/logs');
+  return res.json();
+}
+
+export async function rejectUser(userId: number) {
+  const res = await fetchWithTimeout(`/api/v1/admin/users/${userId}/reject`, { method: 'POST' });
+  return res;
+}
