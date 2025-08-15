@@ -1,56 +1,52 @@
-# Programming Paradigms & Design Patterns Implementation Plan
+# Programming Paradigms & Design Patterns Implementation Plan (Phase-Based Approach)
 
 ## Overview
 
-This document outlines the implementation plan for applying Go programming paradigms and design patterns to improve the WebApp architecture. The plan is based on the [Guide to Programming Paradigms in Golang](https://medium.com/@zakariasaif/guide-to-programming-paradigms-in-golang-go-eff42b678a40) and tailored for our Go backend, React+TS+Bootstrap frontend, Nginx reverse proxy, and SQLite database architecture.
+This document outlines the phase-based implementation plan for applying programming paradigms and design patterns to improve the WebApp architecture. The plan integrates both Go backend and React+TypeScript frontend development in coordinated phases, based on the [Guide to Programming Paradigms in Golang](https://medium.com/@zakariasaif/guide-to-programming-paradigms-in-golang-go-eff42b678a40) and TypeScript patterns for our unified architecture.
 
 ## Current Architecture Assessment
 
-### Backend (Go) - Existing Patterns ✅
+### Existing Patterns ✅
+**Backend (Go)**:
 - **Clean Architecture**: Domain, Service, Repository, Transport layers
 - **Repository Pattern**: Data access abstraction
 - **Service Layer**: Business logic separation
 - **HTTP Handlers**: Transport layer concerns
 - **Domain Models**: Clear business entities
 
-### Backend (Go) - Areas for Improvement 🚀
-- **Concurrency**: Limited use of goroutines and channels
-- **Functional Programming**: Basic validation, could be more functional
-- **Interface Abstractions**: Limited interface usage for flexibility
-- **Event-Driven Architecture**: No event system for notifications
-- **Strategy Patterns**: Hard-coded implementations
-
-### Frontend (React+TypeScript) - Existing Patterns ✅
+**Frontend (React+TypeScript)**:
 - **Component-Based Architecture**: Reusable React components
 - **TypeScript Integration**: Basic type safety
 - **State Management**: React hooks and context
 - **Build System**: Vite for fast development
 - **UI Framework**: Bootstrap for styling
 
-### Frontend (React+TypeScript) - Areas for Improvement 🚀
+### Areas for Improvement 🚀
+**Backend (Go)**:
+- **Concurrency**: Limited use of goroutines and channels
+- **Functional Programming**: Basic validation, could be more functional
+- **Interface Abstractions**: Limited interface usage for flexibility
+- **Event-Driven Architecture**: No event system for notifications
+- **Strategy Patterns**: Hard-coded implementations
+
+**Frontend (React+TypeScript)**:
 - **Advanced TypeScript Patterns**: Limited use of advanced type features
 - **Generic Components**: Basic component reusability
 - **State Management**: Could benefit from discriminated unions
 - **Performance Optimization**: Limited memoization and optimization
 - **Type Safety**: Could improve with utility types and type guards
 
-## Implementation Phases
+## Phase-Based Implementation Plan
 
-### Phase 1: Concurrency Foundation (High Priority)
+### Phase 1: Foundation - Concurrency & Type-Safe State Management (High Priority)
 
-#### 1.1 Concurrent Data Processing
-**Goal**: Improve performance with parallel operations
+**Duration**: Weeks 1-2  
+**Goal**: Establish foundational patterns for backend concurrency and frontend state management
 
+#### Backend Implementation: Concurrency Foundation
+
+**File**: `internal/service/concurrent_service.go`
 ```go
-// internal/service/concurrent_service.go
-package service
-
-import (
-    "context"
-    "sync"
-    "time"
-)
-
 // Concurrent monthly data processing
 func (s *Service) GetMonthlyDataConcurrent(ctx context.Context, ym domain.YearMonth) (*domain.MonthlyData, error) {
     var wg sync.WaitGroup
@@ -95,18 +91,8 @@ func (s *Service) GetMonthlyDataConcurrent(ctx context.Context, ym domain.YearMo
 }
 ```
 
-#### 1.2 Background Task Processing
-**Goal**: Non-blocking operations for heavy tasks
-
+**File**: `internal/service/background_service.go`
 ```go
-// internal/service/background_service.go
-package service
-
-import (
-    "context"
-    "time"
-)
-
 type BackgroundTask struct {
     ID        string
     Type      string
@@ -138,18 +124,8 @@ func (s *Service) ProcessExpenseReportAsync(ctx context.Context, ym domain.YearM
 }
 ```
 
-#### 1.3 Worker Pool for Data Processing
-**Goal**: Controlled concurrency for resource-intensive operations
-
+**File**: `internal/service/worker_pool.go`
 ```go
-// internal/service/worker_pool.go
-package service
-
-import (
-    "context"
-    "sync"
-)
-
 type WorkerPool struct {
     workers    int
     jobQueue   chan Job
@@ -198,20 +174,140 @@ func (wp *WorkerPool) worker(ctx context.Context) {
 }
 ```
 
-### Phase 2: Functional Programming Patterns (High Priority)
+#### Frontend Implementation: Type-Safe State Management
 
-#### 2.1 Functional Validation Pipeline
-**Goal**: Chainable, composable validation
+**File**: `web/src/types/state.ts`
+```typescript
+type FetchState<T> = 
+  | { status: 'idle' }
+  | { status: 'loading' }
+  | { status: 'success'; data: T }
+  | { status: 'error'; error: string };
 
+type ApiResponse<T> = {
+  data: T;
+  message: string;
+  timestamp: string;
+};
+
+// Usage with backend concurrent data
+const [monthlyDataState, setMonthlyDataState] = useState<FetchState<MonthlyData>>({ status: 'idle' });
+
+const fetchMonthlyData = async (yearMonth: YearMonth) => {
+  setMonthlyDataState({ status: 'loading' });
+  try {
+    // Calls backend concurrent service
+    const response = await api.getMonthlyDataConcurrent(yearMonth);
+    setMonthlyDataState({ status: 'success', data: response.data });
+  } catch (error) {
+    setMonthlyDataState({ status: 'error', error: error.message });
+  }
+};
+```
+
+**File**: `web/src/components/common/GenericTable.tsx`
+```typescript
+type TableProps<T> = {
+  data: T[];
+  columns: Column<T>[];
+  onRowClick?: (item: T) => void;
+  sortable?: boolean;
+  filterable?: boolean;
+  loading?: boolean;
+  error?: string;
+};
+
+type Column<T> = {
+  key: keyof T;
+  label: string;
+  render?: (value: T[keyof T], item: T) => React.ReactNode;
+  sortable?: boolean;
+};
+
+function GenericTable<T>({ data, columns, onRowClick, sortable, filterable, loading, error }: TableProps<T>) {
+  if (loading) return <LoadingSpinner />;
+  if (error) return <ErrorMessage message={error} />;
+  
+  return (
+    <table className="table">
+      <thead>
+        <tr>
+          {columns.map(column => (
+            <th key={String(column.key)}>{column.label}</th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {data.map((item, index) => (
+          <tr key={index} onClick={() => onRowClick?.(item)}>
+            {columns.map(column => (
+              <td key={String(column.key)}>
+                {column.render 
+                  ? column.render(item[column.key], item)
+                  : String(item[column.key])
+                }
+              </td>
+            ))}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+```
+
+**File**: `web/src/types/forms.ts`
+```typescript
+type FormValues = {
+  name: string;
+  email: string;
+  age: number;
+  category: string;
+};
+
+type FormErrors<T> = {
+  [K in keyof T]?: string;
+};
+
+type FormTouched<T> = {
+  [K in keyof T]?: boolean;
+};
+
+type FormState<T> = {
+  values: T;
+  errors: FormErrors<T>;
+  touched: FormTouched<T>;
+  isValid: boolean;
+  isSubmitting: boolean;
+};
+
+// Integration with backend validation
+const validateForm = async (formData: FormValues): Promise<FormErrors<FormValues>> => {
+  // Calls backend functional validation pipeline
+  const response = await api.validateFormData(formData);
+  return response.errors || {};
+};
+```
+
+#### Phase 1 Tasks:
+- [ ] Implement concurrent data processing in Go
+- [ ] Add background task processing with goroutines
+- [ ] Create worker pool for heavy operations
+- [ ] Implement discriminated unions for React state
+- [ ] Create generic table components
+- [ ] Add mapped types for dynamic forms
+- [ ] Integrate frontend with backend concurrent APIs
+- [ ] Add proper error handling across both layers
+
+### Phase 2: Functional Programming & Advanced Component Patterns (High Priority)
+
+**Duration**: Weeks 3-4  
+**Goal**: Implement functional patterns in Go and advanced component patterns in React
+
+#### Backend Implementation: Functional Programming Patterns
+
+**File**: `internal/validation/functional.go`
 ```go
-// internal/validation/functional.go
-package validation
-
-import (
-    "errors"
-    "reflect"
-)
-
 type Validator func(interface{}) error
 
 // Chain multiple validators
@@ -246,17 +342,6 @@ func ValidateDescription(v interface{}) error {
     return nil
 }
 
-func ValidateYearMonth(v interface{}) error {
-    expense := v.(*domain.Expense)
-    if expense.Year < 1970 || expense.Year > 3000 {
-        return errors.New("invalid year")
-    }
-    if expense.Month < 1 || expense.Month > 12 {
-        return errors.New("invalid month")
-    }
-    return nil
-}
-
 // Usage in service
 func (s *Service) AddExpense(ctx context.Context, e *domain.Expense) (int64, error) {
     validator := Chain(
@@ -273,18 +358,8 @@ func (s *Service) AddExpense(ctx context.Context, e *domain.Expense) (int64, err
 }
 ```
 
-#### 2.2 Functional Error Handling
-**Goal**: Better error composition and handling
-
+**File**: `internal/errors/functional.go`
 ```go
-// internal/errors/functional.go
-package errors
-
-import (
-    "fmt"
-    "strings"
-)
-
 type ValidationError struct {
     Field   string
     Message string
@@ -313,32 +388,10 @@ func HandleError(err error, handlers ...func(error) error) error {
     }
     return err
 }
-
-// Error handlers
-func LogError(err error) error {
-    slog.Error("operation failed", "error", err)
-    return err
-}
-
-func WrapError(context string) func(error) error {
-    return func(err error) error {
-        return fmt.Errorf("%s: %w", context, err)
-    }
-}
 ```
 
-#### 2.3 Functional Data Transformation
-**Goal**: Pipeline-based data processing
-
+**File**: `internal/transformation/functional.go`
 ```go
-// internal/transformation/functional.go
-package transformation
-
-import (
-    "context"
-    "sort"
-)
-
 type Transformer func(interface{}) (interface{}, error)
 
 // Pipeline for data transformation
@@ -368,37 +421,157 @@ func SortExpensesByAmount(data interface{}) (interface{}, error) {
     
     return sorted, nil
 }
+```
 
-func FilterExpensesByCategory(category string) Transformer {
-    return func(data interface{}) (interface{}, error) {
-        expenses := data.([]domain.Expense)
-        filtered := make([]domain.Expense, 0)
-        
-        for _, expense := range expenses {
-            if expense.Category == category {
-                filtered = append(filtered, expense)
-            }
-        }
-        
-        return filtered, nil
+#### Frontend Implementation: Advanced Component Patterns
+
+**File**: `web/src/components/hoc/withLoading.tsx`
+```typescript
+type WithLoadingProps = {
+  loading: boolean;
+  error?: string;
+};
+
+function withLoading<P extends object>(
+  Component: React.ComponentType<P>
+): React.ComponentType<P & WithLoadingProps> {
+  return function WithLoadingComponent(props: P & WithLoadingProps) {
+    const { loading, error, ...componentProps } = props;
+    
+    if (loading) return <LoadingSpinner />;
+    if (error) return <ErrorMessage message={error} />;
+    
+    return <Component {...(componentProps as P)} />;
+  };
+}
+
+// Usage with backend functional validation
+const ExpenseFormWithLoading = withLoading(ExpenseForm);
+```
+
+**File**: `web/src/hooks/useApi.ts`
+```typescript
+type UseApiOptions<T> = {
+  url: string;
+  method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
+  body?: T;
+  headers?: Record<string, string>;
+  cache?: boolean;
+};
+
+function useApi<TData, TBody = never>(
+  options: UseApiOptions<TBody>
+): {
+  data: TData | null;
+  loading: boolean;
+  error: string | null;
+  refetch: () => void;
+} {
+  const [data, setData] = useState<TData | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetch(options.url, {
+        method: options.method || 'GET',
+        headers: options.headers,
+        body: options.body ? JSON.stringify(options.body) : undefined,
+      });
+      const result = await response.json();
+      
+      // Integrate with backend functional validation
+      if (!result.success && result.errors) {
+        setError(result.errors.join('; '));
+        return;
+      }
+      
+      setData(result.data);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
     }
+  }, [options]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  return { data, loading, error, refetch: fetchData };
 }
 ```
 
-### Phase 3: Interface-Based Design (Medium Priority)
+**File**: `web/src/context/AppContext.tsx`
+```typescript
+type User = {
+  id: number;
+  username: string;
+  email: string;
+  isAdmin: boolean;
+};
 
-#### 3.1 Storage Interface Abstraction
-**Goal**: Flexible storage backends
+type AuthContextType = {
+  user: User | null;
+  login: (credentials: LoginCredentials) => Promise<void>;
+  logout: () => void;
+  isAuthenticated: boolean;
+};
 
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [user, setUser] = useState<User | null>(null);
+
+  const login = useCallback(async (credentials: LoginCredentials) => {
+    try {
+      // Integrates with backend functional validation
+      const response = await api.login(credentials);
+      if (response.success) {
+        setUser(response.data.user);
+      } else {
+        throw new Error(response.message);
+      }
+    } catch (error) {
+      throw error;
+    }
+  }, []);
+
+  const logout = useCallback(() => {
+    setUser(null);
+  }, []);
+
+  const value: AuthContextType = {
+    user,
+    login,
+    logout,
+    isAuthenticated: !!user,
+  };
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}
+```
+
+#### Phase 2 Tasks:
+- [ ] Implement functional validation pipeline in Go
+- [ ] Add functional error handling and transformation
+- [ ] Create higher-order components in React
+- [ ] Implement custom hooks with proper typing
+- [ ] Add context API with TypeScript integration
+- [ ] Integrate frontend components with backend functional patterns
+- [ ] Update existing validation to use functional approach
+
+### Phase 3: Interface Abstractions & Advanced Type Patterns (Medium Priority)
+
+**Duration**: Weeks 5-6  
+**Goal**: Create flexible abstractions and advanced type patterns
+
+#### Backend Implementation: Interface-Based Design
+
+**File**: `internal/storage/interface.go`
 ```go
-// internal/storage/interface.go
-package storage
-
-import (
-    "context"
-    "time"
-)
-
 type StorageProvider interface {
     Save(ctx context.Context, key string, data []byte, ttl time.Duration) error
     Load(ctx context.Context, key string) ([]byte, error)
@@ -418,14 +591,6 @@ func (s *SQLiteStorage) Save(ctx context.Context, key string, data []byte, ttl t
     return err
 }
 
-func (s *SQLiteStorage) Load(ctx context.Context, key string) ([]byte, error) {
-    var data []byte
-    err := s.db.QueryRowContext(ctx,
-        `SELECT data FROM cache WHERE key = ? AND expires_at > ?`,
-        key, time.Now()).Scan(&data)
-    return data, err
-}
-
 // Redis implementation (future)
 type RedisStorage struct {
     client *redis.Client
@@ -434,23 +599,10 @@ type RedisStorage struct {
 func (r *RedisStorage) Save(ctx context.Context, key string, data []byte, ttl time.Duration) error {
     return r.client.Set(ctx, key, data, ttl).Err()
 }
-
-func (r *RedisStorage) Load(ctx context.Context, key string) ([]byte, error) {
-    return r.client.Get(ctx, key).Bytes()
-}
 ```
 
-#### 3.2 Service Interface Abstractions
-**Goal**: Better testing and flexibility
-
+**File**: `internal/service/interfaces.go`
 ```go
-// internal/service/interfaces.go
-package service
-
-import (
-    "context"
-)
-
 type UserService interface {
     CreateUser(ctx context.Context, user *domain.User) error
     GetUser(ctx context.Context, id int64) (*domain.User, error)
@@ -464,22 +616,6 @@ type FinancialService interface {
     SetBudget(ctx context.Context, ym domain.YearMonth, amount domain.Money) error
 }
 
-type NotificationService interface {
-    SendNotification(ctx context.Context, userID int64, message string) error
-    SendEmail(ctx context.Context, email string, subject string, body string) error
-}
-
-// Concrete implementations
-type userService struct {
-    repo *repository.Repository
-    cache StorageProvider
-}
-
-func (s *userService) CreateUser(ctx context.Context, user *domain.User) error {
-    // Implementation
-    return nil
-}
-
 // Factory for creating services
 type ServiceFactory struct {
     db     *sql.DB
@@ -491,27 +627,110 @@ func (f *ServiceFactory) CreateUserService() UserService {
     repo := repository.NewUserRepository(f.db)
     return &userService{repo: repo, cache: f.cache}
 }
-
-func (f *ServiceFactory) CreateFinancialService() FinancialService {
-    repo := repository.NewFinancialRepository(f.db)
-    return &financialService{repo: repo}
-}
 ```
 
-### Phase 4: Strategy Pattern Implementation (Medium Priority)
+#### Frontend Implementation: Advanced Type Patterns
 
-#### 4.1 Authentication Strategy
-**Goal**: Multiple authentication methods
+**File**: `web/src/types/utilities.ts`
+```typescript
+type ApiResponse<T> = {
+  data: T;
+  success: boolean;
+  message: string;
+};
 
+type OptionalFields<T, K extends keyof T> = Omit<T, K> & Partial<Pick<T, K>>;
+
+type FormField<T> = {
+  value: T;
+  error?: string;
+  touched: boolean;
+  required: boolean;
+};
+
+type FormState<T> = {
+  [K in keyof T]: FormField<T[K]>;
+};
+
+// Conditional types for backend integration
+type BackendValidated<T> = T & {
+  _validated: true;
+  _validationTimestamp: number;
+};
+
+type ValidationRule<T> = {
+  required?: boolean;
+  minLength?: number;
+  maxLength?: number;
+  pattern?: RegExp;
+  custom?: (value: T) => Promise<string | null>;
+};
+
+type ValidationRules<T> = {
+  [K in keyof T]?: ValidationRule<T[K]>;
+};
+```
+
+**File**: `web/src/utils/typeGuards.ts`
+```typescript
+function isApiResponse<T>(obj: any): obj is ApiResponse<T> {
+  return (
+    typeof obj === 'object' &&
+    obj !== null &&
+    'data' in obj &&
+    'success' in obj &&
+    'message' in obj
+  );
+}
+
+function isUser(obj: any): obj is User {
+  return (
+    typeof obj === 'object' &&
+    obj !== null &&
+    typeof obj.id === 'number' &&
+    typeof obj.username === 'string' &&
+    typeof obj.email === 'string'
+  );
+}
+
+function isBackendError(obj: any): obj is BackendError {
+  return (
+    typeof obj === 'object' &&
+    obj !== null &&
+    'field' in obj &&
+    'message' in obj &&
+    typeof obj.field === 'string' &&
+    typeof obj.message === 'string'
+  );
+}
+
+// Integration with backend validation
+const validateApiResponse = <T>(response: unknown): response is ApiResponse<T> => {
+  if (!isApiResponse<T>(response)) {
+    throw new Error('Invalid API response format');
+  }
+  return true;
+};
+```
+
+#### Phase 3 Tasks:
+- [ ] Create storage interface abstractions in Go
+- [ ] Implement service interface abstractions
+- [ ] Add factory pattern for dependency injection
+- [ ] Create conditional types and utility types in TypeScript
+- [ ] Implement type guards for runtime safety
+- [ ] Add advanced type utilities for form handling
+- [ ] Integrate frontend type patterns with backend interfaces
+
+### Phase 4: Strategy Patterns & Performance Optimization (Medium Priority)
+
+**Duration**: Weeks 7-8  
+**Goal**: Implement flexible strategies and optimize performance
+
+#### Backend Implementation: Strategy Pattern Implementation
+
+**File**: `internal/auth/strategy.go`
 ```go
-// internal/auth/strategy.go
-package auth
-
-import (
-    "context"
-    "errors"
-)
-
 type AuthStrategy interface {
     Authenticate(ctx context.Context, credentials interface{}) (*domain.User, error)
     Validate(ctx context.Context, token string) (*domain.User, error)
@@ -541,19 +760,8 @@ type TokenAuth struct {
     repo      *repository.Repository
 }
 
-func (t *TokenAuth) Authenticate(ctx context.Context, credentials interface{}) (*domain.User, error) {
-    token := credentials.(string)
-    return t.Validate(ctx, token)
-}
-
 type AuthService struct {
     strategies map[string]AuthStrategy
-}
-
-func NewAuthService() *AuthService {
-    return &AuthService{
-        strategies: make(map[string]AuthStrategy),
-    }
 }
 
 func (s *AuthService) RegisterStrategy(name string, strategy AuthStrategy) {
@@ -569,17 +777,8 @@ func (s *AuthService) Authenticate(ctx context.Context, method string, credentia
 }
 ```
 
-#### 4.2 Validation Strategy
-**Goal**: Different validation rules for different contexts
-
+**File**: `internal/validation/strategy.go`
 ```go
-// internal/validation/strategy.go
-package validation
-
-import (
-    "context"
-)
-
 type ValidationStrategy interface {
     Validate(ctx context.Context, data interface{}) error
 }
@@ -611,21 +810,102 @@ func (vs *ValidationService) Validate(ctx context.Context, context string, data 
 }
 ```
 
-### Phase 5: Event-Driven Architecture (Low Priority)
+#### Frontend Implementation: Performance Optimization Patterns
 
-#### 5.1 Event Bus System
-**Goal**: Decoupled event handling
+**File**: `web/src/hooks/useMemoizedValue.ts`
+```typescript
+function useMemoizedValue<T>(
+  value: T,
+  dependencies: React.DependencyList,
+  compareFn?: (prev: T, next: T) => boolean
+): T {
+  const memoizedValue = useMemo(() => value, dependencies);
+  
+  if (compareFn) {
+    const prevValueRef = useRef<T>(memoizedValue);
+    if (!compareFn(prevValueRef.current, memoizedValue)) {
+      prevValueRef.current = memoizedValue;
+    }
+    return prevValueRef.current;
+  }
+  
+  return memoizedValue;
+}
 
+// Integration with backend strategies
+const useMemoizedApiCall = <T>(
+  apiCall: () => Promise<T>,
+  dependencies: React.DependencyList,
+  authStrategy: 'session' | 'token' = 'session'
+) => {
+  return useMemoizedValue(
+    apiCall,
+    [authStrategy, ...dependencies],
+    (prev, next) => prev === next
+  );
+};
+```
+
+**File**: `web/src/components/LazyComponent.tsx`
+```typescript
+type LazyComponentProps = {
+  fallback?: React.ReactNode;
+  errorBoundary?: React.ComponentType<{ children: React.ReactNode }>;
+  preload?: boolean;
+};
+
+function createLazyComponent<T extends React.ComponentType<any>>(
+  importFn: () => Promise<{ default: T }>,
+  options: LazyComponentProps = {}
+): React.LazyExoticComponent<T> {
+  const LazyComponent = lazy(importFn);
+  
+  // Preload if requested
+  if (options.preload) {
+    importFn();
+  }
+  
+  return React.forwardRef<any, React.ComponentProps<T>>((props, ref) => (
+    <Suspense fallback={options.fallback || <LoadingSpinner />}>
+      {options.errorBoundary ? (
+        <options.errorBoundary>
+          <LazyComponent {...props} ref={ref} />
+        </options.errorBoundary>
+      ) : (
+        <LazyComponent {...props} ref={ref} />
+      )}
+    </Suspense>
+  ));
+}
+
+// Integration with backend auth strategies
+const LazyAdminPanel = createLazyComponent(
+  () => import('../components/AdminPanel'),
+  { 
+    fallback: <AdminPanelSkeleton />,
+    preload: true // Preload for admin users
+  }
+);
+```
+
+#### Phase 4 Tasks:
+- [ ] Implement authentication strategies in Go
+- [ ] Add validation strategies with context selection
+- [ ] Create memoization patterns in React
+- [ ] Implement lazy loading and code splitting
+- [ ] Optimize component rendering performance
+- [ ] Integrate frontend optimizations with backend strategies
+- [ ] Add performance monitoring and metrics
+
+### Phase 5: Event-Driven Architecture & Advanced State Management (Low Priority)
+
+**Duration**: Weeks 9-10  
+**Goal**: Implement event-driven patterns and advanced state management
+
+#### Backend Implementation: Event-Driven Architecture
+
+**File**: `internal/events/bus.go`
 ```go
-// internal/events/bus.go
-package events
-
-import (
-    "context"
-    "sync"
-    "time"
-)
-
 type Event interface {
     Type() string
     Data() interface{}
@@ -675,30 +955,10 @@ type ExpenseCreatedEvent struct {
 func (e ExpenseCreatedEvent) Type() string { return "expense.created" }
 func (e ExpenseCreatedEvent) Data() interface{} { return e.Expense }
 func (e ExpenseCreatedEvent) Timestamp() time.Time { return e.time }
-
-type BudgetExceededEvent struct {
-    YearMonth domain.YearMonth
-    UserID    int64
-    time      time.Time
-}
-
-func (e BudgetExceededEvent) Type() string { return "budget.exceeded" }
-func (e BudgetExceededEvent) Data() interface{} { return e.YearMonth }
-func (e BudgetExceededEvent) Timestamp() time.Time { return e.time }
 ```
 
-#### 5.2 Event Handlers
-**Goal**: Handle events asynchronously
-
+**File**: `internal/events/handlers.go`
 ```go
-// internal/events/handlers.go
-package events
-
-import (
-    "context"
-    "fmt"
-)
-
 type NotificationHandler struct {
     notificationService NotificationService
 }
@@ -711,16 +971,6 @@ func (h *NotificationHandler) HandleExpenseCreated(ctx context.Context, event Ev
         float64(expenseEvent.Expense.AmountCents)/100)
     
     return h.notificationService.SendNotification(ctx, expenseEvent.UserID, message)
-}
-
-func (h *NotificationHandler) HandleBudgetExceeded(ctx context.Context, event Event) error {
-    budgetEvent := event.(BudgetExceededEvent)
-    
-    message := fmt.Sprintf("Budget exceeded for %d/%d", 
-        budgetEvent.YearMonth.Month, 
-        budgetEvent.YearMonth.Year)
-    
-    return h.notificationService.SendNotification(ctx, budgetEvent.UserID, message)
 }
 
 type AuditHandler struct {
@@ -740,448 +990,18 @@ func (h *AuditHandler) HandleExpenseCreated(ctx context.Context, event Event) er
     
     return h.auditRepo.Create(ctx, audit)
 }
-
-## Frontend Implementation Phases (React+TypeScript)
-
-### Phase 1: Type-Safe State Management (High Priority)
-
-#### 1.1 Discriminated Unions for Complex State
-**Goal**: Improve state management with type-safe discriminated unions
-
-```typescript
-// web/src/types/state.ts
-type FetchState<T> = 
-  | { status: 'idle' }
-  | { status: 'loading' }
-  | { status: 'success'; data: T }
-  | { status: 'error'; error: string };
-
-type ApiResponse<T> = {
-  data: T;
-  message: string;
-  timestamp: string;
-};
-
-// Usage in components
-const [expenseState, setExpenseState] = useState<FetchState<Expense[]>>({ status: 'idle' });
-
-const fetchExpenses = async () => {
-  setExpenseState({ status: 'loading' });
-  try {
-    const response = await api.getExpenses();
-    setExpenseState({ status: 'success', data: response.data });
-  } catch (error) {
-    setExpenseState({ status: 'error', error: error.message });
-  }
-};
 ```
 
-#### 1.2 Generic Components for Reusability
-**Goal**: Create highly reusable components with full type safety
+#### Frontend Implementation: Advanced State Management
 
+**File**: `web/src/reducers/appReducer.ts`
 ```typescript
-// web/src/components/common/GenericTable.tsx
-type TableProps<T> = {
-  data: T[];
-  columns: Column<T>[];
-  onRowClick?: (item: T) => void;
-  sortable?: boolean;
-  filterable?: boolean;
-};
-
-type Column<T> = {
-  key: keyof T;
-  label: string;
-  render?: (value: T[keyof T], item: T) => React.ReactNode;
-  sortable?: boolean;
-};
-
-function GenericTable<T>({ data, columns, onRowClick, sortable, filterable }: TableProps<T>) {
-  return (
-    <table className="table">
-      <thead>
-        <tr>
-          {columns.map(column => (
-            <th key={String(column.key)}>{column.label}</th>
-          ))}
-        </tr>
-      </thead>
-      <tbody>
-        {data.map((item, index) => (
-          <tr key={index} onClick={() => onRowClick?.(item)}>
-            {columns.map(column => (
-              <td key={String(column.key)}>
-                {column.render 
-                  ? column.render(item[column.key], item)
-                  : String(item[column.key])
-                }
-              </td>
-            ))}
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  );
-}
-
-// Usage
-<GenericTable
-  data={expenses}
-  columns={[
-    { key: 'description', label: 'Description' },
-    { key: 'amountCents', label: 'Amount', render: (value) => `$${(value / 100).toFixed(2)}` },
-    { key: 'category', label: 'Category' }
-  ]}
-  onRowClick={(expense) => handleExpenseClick(expense)}
-/>
-```
-
-#### 1.3 Mapped Types for Dynamic Forms
-**Goal**: Create type-safe form handling with mapped types
-
-```typescript
-// web/src/types/forms.ts
-type FormValues = {
-  name: string;
-  email: string;
-  age: number;
-  category: string;
-};
-
-type FormErrors<T> = {
-  [K in keyof T]?: string;
-};
-
-type FormTouched<T> = {
-  [K in keyof T]?: boolean;
-};
-
-type FormState<T> = {
-  values: T;
-  errors: FormErrors<T>;
-  touched: FormTouched<T>;
-  isValid: boolean;
-  isSubmitting: boolean;
-};
-
-// Usage in form components
-const [formState, setFormState] = useState<FormState<FormValues>>({
-  values: { name: '', email: '', age: 0, category: '' },
-  errors: {},
-  touched: {},
-  isValid: false,
-  isSubmitting: false
-});
-```
-
-### Phase 2: Advanced Component Patterns (High Priority)
-
-#### 2.1 Higher-Order Components with TypeScript
-**Goal**: Create type-safe HOCs for cross-cutting concerns
-
-```typescript
-// web/src/components/hoc/withLoading.tsx
-type WithLoadingProps = {
-  loading: boolean;
-  error?: string;
-};
-
-function withLoading<P extends object>(
-  Component: React.ComponentType<P>
-): React.ComponentType<P & WithLoadingProps> {
-  return function WithLoadingComponent(props: P & WithLoadingProps) {
-    const { loading, error, ...componentProps } = props;
-    
-    if (loading) return <LoadingSpinner />;
-    if (error) return <ErrorMessage message={error} />;
-    
-    return <Component {...(componentProps as P)} />;
-  };
-}
-
-// Usage
-const ExpenseListWithLoading = withLoading(ExpenseList);
-<ExpenseListWithLoading loading={isLoading} error={error} expenses={expenses} />
-```
-
-#### 2.2 Custom Hooks with TypeScript
-**Goal**: Create reusable, type-safe custom hooks
-
-```typescript
-// web/src/hooks/useApi.ts
-type UseApiOptions<T> = {
-  url: string;
-  method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
-  body?: T;
-  headers?: Record<string, string>;
-  cache?: boolean;
-};
-
-function useApi<TData, TBody = never>(
-  options: UseApiOptions<TBody>
-): {
-  data: TData | null;
-  loading: boolean;
-  error: string | null;
-  refetch: () => void;
-} {
-  const [data, setData] = useState<TData | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await fetch(options.url, {
-        method: options.method || 'GET',
-        headers: options.headers,
-        body: options.body ? JSON.stringify(options.body) : undefined,
-      });
-      const result = await response.json();
-      setData(result);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  }, [options]);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
-
-  return { data, loading, error, refetch: fetchData };
-}
-
-// Usage
-const { data: expenses, loading, error, refetch } = useApi<Expense[]>({
-  url: '/api/expenses'
-});
-```
-
-#### 2.3 Context API with TypeScript
-**Goal**: Create strongly typed context providers
-
-```typescript
-// web/src/context/AppContext.tsx
-type User = {
-  id: number;
-  username: string;
-  email: string;
-  isAdmin: boolean;
-};
-
-type AuthContextType = {
-  user: User | null;
-  login: (credentials: LoginCredentials) => Promise<void>;
-  logout: () => void;
-  isAuthenticated: boolean;
-};
-
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-
-  const login = useCallback(async (credentials: LoginCredentials) => {
-    // Implementation
-  }, []);
-
-  const logout = useCallback(() => {
-    setUser(null);
-  }, []);
-
-  const value: AuthContextType = {
-    user,
-    login,
-    logout,
-    isAuthenticated: !!user,
-  };
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-}
-
-// Custom hook for using the context
-export function useAuth(): AuthContextType {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
-}
-```
-
-### Phase 3: Advanced Type Patterns (Medium Priority)
-
-#### 3.1 Conditional Types and Utility Types
-**Goal**: Create advanced type utilities for complex scenarios
-
-```typescript
-// web/src/types/utilities.ts
-type ApiResponse<T> = {
-  data: T;
-  success: boolean;
-  message: string;
-};
-
-type OptionalFields<T, K extends keyof T> = Omit<T, K> & Partial<Pick<T, K>>;
-
-type FormField<T> = {
-  value: T;
-  error?: string;
-  touched: boolean;
-  required: boolean;
-};
-
-type FormState<T> = {
-  [K in keyof T]: FormField<T[K]>;
-};
-
-// Conditional types for form validation
-type ValidationRule<T> = {
-  required?: boolean;
-  minLength?: number;
-  maxLength?: number;
-  pattern?: RegExp;
-  custom?: (value: T) => string | null;
-};
-
-type ValidationRules<T> = {
-  [K in keyof T]?: ValidationRule<T[K]>;
-};
-```
-
-#### 3.2 Type Guards and Runtime Type Checking
-**Goal**: Implement runtime type safety with type guards
-
-```typescript
-// web/src/utils/typeGuards.ts
-function isApiResponse<T>(obj: any): obj is ApiResponse<T> {
-  return (
-    typeof obj === 'object' &&
-    obj !== null &&
-    'data' in obj &&
-    'success' in obj &&
-    'message' in obj
-  );
-}
-
-function isUser(obj: any): obj is User {
-  return (
-    typeof obj === 'object' &&
-    obj !== null &&
-    typeof obj.id === 'number' &&
-    typeof obj.username === 'string' &&
-    typeof obj.email === 'string'
-  );
-}
-
-function isExpense(obj: any): obj is Expense {
-  return (
-    typeof obj === 'object' &&
-    obj !== null &&
-    typeof obj.id === 'number' &&
-    typeof obj.description === 'string' &&
-    typeof obj.amountCents === 'number'
-  );
-}
-
-// Usage in components
-const handleApiResponse = (response: unknown) => {
-  if (isApiResponse<Expense[]>(response)) {
-    if (response.success) {
-      setExpenses(response.data);
-    } else {
-      setError(response.message);
-    }
-  } else {
-    setError('Invalid response format');
-  }
-};
-```
-
-### Phase 4: Performance Optimization Patterns (Medium Priority)
-
-#### 4.1 Memoization with TypeScript
-**Goal**: Implement type-safe performance optimizations
-
-```typescript
-// web/src/hooks/useMemoizedValue.ts
-function useMemoizedValue<T>(
-  value: T,
-  dependencies: React.DependencyList,
-  compareFn?: (prev: T, next: T) => boolean
-): T {
-  const memoizedValue = useMemo(() => value, dependencies);
-  
-  if (compareFn) {
-    const prevValueRef = useRef<T>(memoizedValue);
-    if (!compareFn(prevValueRef.current, memoizedValue)) {
-      prevValueRef.current = memoizedValue;
-    }
-    return prevValueRef.current;
-  }
-  
-  return memoizedValue;
-}
-
-// Usage
-const memoizedExpenses = useMemoizedValue(
-  expenses,
-  [expenses],
-  (prev, next) => prev.length === next.length && prev.every((e, i) => e.id === next[i].id)
-);
-```
-
-#### 4.2 Lazy Loading and Code Splitting
-**Goal**: Implement type-safe lazy loading
-
-```typescript
-// web/src/components/LazyComponent.tsx
-type LazyComponentProps = {
-  fallback?: React.ReactNode;
-  errorBoundary?: React.ComponentType<{ children: React.ReactNode }>;
-};
-
-function createLazyComponent<T extends React.ComponentType<any>>(
-  importFn: () => Promise<{ default: T }>,
-  options: LazyComponentProps = {}
-): React.LazyExoticComponent<T> {
-  const LazyComponent = lazy(importFn);
-  
-  return React.forwardRef<any, React.ComponentProps<T>>((props, ref) => (
-    <Suspense fallback={options.fallback || <LoadingSpinner />}>
-      {options.errorBoundary ? (
-        <options.errorBoundary>
-          <LazyComponent {...props} ref={ref} />
-        </options.errorBoundary>
-      ) : (
-        <LazyComponent {...props} ref={ref} />
-      )}
-    </Suspense>
-  ));
-}
-
-// Usage
-const LazyExpenseForm = createLazyComponent(
-  () => import('../components/ExpenseForm'),
-  { fallback: <ExpenseFormSkeleton /> }
-);
-```
-
-### Phase 5: Advanced State Management (Low Priority)
-
-#### 5.1 Reducer Pattern with TypeScript
-**Goal**: Implement type-safe reducer pattern
-
-```typescript
-// web/src/reducers/appReducer.ts
 type AppState = {
   expenses: Expense[];
   loading: boolean;
   error: string | null;
   filters: ExpenseFilters;
+  events: AppEvent[];
 };
 
 type AppAction = 
@@ -1191,43 +1011,48 @@ type AppAction =
   | { type: 'SET_FILTERS'; payload: ExpenseFilters }
   | { type: 'ADD_EXPENSE'; payload: Expense }
   | { type: 'UPDATE_EXPENSE'; payload: Expense }
-  | { type: 'DELETE_EXPENSE'; payload: number };
+  | { type: 'DELETE_EXPENSE'; payload: number }
+  | { type: 'ADD_EVENT'; payload: AppEvent };
 
 function appReducer(state: AppState, action: AppAction): AppState {
   switch (action.type) {
     case 'SET_EXPENSES':
       return { ...state, expenses: action.payload };
-    case 'SET_LOADING':
-      return { ...state, loading: action.payload };
-    case 'SET_ERROR':
-      return { ...state, error: action.payload };
-    case 'SET_FILTERS':
-      return { ...state, filters: action.payload };
     case 'ADD_EXPENSE':
-      return { ...state, expenses: [...state.expenses, action.payload] };
-    case 'UPDATE_EXPENSE':
-      return {
-        ...state,
-        expenses: state.expenses.map(exp => 
-          exp.id === action.payload.id ? action.payload : exp
-        )
+      // Integrate with backend events
+      return { 
+        ...state, 
+        expenses: [...state.expenses, action.payload],
+        events: [...state.events, { 
+          type: 'expense.created', 
+          data: action.payload, 
+          timestamp: new Date() 
+        }]
       };
-    case 'DELETE_EXPENSE':
-      return {
-        ...state,
-        expenses: state.expenses.filter(exp => exp.id !== action.payload)
-      };
+    case 'ADD_EVENT':
+      return { ...state, events: [...state.events, action.payload] };
     default:
       return state;
   }
 }
+
+// Event integration hook
+const useEventListener = (eventType: string, handler: (event: AppEvent) => void) => {
+  useEffect(() => {
+    const eventSource = new EventSource('/api/events');
+    
+    eventSource.addEventListener(eventType, (event) => {
+      const appEvent = JSON.parse(event.data);
+      handler(appEvent);
+    });
+    
+    return () => eventSource.close();
+  }, [eventType, handler]);
+};
 ```
 
-#### 5.2 State Machines with TypeScript
-**Goal**: Implement type-safe state machines for complex flows
-
+**File**: `web/src/machines/formMachine.ts`
 ```typescript
-// web/src/machines/formMachine.ts
 type FormState = 
   | { status: 'idle' }
   | { status: 'editing'; data: FormData }
@@ -1269,181 +1094,148 @@ function formMachine(state: FormState, event: FormEvent): FormState {
         return { status: 'error', data: state.data, error: event.error };
       }
       break;
-    case 'success':
-    case 'error':
-      if (event.type === 'RESET') {
-        return { status: 'idle' };
-      }
-      break;
   }
   return state;
 }
+
+// Integration with backend events
+const useFormMachine = (initialData: FormData) => {
+  const [state, dispatch] = useReducer(formMachine, { status: 'idle' });
+  
+  const handleSubmit = useCallback(async (data: FormData) => {
+    dispatch({ type: 'VALIDATE' });
+    
+    try {
+      // Backend validation
+      await api.validateForm(data);
+      dispatch({ type: 'SUBMIT' });
+      
+      // Backend submission
+      await api.submitForm(data);
+      dispatch({ type: 'SUCCESS' });
+    } catch (error) {
+      dispatch({ type: 'ERROR', error: error.message });
+    }
+  }, []);
+  
+  return { state, handleSubmit };
+};
 ```
 
-## Implementation Timeline
+#### Phase 5 Tasks:
+- [ ] Implement event bus system in Go
+- [ ] Create event handlers for notifications and auditing
+- [ ] Add event subscription and publishing
+- [ ] Implement reducer pattern in React
+- [ ] Create state machines for complex flows
+- [ ] Add real-time event integration between backend and frontend
+- [ ] Implement advanced state management patterns
 
-### Backend Implementation (Go)
+## Phase-Based Implementation Timeline
 
-#### Week 1-2: Phase 1 - Concurrency Foundation
-- [ ] Implement concurrent data processing
-- [ ] Add background task processing
-- [ ] Create worker pool for heavy operations
-- [ ] Update service layer to use concurrency
+### Overall Schedule (10 Weeks)
 
-#### Week 3-4: Phase 2 - Functional Programming
-- [ ] Implement functional validation pipeline
-- [ ] Add functional error handling
-- [ ] Create data transformation pipelines
-- [ ] Update existing validation logic
+**Weeks 1-2: Phase 1** - Foundation
+- Backend: Concurrency patterns (concurrent data processing, background tasks, worker pools)
+- Frontend: Type-safe state management (discriminated unions, generic components, mapped types)
+- Integration: Connect frontend to backend concurrent APIs
 
-#### Week 5-6: Phase 3 - Interface Abstractions
-- [ ] Create storage interface
-- [ ] Implement service interfaces
-- [ ] Add factory pattern for service creation
-- [ ] Update dependency injection
+**Weeks 3-4: Phase 2** - Functional & Components
+- Backend: Functional programming (validation pipeline, error handling, data transformation)
+- Frontend: Advanced components (HOCs, custom hooks, context API)
+- Integration: Frontend components with backend functional patterns
 
-#### Week 7-8: Phase 4 - Strategy Patterns
-- [ ] Implement authentication strategies
-- [ ] Add validation strategies
-- [ ] Create storage strategies
-- [ ] Update configuration management
+**Weeks 5-6: Phase 3** - Interfaces & Types
+- Backend: Interface abstractions (storage interfaces, service interfaces, factory patterns)
+- Frontend: Advanced types (conditional types, utility types, type guards)
+- Integration: Type-safe communication between layers
 
-#### Week 9-10: Phase 5 - Event-Driven Architecture
-- [ ] Implement event bus system
-- [ ] Create event handlers
-- [ ] Add notification system
-- [ ] Implement audit logging
+**Weeks 7-8: Phase 4** - Strategy & Performance
+- Backend: Strategy patterns (authentication strategies, validation strategies)
+- Frontend: Performance optimization (memoization, lazy loading, code splitting)
+- Integration: Frontend optimizations with backend strategies
 
-### Frontend Implementation (React+TypeScript)
-
-#### Week 1-2: Phase 1 - Type-Safe State Management
-- [ ] Implement discriminated unions for complex state
-- [ ] Create generic components for reusability
-- [ ] Add mapped types for dynamic forms
-- [ ] Update existing components to use new patterns
-
-#### Week 3-4: Phase 2 - Advanced Component Patterns
-- [ ] Implement higher-order components with TypeScript
-- [ ] Create custom hooks with type safety
-- [ ] Add context API with TypeScript
-- [ ] Update component architecture
-
-#### Week 5-6: Phase 3 - Advanced Type Patterns
-- [ ] Implement conditional types and utility types
-- [ ] Add type guards and runtime type checking
-- [ ] Create advanced type utilities
-- [ ] Update type definitions
-
-#### Week 7-8: Phase 4 - Performance Optimization
-- [ ] Implement memoization with TypeScript
-- [ ] Add lazy loading and code splitting
-- [ ] Create performance optimization patterns
-- [ ] Update component performance
-
-#### Week 9-10: Phase 5 - Advanced State Management
-- [ ] Implement reducer pattern with TypeScript
-- [ ] Add state machines with TypeScript
-- [ ] Create advanced state management patterns
-- [ ] Update state management architecture
+**Weeks 9-10: Phase 5** - Events & State
+- Backend: Event-driven architecture (event bus, event handlers)
+- Frontend: Advanced state management (reducers, state machines)
+- Integration: Real-time event communication
 
 ## Testing Strategy
 
-### Backend Testing (Go)
+### Unit Testing
+- **Phase 1**: Test concurrent operations and state management
+- **Phase 2**: Test functional patterns and component behavior
+- **Phase 3**: Test interface implementations and type safety
+- **Phase 4**: Test strategy selection and performance optimizations
+- **Phase 5**: Test event handling and state transitions
 
-#### Unit Tests
-- Test each pattern in isolation
-- Mock dependencies using interfaces
+### Integration Testing
+- Test cross-layer communication for each phase
+- Verify frontend-backend integration
 - Test error scenarios and edge cases
+- Performance testing for concurrent operations
 
-#### Integration Tests
-- Test pattern interactions
-- Verify concurrent operations
-- Test event-driven flows
-
-#### Performance Tests
-- Benchmark concurrent operations
-- Test memory usage with goroutines
-- Verify event bus performance
-
-### Frontend Testing (React+TypeScript)
-
-#### Unit Tests
-- Test each component and hook in isolation
-- Mock API calls and external dependencies
-- Test TypeScript type safety with type checking
-- Test error scenarios and edge cases
-
-#### Integration Tests
-- Test component interactions
-- Verify form submissions and data flow
-- Test user interactions and state changes
-
-#### Performance Tests
-- Benchmark component render times
-- Test bundle size and loading performance
-- Verify memoization effectiveness
+### End-to-End Testing
+- Complete user workflows
+- Real-time event handling
+- Authentication and authorization flows
+- Data consistency across all patterns
 
 ## Monitoring and Observability
 
 ### Metrics to Track
-- Goroutine count and memory usage
-- Event processing latency
-- Validation pipeline performance
-- Strategy pattern usage
+- **Phase 1**: Concurrent operation performance, state management efficiency
+- **Phase 2**: Validation pipeline performance, component render times
+- **Phase 3**: Interface usage patterns, type safety coverage
+- **Phase 4**: Strategy selection frequency, performance improvements
+- **Phase 5**: Event processing latency, state machine transitions
 
 ### Logging
 - Structured logging for all patterns
-- Correlation IDs for event flows
-- Performance metrics logging
+- Correlation IDs for cross-layer requests
+- Performance metrics for each phase
+- Error tracking and recovery patterns
 
 ## Success Criteria
 
-### Backend Performance Improvements (Go)
-- 50% reduction in response times for data-heavy operations
-- 80% improvement in concurrent request handling
-- 90% reduction in blocking operations
+### Performance Improvements
+- **Phase 1**: 50% reduction in data loading times, improved concurrent handling
+- **Phase 2**: Better error handling, improved component reusability
+- **Phase 3**: Increased type safety, better interface abstractions
+- **Phase 4**: Optimized authentication flows, improved rendering performance
+- **Phase 5**: Real-time event processing, advanced state management
 
-### Frontend Performance Improvements (React/TypeScript)
-- 40% reduction in component render times
-- 60% improvement in bundle size optimization
-- 70% reduction in unnecessary re-renders
-- Improved user experience and responsiveness
-
-### Backend Code Quality (Go)
+### Code Quality Metrics
 - 100% test coverage for new patterns
 - Zero race conditions in concurrent code
-- Improved error handling and recovery
-
-### Frontend Code Quality (TypeScript/React)
 - 100% TypeScript type coverage
-- Zero runtime type errors
-- Improved component reusability
-- Better type safety and developer experience
-
-### Maintainability
-- Reduced coupling between components
-- Improved testability through interfaces
+- Improved maintainability scores
 - Better separation of concerns
+
+### Developer Experience
+- Reduced development time for new features
+- Improved debugging capabilities
+- Better code organization and structure
+- Enhanced type safety and IDE support
 
 ## Risk Mitigation
 
-### Concurrency Risks
-- Use sync.WaitGroup and mutexes properly
-- Implement timeouts for all concurrent operations
-- Add circuit breakers for external calls
+### Phase-Specific Risks
+- **Phase 1**: Concurrency complexity, state management overhead
+- **Phase 2**: Functional pattern adoption, component complexity
+- **Phase 3**: Over-abstraction, type complexity
+- **Phase 4**: Strategy overhead, performance regression
+- **Phase 5**: Event system complexity, state management overhead
 
-### Performance Risks
-- Monitor goroutine usage
-- Implement backpressure mechanisms
-- Add resource limits and quotas
-
-### Complexity Risks
+### Mitigation Strategies
 - Start with simple implementations
 - Add complexity incrementally
 - Maintain backward compatibility
+- Monitor performance continuously
+- Regular code reviews and pair programming
 
 ## Conclusion
 
-This implementation plan provides a structured approach to improving the WebApp architecture using Go's programming paradigms and design patterns. The phased approach ensures minimal disruption while delivering significant improvements in performance, maintainability, and scalability.
+This phase-based implementation plan provides a coordinated approach to improving the WebApp architecture using programming paradigms and design patterns. By implementing backend Go patterns and frontend React+TypeScript patterns together in each phase, we ensure better integration and more cohesive development.
 
-Each phase builds upon the previous one, creating a solid foundation for a robust, scalable web application that leverages Go's strengths effectively.
+Each phase builds upon the previous one, creating a solid foundation for a robust, scalable web application that leverages both Go's concurrency strengths and TypeScript's type safety effectively.
