@@ -2,9 +2,9 @@ import { useState, useEffect } from 'react';
 
 export const useNavigation = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [activeSection, setActiveSection] = useState<'planning' | 'tracking' | 'analytics'>(
-    'planning'
-  );
+  const [activeSection, setActiveSection] = useState<
+    'planning' | 'tracking' | 'savings' | 'analytics'
+  >('planning');
   const [showBackToTop, setShowBackToTop] = useState(false);
 
   // Month navigation
@@ -43,7 +43,7 @@ export const useNavigation = () => {
 
   // Observe sections to update active tab on scroll
   useEffect(() => {
-    const ids: Array<typeof activeSection> = ['planning', 'tracking', 'analytics'];
+    const ids: Array<typeof activeSection> = ['planning', 'tracking', 'savings', 'analytics'];
     const elements = ids.map((id) => document.getElementById(id)).filter(Boolean) as HTMLElement[];
 
     if (elements.length === 0) return;

@@ -1,0 +1,295 @@
+/* Enhanced Color Theme for WebApp */
+
+/* Light Theme Colors */
+:root {
+  /* Primary Brand Colors */
+  --color-primary: #06c;
+  --color-primary-hover: #0052a3;
+  --color-primary-light: #e6f2ff;
+
+  /* Secondary Colors */
+  --color-secondary: #6c757d;
+  --color-secondary-light: #f8f9fa;
+
+  /* Success Colors */
+  --color-success: #28a745;
+  --color-success-light: #d4edda;
+
+  /* Warning Colors */
+  --color-warning: #ffc107;
+  --color-warning-light: #fff3cd;
+
+  /* Danger Colors */
+  --color-danger: #dc3545;
+  --color-danger-light: #f8d7da;
+
+  /* Info Colors */
+  --color-info: #17a2b8;
+  --color-info-light: #d1ecf1;
+
+  /* Background Colors */
+  --color-bg-primary: #fff;
+  --color-bg-secondary: #f8f9fa;
+  --color-bg-tertiary: #e9ecef;
+
+  /* Text Colors */
+  --color-text-primary: #212529;
+  --color-text-secondary: #6c757d;
+  --color-text-muted: #adb5bd;
+
+  /* Border Colors */
+  --color-border: #dee2e6;
+  --color-border-light: #e9ecef;
+
+  /* Chart Colors */
+  --color-chart-1: #4f81bd;
+  --color-chart-2: #c55a5a;
+  --color-chart-3: #9cbb58;
+  --color-chart-4: #8064a2;
+  --color-chart-5: #4bacc6;
+  --color-chart-6: #f79646;
+
+  /* Budget Specific Colors */
+  --color-income: #28a745;
+  --color-expense: #dc3545;
+  --color-savings: #17a2b8;
+  --color-remaining: #ffc107;
+
+  /* Shadow */
+  --shadow-sm: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+  --shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+  --shadow-lg: 0 1rem 3rem rgba(0, 0, 0, 0.175);
+}
+
+/* Dark Theme Colors */
+[data-bs-theme='dark'] {
+  /* Primary Brand Colors */
+  --color-primary: #4dabf7;
+  --color-primary-hover: #339af0;
+  --color-primary-light: #1a1f2e;
+
+  /* Secondary Colors */
+  --color-secondary: #adb5bd;
+  --color-secondary-light: #212529;
+
+  /* Success Colors */
+  --color-success: #51cf66;
+  --color-success-light: #1b2e1b;
+
+  /* Warning Colors */
+  --color-warning: #ffd43b;
+  --color-warning-light: #2e2a1b;
+
+  /* Danger Colors */
+  --color-danger: #ff6b6b;
+  --color-danger-light: #2e1b1b;
+
+  /* Info Colors */
+  --color-info: #22d3ee;
+  --color-info-light: #1b2a2e;
+
+  /* Background Colors */
+  --color-bg-primary: #1a1d29;
+  --color-bg-secondary: #25283a;
+  --color-bg-tertiary: #2d3245;
+
+  /* Text Colors */
+  --color-text-primary: #e9ecef;
+  --color-text-secondary: #adb5bd;
+  --color-text-muted: #6c757d;
+
+  /* Border Colors */
+  --color-border: #495057;
+  --color-border-light: #343a40;
+
+  /* Chart Colors */
+  --color-chart-1: #74c0fc;
+  --color-chart-2: #ff8787;
+  --color-chart-3: #8ce99a;
+  --color-chart-4: #b197fc;
+  --color-chart-5: #74d8f7;
+  --color-chart-6: #ffb366;
+
+  /* Budget Specific Colors */
+  --color-income: #51cf66;
+  --color-expense: #ff6b6b;
+  --color-savings: #22d3ee;
+  --color-remaining: #ffd43b;
+
+  /* Shadow */
+  --shadow-sm: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.3);
+  --shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 1rem 3rem rgba(0, 0, 0, 0.5);
+}
+
+/* Enhanced Component Styles */
+.card {
+  border-radius: 12px;
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow 0.2s ease-in-out;
+}
+
+.card:hover {
+  box-shadow: var(--shadow);
+}
+
+.card-header {
+  background: linear-gradient(135deg, var(--color-bg-secondary), var(--color-bg-tertiary));
+  border-bottom: 1px solid var(--color-border);
+  border-radius: 12px 12px 0 0 !important;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-hover));
+  border-color: var(--color-primary);
+}
+
+.btn-primary:hover {
+  background: linear-gradient(135deg, var(--color-primary-hover), var(--color-primary));
+  transform: translateY(-1px);
+}
+
+.btn-success {
+  background: linear-gradient(135deg, var(--color-success), #218838);
+  border-color: var(--color-success);
+}
+
+.btn-danger {
+  background: linear-gradient(135deg, var(--color-danger), #c82333);
+  border-color: var(--color-danger);
+}
+
+.btn-info {
+  background: linear-gradient(135deg, var(--color-info), #138496);
+  border-color: var(--color-info);
+}
+
+.btn-warning {
+  background: linear-gradient(135deg, var(--color-warning), #e0a800);
+  border-color: var(--color-warning);
+  color: #212529;
+}
+
+/* Enhanced Navigation */
+.nav-tabs .nav-link.active {
+  background: linear-gradient(135deg, var(--color-primary-light), var(--color-bg-primary));
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+/* Enhanced Form Controls */
+.form-control {
+  border-radius: 8px;
+  border-color: var(--color-border-light);
+  transition:
+    border-color 0.2s ease-in-out,
+    box-shadow 0.2s ease-in-out;
+}
+
+.form-control:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 0.2rem rgba(0, 102, 204, 0.25);
+}
+
+/* Enhanced Dropdowns */
+.dropdown-menu {
+  border-radius: 12px;
+  box-shadow: var(--shadow-lg);
+  border-color: var(--color-border);
+}
+
+.dropdown-item {
+  border-radius: 8px;
+  margin: 2px 6px;
+  transition: background-color 0.2s ease-in-out;
+}
+
+.dropdown-item:hover {
+  background-color: var(--color-primary-light);
+  color: var(--color-primary);
+}
+
+/* Enhanced Alerts */
+.alert {
+  border-radius: 12px;
+  border: none;
+}
+
+.alert-success {
+  background: linear-gradient(135deg, var(--color-success-light), var(--color-bg-primary));
+  color: var(--color-success);
+}
+
+.alert-danger {
+  background: linear-gradient(135deg, var(--color-danger-light), var(--color-bg-primary));
+  color: var(--color-danger);
+}
+
+.alert-warning {
+  background: linear-gradient(135deg, var(--color-warning-light), var(--color-bg-primary));
+  color: #856404;
+}
+
+.alert-info {
+  background: linear-gradient(135deg, var(--color-info-light), var(--color-bg-primary));
+  color: var(--color-info);
+}
+
+/* Enhanced Chart Container */
+.chart-container {
+  position: relative;
+  background: var(--color-bg-primary);
+  border-radius: 8px;
+  padding: 1rem;
+  margin: 0.5rem 0;
+}
+
+/* Smooth transitions for theme changes */
+* {
+  transition:
+    background-color 0.3s ease-in-out,
+    color 0.3s ease-in-out,
+    border-color 0.3s ease-in-out;
+}
+
+/* Enhanced page header */
+.page-header {
+  background: linear-gradient(135deg, var(--color-bg-secondary), var(--color-bg-tertiary));
+  border-bottom: 1px solid var(--color-border);
+}
+
+/* Enhanced back to top button */
+.btn-back-to-top {
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-hover));
+  border: none;
+  border-radius: 50%;
+  width: 50px;
+  height: 50px;
+  box-shadow: var(--shadow);
+  transition:
+    transform 0.2s ease-in-out,
+    box-shadow 0.2s ease-in-out;
+}
+
+.btn-back-to-top:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+/* Budget specific styling */
+.income-item {
+  border-left: 4px solid var(--color-income);
+}
+
+.expense-item {
+  border-left: 4px solid var(--color-expense);
+}
+
+.savings-item {
+  border-left: 4px solid var(--color-savings);
+}
+
+.remaining-item {
+  border-left: 4px solid var(--color-remaining);
+}

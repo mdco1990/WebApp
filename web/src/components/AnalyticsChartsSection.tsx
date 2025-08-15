@@ -2,11 +2,13 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Spinner } from 'react-bootstrap';
 import BudgetOverviewChart from './BudgetOverviewChart';
-import SavingsProgressChart from './SavingsProgressChart';
+import CurrentMonthBudgetBarChart from './CurrentMonthBudgetBarChart';
 import KpiTrendChart from './KpiTrendChart';
 import ManualBudgetDailyChart from './ManualBudgetDailyChart';
 import IncomeBreakdownChart from './IncomeBreakdownChart';
 import OutcomeBreakdownChart from './OutcomeBreakdownChart';
+import SavingsProgressChart from './SavingsProgressChart';
+import SavingsCategoriesChart from './SavingsCategoriesChart';
 import type { IncomeSource, OutcomeSource } from '../types/budget';
 
 // Hoisted helper components to keep stable identities between renders
@@ -38,7 +40,7 @@ const BreakdownCard = React.memo<{
 }>(({ title, isDarkMode, hasItems, emptyText, children }) => (
   <div className={`card ${isDarkMode ? 'bg-secondary text-light' : 'bg-white'}`}>
     <div className="card-header">
-      <h3>{title}</h3>
+      <h6>{title}</h6>
     </div>
     <div className="card-body">
       <div style={{ height: '300px' }}>
@@ -55,13 +57,6 @@ const BreakdownCard = React.memo<{
 ));
 BreakdownCard.displayName = 'BreakdownCard';
 
-type SavingsTracker = {
-  targetAmount: number;
-  currentAmount: number;
-  monthlyContribution: number;
-  monthsToTarget: number;
-};
-
 interface AnalyticsChartsSectionProps {
   isDarkMode: boolean;
   dataLoaded: boolean;
@@ -71,8 +66,11 @@ interface AnalyticsChartsSectionProps {
     totalIncome: number;
     totalOutcome: number;
   };
-  savingsTracker: SavingsTracker;
-  setSavingsTracker: React.Dispatch<React.SetStateAction<SavingsTracker>>;
+  savingsTracker: {
+    currentAmount: number;
+    targetAmount: number;
+    categories: Array<{ id: string; name: string; amount: number; color: string }>;
+  };
   currentDate: Date;
   manualBudget: {
     bankAmount: number;
@@ -87,7 +85,6 @@ const AnalyticsChartsSection = React.memo<AnalyticsChartsSectionProps>(
     dataLoaded,
     predictedBudget,
     savingsTracker,
-    setSavingsTracker,
     currentDate,
     manualBudget,
     formatCurrency,
@@ -140,14 +137,6 @@ const AnalyticsChartsSection = React.memo<AnalyticsChartsSectionProps>(
       () => t('legend.amount', { defaultValue: 'Amount' }),
       [t]
     );
-    const savingsLegendCurrent = React.useMemo(
-      () => t('legend.current', { defaultValue: 'Current' }),
-      [t]
-    );
-    const savingsLegendRemaining = React.useMemo(
-      () => t('legend.remaining', { defaultValue: 'Remaining' }),
-      [t]
-    );
     const kpiLegendIncome = React.useMemo(
       () => t('legend.predictedIncome', { defaultValue: 'Predicted Income' }),
       [t]
@@ -167,11 +156,6 @@ const AnalyticsChartsSection = React.memo<AnalyticsChartsSectionProps>(
     );
     const emptyIncomeText = React.useMemo(() => t('empty.noIncome'), [t]);
     const emptyOutcomeText = React.useMemo(() => t('empty.noOutcome'), [t]);
-    const savingsTitle = React.useMemo(() => t('section.savings'), [t]);
-    const targetAmountLabel = React.useMemo(() => t('label.targetAmount'), [t]);
-    const currentAmountLabel = React.useMemo(() => t('label.currentAmount'), [t]);
-    const monthlyContributionLabel = React.useMemo(() => t('label.monthlyContribution'), [t]);
-    const monthsToTargetLabel = React.useMemo(() => t('label.monthsToTarget'), [t]);
     const kpiTrendTitle = React.useMemo(
       () => t('section.kpiTrend', { defaultValue: 'Income vs Outcomes Trend' }),
       [t]
@@ -235,7 +219,7 @@ const AnalyticsChartsSection = React.memo<AnalyticsChartsSectionProps>(
         <div className="col-lg-6 mb-4">
           <div className={`card ${isDarkMode ? 'bg-secondary text-light' : 'bg-white'}`}>
             <div className="card-header">
-              <h3>{budgetOverviewTitle}</h3>
+              <h6>{budgetOverviewTitle}</h6>
             </div>
             <div className="card-body">
               <Loadable loaded={dataLoaded}>
@@ -250,94 +234,27 @@ const AnalyticsChartsSection = React.memo<AnalyticsChartsSectionProps>(
           </div>
         </div>
 
-        {/* Savings Tracker */}
-        <div className="col-xl-6 col-lg-12 mb-4">
-          <div className={`card h-100 ${isDarkMode ? 'bg-secondary text-light' : 'bg-white'}`}>
+        {/* Current Month Budget Bar Chart */}
+        <div className="col-lg-6 mb-4">
+          <div className={`card ${isDarkMode ? 'bg-secondary text-light' : 'bg-white'}`}>
             <div className="card-header">
-              <h3>{savingsTitle}</h3>
+              <h6>{t('section.currentMonthBudget', { defaultValue: 'Current Month Budget' })}</h6>
             </div>
             <div className="card-body">
-              <div className="row g-3 mb-3">
-                <div className="col-md-6 col-12">
-                  <label className="form-label">{targetAmountLabel}</label>
-                  <input
-                    type="number"
-                    className={`form-control ${isDarkMode ? 'bg-dark text-light border-secondary' : ''}`}
-                    value={savingsTracker.targetAmount}
-                    onChange={(e) => {
-                      const next = {
-                        ...savingsTracker,
-                        targetAmount: parseFloat(e.target.value) || 0,
-                      };
-                      setSavingsTracker(next);
-                    }}
-                    inputMode="decimal"
-                    step="0.01"
-                  />
-                </div>
-                <div className="col-md-6 col-12">
-                  <label className="form-label">{currentAmountLabel}</label>
-                  <input
-                    type="number"
-                    className={`form-control ${isDarkMode ? 'bg-dark text-light border-secondary' : ''}`}
-                    value={savingsTracker.currentAmount}
-                    onChange={(e) => {
-                      const next = {
-                        ...savingsTracker,
-                        currentAmount: parseFloat(e.target.value) || 0,
-                      };
-                      setSavingsTracker(next);
-                    }}
-                    inputMode="decimal"
-                    step="0.01"
-                  />
-                </div>
-              </div>
-              <div className="row g-3 mb-3">
-                <div className="col-md-6 col-12">
-                  <label className="form-label">{monthlyContributionLabel}</label>
-                  <input
-                    type="number"
-                    className={`form-control ${isDarkMode ? 'bg-dark text-light border-secondary' : ''}`}
-                    value={savingsTracker.monthlyContribution}
-                    onChange={(e) => {
-                      const next = {
-                        ...savingsTracker,
-                        monthlyContribution: parseFloat(e.target.value) || 0,
-                      };
-                      setSavingsTracker(next);
-                    }}
-                  />
-                </div>
-                <div className="col-md-6 col-12">
-                  <div className="form-label">{monthsToTargetLabel}</div>
-                  <div className="form-control-plaintext">
-                    {(() => {
-                      const months = Math.ceil(
-                        (savingsTracker.targetAmount - savingsTracker.currentAmount) /
-                          Math.max(savingsTracker.monthlyContribution, 1)
-                      );
-                      let label: string;
-                      if (i18n.language?.startsWith('fr')) {
-                        label = t('label.months', { defaultValue: 'mois' });
-                      } else if (months === 1) {
-                        label = t('label.month', { defaultValue: 'month' });
-                      } else {
-                        label = t('label.months', { defaultValue: 'months' });
-                      }
-                      return `${months} ${label}`;
-                    })()}
-                  </div>
-                </div>
-              </div>
-              <Loadable loaded={dataLoaded} height="200px">
-                <SavingsProgressChart
+              <Loadable loaded={dataLoaded}>
+                <CurrentMonthBudgetBarChart
                   isDarkMode={isDarkMode}
-                  currentAmount={savingsTracker.currentAmount}
-                  targetAmount={savingsTracker.targetAmount}
-                  formatCurrency={formatCurrency}
-                  legendCurrent={savingsLegendCurrent}
-                  legendRemaining={savingsLegendRemaining}
+                  labels={[
+                    t('label.bankAmount', { defaultValue: 'Bank' }),
+                    t('label.items', { defaultValue: 'Items' }),
+                    t('label.remaining', { defaultValue: 'Remaining' }),
+                  ]}
+                  data={[
+                    manualBudget.bankAmount / 100,
+                    manualBudgetItemsTotal / 100,
+                    (manualBudget.bankAmount + manualBudgetItemsTotal) / 100,
+                  ]}
+                  legendLabel={t('legend.amount', { defaultValue: 'Amount' })}
                 />
               </Loadable>
             </div>
@@ -348,7 +265,7 @@ const AnalyticsChartsSection = React.memo<AnalyticsChartsSectionProps>(
         <div className="col-12 mb-4">
           <div className={`card ${isDarkMode ? 'bg-secondary text-light' : 'bg-white'}`}>
             <div className="card-header">
-              <h3>{kpiTrendTitle}</h3>
+              <h6>{kpiTrendTitle}</h6>
             </div>
             <div className="card-body">
               <Loadable loaded={dataLoaded}>
@@ -369,7 +286,7 @@ const AnalyticsChartsSection = React.memo<AnalyticsChartsSectionProps>(
         <div className="col-12 mb-4">
           <div className={`card ${isDarkMode ? 'bg-secondary text-light' : 'bg-white'}`}>
             <div className="card-header">
-              <h3>{manualBudgetDailyTitle}</h3>
+              <h6>{manualBudgetDailyTitle}</h6>
             </div>
             <div className="card-body">
               <Loadable loaded={dataLoaded}>
@@ -385,6 +302,45 @@ const AnalyticsChartsSection = React.memo<AnalyticsChartsSectionProps>(
                 />
               </Loadable>
               <div className="text-muted small mt-2">{noteDailySeries}</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Savings Progress Chart */}
+        <div className="col-lg-6 mb-4">
+          <div className={`card ${isDarkMode ? 'bg-secondary text-light' : 'bg-white'}`}>
+            <div className="card-header">
+              <h6>{t('section.savingsProgress', { defaultValue: 'Savings Progress' })}</h6>
+            </div>
+            <div className="card-body">
+              <Loadable loaded={dataLoaded}>
+                <SavingsProgressChart
+                  isDarkMode={isDarkMode}
+                  currentAmount={savingsTracker.currentAmount}
+                  targetAmount={savingsTracker.targetAmount}
+                  formatCurrency={formatCurrency}
+                  legendCurrent={t('legend.current', { defaultValue: 'Current' })}
+                  legendRemaining={t('legend.remaining', { defaultValue: 'Remaining' })}
+                />
+              </Loadable>
+            </div>
+          </div>
+        </div>
+
+        {/* Savings Categories Chart */}
+        <div className="col-lg-6 mb-4">
+          <div className={`card ${isDarkMode ? 'bg-secondary text-light' : 'bg-white'}`}>
+            <div className="card-header">
+              <h6>{t('section.savingsCategories', { defaultValue: 'Savings Categories' })}</h6>
+            </div>
+            <div className="card-body">
+              <Loadable loaded={dataLoaded}>
+                <SavingsCategoriesChart
+                  isDarkMode={isDarkMode}
+                  categories={savingsTracker.categories}
+                  formatCurrency={formatCurrency}
+                />
+              </Loadable>
             </div>
           </div>
         </div>

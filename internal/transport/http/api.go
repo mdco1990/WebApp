@@ -11,6 +11,7 @@ import (
 	"github.com/mdco1990/webapp/internal/domain"
 	"github.com/mdco1990/webapp/internal/middleware"
 	"github.com/mdco1990/webapp/internal/repository"
+	"github.com/mdco1990/webapp/internal/security"
 	"github.com/mdco1990/webapp/internal/service"
 )
 
@@ -121,8 +122,9 @@ func handleListExpenses(svc *service.Service) http.HandlerFunc {
 	}
 }
 
-// handleAddExpense adds a new expense
+// handleAddExpense adds a new expense with OWASP security validation
 func handleAddExpense(svc *service.Service) http.HandlerFunc {
+	secureHandler := security.NewSecureHandler()
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req struct {
 			Year        int    `json:"year"`
@@ -131,21 +133,33 @@ func handleAddExpense(svc *service.Service) http.HandlerFunc {
 			Description string `json:"description"`
 			AmountCents int64  `json:"amount_cents"`
 		}
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			respondErr(w, http.StatusBadRequest, invalidBodyMsg)
+
+		if err := secureHandler.SecureJSONDecoder(r, &req); err != nil {
+			secureHandler.SecureErrorResponse(w, http.StatusBadRequest, "invalid request body")
 			return
 		}
-		id, err := svc.AddExpense(r.Context(), &domain.Expense{
+
+		expense := &domain.Expense{
 			YearMonth:   domain.YearMonth{Year: req.Year, Month: req.Month},
 			Category:    req.Category,
 			Description: req.Description,
 			AmountCents: domain.Money(req.AmountCents),
-		})
+		}
+
+		// Enhanced OWASP validation and sanitization
+		validatedExpense, err := security.ValidateExpense(expense)
 		if err != nil {
-			respondErr(w, http.StatusBadRequest, err.Error())
+			secureHandler.SecureErrorResponse(w, http.StatusBadRequest, err.Error())
 			return
 		}
-		respondJSON(w, http.StatusCreated, map[string]any{"id": id})
+
+		id, err := svc.AddExpense(r.Context(), validatedExpense)
+		if err != nil {
+			secureHandler.SecureErrorResponse(w, http.StatusBadRequest, err.Error())
+			return
+		}
+
+		secureHandler.SecureJSONResponse(w, http.StatusCreated, map[string]any{"id": id})
 	}
 }
 
@@ -336,21 +350,42 @@ func handleListIncomeSources(repo *repository.Repository) http.HandlerFunc {
 	}
 }
 
-// handleCreateIncomeSource creates a new income source
+// handleCreateIncomeSource creates a new income source with OWASP security validation
 func handleCreateIncomeSource(repo *repository.Repository) http.HandlerFunc {
+	secureHandler := security.NewSecureHandler()
 	return func(w http.ResponseWriter, r *http.Request) {
 		userID := getUserIDFromContext(r.Context())
+
+		// Validate user ID
+		if err := security.ValidateUserID(userID); err != nil {
+			secureHandler.SecureErrorResponse(w, http.StatusUnauthorized, "invalid user")
+			return
+		}
+
 		var req domain.CreateIncomeSourceRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			respondErr(w, http.StatusBadRequest, invalidBodyMsg)
+		if err := secureHandler.SecureJSONDecoder(r, &req); err != nil {
+			secureHandler.SecureErrorResponse(w, http.StatusBadRequest, "invalid request body")
 			return
 		}
-		source, err := repo.CreateIncomeSource(r.Context(), userID, req)
+
+		// Enhanced OWASP validation and sanitization
+		validatedReq, err := security.ValidateCreateIncomeSourceRequest(req)
 		if err != nil {
-			respondErr(w, http.StatusInternalServerError, "failed to create income source")
+			secureHandler.SecureErrorResponse(w, http.StatusBadRequest, err.Error())
 			return
 		}
-		respondJSON(w, http.StatusCreated, source)
+
+		source, err := repo.CreateIncomeSource(r.Context(), userID, *validatedReq)
+		if err != nil {
+			secureHandler.SecureErrorResponse(
+				w,
+				http.StatusInternalServerError,
+				"failed to create income source",
+			)
+			return
+		}
+
+		secureHandler.SecureJSONResponse(w, http.StatusCreated, source)
 	}
 }
 
@@ -516,10 +551,14 @@ func handleUpdateManualBudget(repo *repository.Repository) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		userID := getUserIDFromContext(r.Context())
 		var req struct {
-			Year            int                       `json:"year"`
-			Month           int                       `json:"month"`
-			BankAmountCents int64                     `json:"bank_amount_cents"`
-			Items           []domain.ManualBudgetItem `json:"items"`
+			Year            int   `json:"year"`
+			Month           int   `json:"month"`
+			BankAmountCents int64 `json:"bank_amount_cents"`
+			Items           []struct {
+				ID          interface{} `json:"id"` // Accept both string and int64
+				Name        string      `json:"name"`
+				AmountCents int64       `json:"amount_cents"`
+			} `json:"items"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			respondErr(w, http.StatusBadRequest, invalidBodyMsg)
@@ -530,8 +569,14 @@ func handleUpdateManualBudget(repo *repository.Repository) http.HandlerFunc {
 			return
 		}
 
-		// Sanitize items: keep name, amount_cents
-		items := sanitizeManualBudgetItems(req.Items)
+		// Convert to domain objects
+		items := make([]domain.ManualBudgetItem, 0, len(req.Items))
+		for _, it := range req.Items {
+			items = append(items, domain.ManualBudgetItem{
+				Name:        strings.TrimSpace(it.Name),
+				AmountCents: domain.Money(it.AmountCents),
+			})
+		}
 
 		if err := repo.UpsertManualBudget(r.Context(), userID, domain.YearMonth{Year: req.Year, Month: req.Month}, domain.Money(req.BankAmountCents), items); err != nil {
 			respondErr(w, http.StatusInternalServerError, "failed to save manual budget")
@@ -539,16 +584,4 @@ func handleUpdateManualBudget(repo *repository.Repository) http.HandlerFunc {
 		}
 		respondJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 	}
-}
-
-// sanitizeManualBudgetItems helper to clean manual budget items
-func sanitizeManualBudgetItems(items []domain.ManualBudgetItem) []domain.ManualBudgetItem {
-	sanitized := make([]domain.ManualBudgetItem, 0, len(items))
-	for _, it := range items {
-		sanitized = append(sanitized, domain.ManualBudgetItem{
-			Name:        strings.TrimSpace(it.Name),
-			AmountCents: domain.Money(it.AmountCents),
-		})
-	}
-	return sanitized
 }

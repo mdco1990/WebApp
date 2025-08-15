@@ -46,40 +46,58 @@ export function useMonthlyData(ym: YearMonth | null): UseMonthlyDataResult {
   // mutations
   const autoSaveIncomeSource = useCallback(
     async (source: IncomeSource, cur: YearMonth) => {
-      if (source.id) {
-        await updateIncomeSource(source.id, {
-          name: source.name,
-          amount_cents: source.amount_cents,
-        });
-      } else {
-        await createIncomeSource({
-          name: source.name,
-          year: cur.year,
-          month: cur.month,
-          amount_cents: source.amount_cents,
-        });
+      try {
+        if (source.id) {
+          await updateIncomeSource(source.id, {
+            name: source.name,
+            amount_cents: source.amount_cents,
+          });
+        } else {
+          await createIncomeSource({
+            name: source.name,
+            year: cur.year,
+            month: cur.month,
+            amount_cents: source.amount_cents,
+          });
+        }
+        // Only reload if this was a creation (no id) to get the new server-assigned id
+        if (!source.id) {
+          await reload();
+        }
+      } catch (error) {
+        // If save fails, reload to get the correct server state
+        await reload();
+        throw error;
       }
-      await reload();
     },
     [reload]
   );
 
   const autoSaveOutcomeSource = useCallback(
     async (source: OutcomeSource, cur: YearMonth) => {
-      if (source.id) {
-        await updateBudgetSource(source.id, {
-          name: source.name,
-          amount_cents: source.amount_cents,
-        });
-      } else {
-        await createBudgetSource({
-          name: source.name,
-          year: cur.year,
-          month: cur.month,
-          amount_cents: source.amount_cents,
-        });
+      try {
+        if (source.id) {
+          await updateBudgetSource(source.id, {
+            name: source.name,
+            amount_cents: source.amount_cents,
+          });
+        } else {
+          await createBudgetSource({
+            name: source.name,
+            year: cur.year,
+            month: cur.month,
+            amount_cents: source.amount_cents,
+          });
+        }
+        // Only reload if this was a creation (no id) to get the new server-assigned id
+        if (!source.id) {
+          await reload();
+        }
+      } catch (error) {
+        // If save fails, reload to get the correct server state
+        await reload();
+        throw error;
       }
-      await reload();
     },
     [reload]
   );

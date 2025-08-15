@@ -4,12 +4,16 @@ export type YearMonth = { year: number; month: number };
 
 export interface IncomeSource {
   id?: number;
+  // client_id is a frontend-only stable identifier for unsaved (not yet persisted) rows
+  client_id?: string;
   name: string;
   amount_cents: number;
 }
 
 export interface OutcomeSource {
   id?: number;
+  // client_id is a frontend-only stable identifier for unsaved (not yet persisted) rows
+  client_id?: string;
   name: string;
   amount_cents: number;
 }
