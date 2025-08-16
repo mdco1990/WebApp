@@ -627,5 +627,5 @@ type MetricsCollector interface {
 // ErrorHandler defines the interface for error handling
 type ErrorHandler interface {
 	HandleError(ctx context.Context, event Event, err error)
-	HandlePanic(ctx context.Context, event Event, panic interface{})
+	HandlePanic(ctx context.Context, event Event, recovered interface{})
 }

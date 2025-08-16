@@ -6,8 +6,8 @@ import (
 	"time"
 )
 
-// StorageProvider defines the interface for storage backends.
-type StorageProvider interface {
+// Provider defines the interface for storage backends.
+type Provider interface {
 	// Save stores a value with an optional TTL
 	Save(ctx context.Context, key string, value interface{}, ttl *time.Duration) error
 
@@ -30,14 +30,14 @@ type StorageProvider interface {
 	Clear(ctx context.Context) error
 
 	// GetStats returns storage statistics
-	GetStats(ctx context.Context) (*StorageStats, error)
+	GetStats(ctx context.Context) (*Stats, error)
 
 	// Close closes the storage provider
 	Close(ctx context.Context) error
 }
 
-// StorageStats provides information about storage usage
-type StorageStats struct {
+// Stats provides information about storage usage
+type Stats struct {
 	TotalKeys    int64     `json:"total_keys"`
 	TotalSize    int64     `json:"total_size_bytes"`
 	ExpiredKeys  int64     `json:"expired_keys"`
@@ -46,8 +46,8 @@ type StorageStats struct {
 	ProviderType string    `json:"provider_type"`
 }
 
-// StorageOptions configures storage behavior
-type StorageOptions struct {
+// Options configures storage behavior
+type Options struct {
 	DefaultTTL      *time.Duration         `json:"default_ttl"`
 	MaxKeys         int64                  `json:"max_keys"`
 	MaxSize         int64                  `json:"max_size_bytes"`
@@ -57,8 +57,8 @@ type StorageOptions struct {
 	Metadata        map[string]interface{} `json:"metadata,omitempty"`
 }
 
-// StorageEntry represents a stored value with metadata
-type StorageEntry struct {
+// Entry represents a stored value with metadata
+type Entry struct {
 	Key       string                 `json:"key"`
 	Value     interface{}            `json:"value"`
 	CreatedAt time.Time              `json:"created_at"`
@@ -67,39 +67,40 @@ type StorageEntry struct {
 	Metadata  map[string]interface{} `json:"metadata,omitempty"`
 }
 
-// StorageError represents storage-specific errors
-type StorageError struct {
+// Error represents storage-specific errors
+type Error struct {
 	Op      string `json:"operation"`
 	Key     string `json:"key"`
 	Message string `json:"message"`
 	Code    string `json:"error_code"`
 }
 
-func (e StorageError) Error() string {
+func (e Error) Error() string {
 	return e.Message
 }
 
-// StorageEvent represents storage lifecycle events
-type StorageEvent struct {
-	Type      StorageEventType `json:"type"`
+// Event represents storage lifecycle events
+type Event struct {
+	Type      EventType `json:"type"`
 	Key       string           `json:"key"`
 	Timestamp time.Time        `json:"timestamp"`
 	Data      interface{}      `json:"data,omitempty"`
 }
 
-// StorageEventType defines the type of storage event
-type StorageEventType string
+// EventType defines the type of storage event
+type EventType string
 
+// Event type constants
 const (
-	StorageEventCreated StorageEventType = "created"
-	StorageEventUpdated StorageEventType = "updated"
-	StorageEventDeleted StorageEventType = "deleted"
-	StorageEventExpired StorageEventType = "expired"
-	StorageEventCleared StorageEventType = "cleared"
+	EventCreated EventType = "created"
+	EventUpdated EventType = "updated"
+	EventDeleted EventType = "deleted"
+	EventExpired EventType = "expired"
+	EventCleared EventType = "cleared"
 )
 
-// StorageEventHandler handles storage events
-type StorageEventHandler func(event StorageEvent)
+// EventHandler handles storage events
+type EventHandler func(event Event)
 
 // StorageProviderFactory creates storage providers
 type StorageProviderFactory interface {

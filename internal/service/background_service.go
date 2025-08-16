@@ -14,6 +14,7 @@ import (
 // TaskStatus represents the current status of a background task.
 type TaskStatus string
 
+// Task status constants
 const (
 	TaskStatusPending    TaskStatus = "pending"
 	TaskStatusProcessing TaskStatus = "processing"
@@ -25,6 +26,7 @@ const (
 // TaskType represents the type of background task.
 type TaskType string
 
+// Task type constants
 const (
 	TaskTypeExpenseReport TaskType = "expense_report"
 	TaskTypeDataExport    TaskType = "data_export"

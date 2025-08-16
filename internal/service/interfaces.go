@@ -135,16 +135,16 @@ type BackgroundTaskService interface {
 	CleanupCompletedTasks(ctx context.Context, olderThan time.Duration) int
 }
 
-// ServiceFactory creates and manages service instances
-type ServiceFactory struct {
+// Factory creates and manages service instances
+type Factory struct {
 	repo           *repository.Repository
 	storageManager *storage.StorageManager
 	services       map[string]interface{}
 }
 
-// NewServiceFactory creates a new service factory
-func NewServiceFactory(repo *repository.Repository, storageManager *storage.StorageManager) *ServiceFactory {
-	return &ServiceFactory{
+// NewFactory creates a new service factory
+func NewFactory(repo *repository.Repository, storageManager *storage.StorageManager) *Factory {
+	return &Factory{
 		repo:           repo,
 		storageManager: storageManager,
 		services:       make(map[string]interface{}),
@@ -154,7 +154,7 @@ func NewServiceFactory(repo *repository.Repository, storageManager *storage.Stor
 // GetUserService returns or creates a UserService instance
 //
 //nolint:ireturn
-func (sf *ServiceFactory) GetUserService() UserService {
+func (sf *Factory) GetUserService() UserService {
 	if service, exists := sf.services["user"]; exists {
 		if userService, ok := service.(UserService); ok {
 			return userService
@@ -172,7 +172,7 @@ func (sf *ServiceFactory) GetUserService() UserService {
 // GetFinancialService returns or creates a FinancialService instance
 //
 //nolint:ireturn
-func (sf *ServiceFactory) GetFinancialService() FinancialService {
+func (sf *Factory) GetFinancialService() FinancialService {
 	if service, exists := sf.services["financial"]; exists {
 		if financialService, ok := service.(FinancialService); ok {
 			return financialService
@@ -190,7 +190,7 @@ func (sf *ServiceFactory) GetFinancialService() FinancialService {
 // GetNotificationService returns or creates a NotificationService instance
 //
 //nolint:ireturn
-func (sf *ServiceFactory) GetNotificationService() NotificationService {
+func (sf *Factory) GetNotificationService() NotificationService {
 	if service, exists := sf.services["notification"]; exists {
 		if notificationService, ok := service.(NotificationService); ok {
 			return notificationService
@@ -208,7 +208,7 @@ func (sf *ServiceFactory) GetNotificationService() NotificationService {
 // GetAuditService returns or creates an AuditService instance
 //
 //nolint:ireturn
-func (sf *ServiceFactory) GetAuditService() AuditService {
+func (sf *Factory) GetAuditService() AuditService {
 	if service, exists := sf.services["audit"]; exists {
 		if auditService, ok := service.(AuditService); ok {
 			return auditService
@@ -226,7 +226,7 @@ func (sf *ServiceFactory) GetAuditService() AuditService {
 // GetCacheService returns or creates a CacheService instance
 //
 //nolint:ireturn
-func (sf *ServiceFactory) GetCacheService() CacheService {
+func (sf *Factory) GetCacheService() CacheService {
 	if service, exists := sf.services["cache"]; exists {
 		if cacheService, ok := service.(CacheService); ok {
 			return cacheService
@@ -261,7 +261,7 @@ func (sf *ServiceFactory) GetCacheService() CacheService {
 // GetBackgroundTaskService returns or creates a BackgroundTaskService instance
 //
 //nolint:ireturn
-func (sf *ServiceFactory) GetBackgroundTaskService() BackgroundTaskService {
+func (sf *Factory) GetBackgroundTaskService() BackgroundTaskService {
 	if service, exists := sf.services["background_task"]; exists {
 		if backgroundTaskService, ok := service.(BackgroundTaskService); ok {
 			return backgroundTaskService
@@ -277,7 +277,7 @@ func (sf *ServiceFactory) GetBackgroundTaskService() BackgroundTaskService {
 }
 
 // GetService returns a service by name
-func (sf *ServiceFactory) GetService(name string) (interface{}, error) {
+func (sf *Factory) GetService(name string) (interface{}, error) {
 	switch name {
 	case "user":
 		return sf.GetUserService(), nil
@@ -297,7 +297,7 @@ func (sf *ServiceFactory) GetService(name string) (interface{}, error) {
 }
 
 // ListServices returns a list of available service names
-func (sf *ServiceFactory) ListServices() []string {
+func (sf *Factory) ListServices() []string {
 	return []string{
 		"user",
 		"financial",
@@ -309,7 +309,7 @@ func (sf *ServiceFactory) ListServices() []string {
 }
 
 // Close closes all services
-func (sf *ServiceFactory) Close(ctx context.Context) error {
+func (sf *Factory) Close(ctx context.Context) error {
 	var lastError error
 
 	for name, service := range sf.services {
@@ -326,8 +326,8 @@ func (sf *ServiceFactory) Close(ctx context.Context) error {
 	return lastError
 }
 
-// ServiceConfig holds configuration for services
-type ServiceConfig struct {
+// Config holds configuration for services
+type Config struct {
 	UserService           UserServiceConfig           `json:"user_service"`
 	FinancialService      FinancialServiceConfig      `json:"financial_service"`
 	NotificationService   NotificationServiceConfig   `json:"notification_service"`
@@ -386,8 +386,8 @@ type BackgroundTaskServiceConfig struct {
 	EnableProgressTracking bool          `json:"enable_progress_tracking"`
 }
 
-// ServiceHealth represents the health status of a service
-type ServiceHealth struct {
+// Health represents the health status of a service
+type Health struct {
 	Name      string                 `json:"name"`
 	Status    string                 `json:"status"` // "healthy", "degraded", "unhealthy"
 	Message   string                 `json:"message"`
@@ -395,19 +395,19 @@ type ServiceHealth struct {
 	Details   map[string]interface{} `json:"details,omitempty"`
 }
 
-// ServiceHealthChecker defines the interface for checking service health
-type ServiceHealthChecker interface {
-	CheckHealth(ctx context.Context) (*ServiceHealth, error)
+// HealthChecker defines the interface for checking service health
+type HealthChecker interface {
+	CheckHealth(ctx context.Context) (*Health, error)
 }
 
-// ServiceHealthCheckerFactory creates health checkers for services
-type ServiceHealthCheckerFactory struct {
-	factory *ServiceFactory
+// HealthCheckerFactory creates health checkers for services
+type HealthCheckerFactory struct {
+	factory *Factory
 }
 
-// NewServiceHealthCheckerFactory creates a new health checker factory
-func NewServiceHealthCheckerFactory(factory *ServiceFactory) *ServiceHealthCheckerFactory {
-	return &ServiceHealthCheckerFactory{
+// NewHealthCheckerFactory creates a new health checker factory
+func NewHealthCheckerFactory(factory *Factory) *HealthCheckerFactory {
+	return &HealthCheckerFactory{
 		factory: factory,
 	}
 }
@@ -415,7 +415,7 @@ func NewServiceHealthCheckerFactory(factory *ServiceFactory) *ServiceHealthCheck
 // CreateHealthChecker creates a health checker for a specific service
 //
 //nolint:ireturn
-func (shcf *ServiceHealthCheckerFactory) CreateHealthChecker(serviceName string) (ServiceHealthChecker, error) {
+func (shcf *HealthCheckerFactory) CreateHealthChecker(serviceName string) (HealthChecker, error) {
 	switch serviceName {
 	case "user":
 		//nolint:godox
@@ -438,14 +438,14 @@ func (shcf *ServiceHealthCheckerFactory) CreateHealthChecker(serviceName string)
 }
 
 // CheckAllServices checks the health of all services
-func (shcf *ServiceHealthCheckerFactory) CheckAllServices(ctx context.Context) (map[string]*ServiceHealth, error) {
+func (shcf *HealthCheckerFactory) CheckAllServices(ctx context.Context) (map[string]*Health, error) {
 	services := shcf.factory.ListServices()
-	results := make(map[string]*ServiceHealth)
+	results := make(map[string]*Health)
 
 	for _, serviceName := range services {
 		checker, err := shcf.CreateHealthChecker(serviceName)
 		if err != nil {
-			results[serviceName] = &ServiceHealth{
+			results[serviceName] = &Health{
 				Name:      serviceName,
 				Status:    "unhealthy",
 				Message:   fmt.Sprintf("Failed to create health checker: %v", err),
@@ -456,7 +456,7 @@ func (shcf *ServiceHealthCheckerFactory) CheckAllServices(ctx context.Context) (
 
 		health, err := checker.CheckHealth(ctx)
 		if err != nil {
-			results[serviceName] = &ServiceHealth{
+			results[serviceName] = &Health{
 				Name:      serviceName,
 				Status:    "unhealthy",
 				Message:   fmt.Sprintf("Health check failed: %v", err),

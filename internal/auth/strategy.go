@@ -100,8 +100,6 @@ func (as *Service) RegisterStrategy(name string, strategy Strategy) {
 }
 
 // GetStrategy returns an authentication strategy by name
-//
-//nolint:ireturn
 func (as *Service) GetStrategy(name string) (Strategy, error) {
 	as.mu.RLock()
 	defer as.mu.RUnlock()
@@ -180,6 +178,7 @@ func (as *Service) checkLoginAttempts(ctx context.Context, username string) erro
 
 	attemptsData, err := as.storage.Load(ctx, key)
 	if err != nil {
+		//nolint:nilerr
 		return nil // No previous attempts
 	}
 
