@@ -36,8 +36,7 @@ type NotificationConfig struct {
 }
 
 // NewNotificationHandler creates a new notification handler
-func NewNotificationHandler(storage storage.StorageProvider,
-	config NotificationConfig) *NotificationHandler {
+func NewNotificationHandler(storage storage.StorageProvider, config NotificationConfig) *NotificationHandler {
 	return &NotificationHandler{
 		storage: storage,
 		config:  config,

@@ -64,8 +64,7 @@ func NewBackgroundService(repo *repository.Repository) *BackgroundService {
 }
 
 // ProcessExpenseReportAsync processes an expense report in the background and returns task ID immediately.
-func (s *BackgroundService) ProcessExpenseReportAsync(ctx context.Context, ym domain.YearMonth,
-	filters map[string]interface{}) (string, error) {
+func (s *BackgroundService) ProcessExpenseReportAsync(ctx context.Context, ym domain.YearMonth, filters map[string]interface{}) (string, error) {
 	if err := validateYM(ym); err != nil {
 		return "", err
 	}

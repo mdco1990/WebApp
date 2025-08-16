@@ -144,8 +144,7 @@ func NewEventBus(storage storage.StorageProvider) *EventBus {
 }
 
 // Subscribe registers an event handler for a specific event type
-func (eb *EventBus) Subscribe(eventType string, handler EventHandler,
-	options ...SubscriptionOption) (string, error) {
+func (eb *EventBus) Subscribe(eventType string, handler EventHandler, options ...SubscriptionOption) (string, error) {
 	eb.mu.Lock()
 	defer eb.mu.Unlock()
 
@@ -181,8 +180,7 @@ func (eb *EventBus) Subscribe(eventType string, handler EventHandler,
 }
 
 // SubscribePattern registers an event handler for events matching a pattern
-func (eb *EventBus) SubscribePattern(pattern string, handler EventHandler,
-	options ...SubscriptionOption) (string, error) {
+func (eb *EventBus) SubscribePattern(pattern string, handler EventHandler, options ...SubscriptionOption) (string, error) {
 	eb.mu.Lock()
 	defer eb.mu.Unlock()
 
@@ -458,8 +456,7 @@ type ExpenseCreatedEvent struct {
 }
 
 // NewExpenseCreatedEvent creates a new expense created event
-func NewExpenseCreatedEvent(source string, expenseID, userID int64, amount int64,
-	category string) *ExpenseCreatedEvent {
+func NewExpenseCreatedEvent(source string, expenseID, userID int64, amount int64, category string) *ExpenseCreatedEvent {
 	return &ExpenseCreatedEvent{
 		BaseEvent: NewBaseEvent("expense.created", source, nil),
 		ExpenseID: expenseID,
@@ -481,8 +478,7 @@ type BudgetExceededEvent struct {
 }
 
 // NewBudgetExceededEvent creates a new budget exceeded event
-func NewBudgetExceededEvent(source string, userID int64, month, year int,
-	budgetLimit, actualSpent int64) *BudgetExceededEvent {
+func NewBudgetExceededEvent(source string, userID int64, month, year int, budgetLimit, actualSpent int64) *BudgetExceededEvent {
 	excess := actualSpent - budgetLimit
 	if excess < 0 {
 		excess = 0
@@ -510,8 +506,7 @@ type UserLoginEvent struct {
 }
 
 // NewUserLoginEvent creates a new user login event
-func NewUserLoginEvent(source string, userID int64, username, ipAddress, userAgent string,
-	success bool) *UserLoginEvent {
+func NewUserLoginEvent(source string, userID int64, username, ipAddress, userAgent string, success bool) *UserLoginEvent {
 	return &UserLoginEvent{
 		BaseEvent: NewBaseEvent("user.login", source, nil),
 		UserID:    userID,
@@ -533,8 +528,7 @@ type DataExportEvent struct {
 }
 
 // NewDataExportEvent creates a new data export event
-func NewDataExportEvent(source string, userID int64, exportType, format string, fileSize int64,
-	status string) *DataExportEvent {
+func NewDataExportEvent(source string, userID int64, exportType, format string, fileSize int64, status string) *DataExportEvent {
 	return &DataExportEvent{
 		BaseEvent:  NewBaseEvent("data.export", source, nil),
 		UserID:     userID,

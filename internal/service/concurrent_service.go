@@ -32,8 +32,7 @@ type MonthlyDataResult struct {
 // Uses goroutines for parallel data fetching with proper synchronization.
 //
 //nolint:cyclop
-func (s *ConcurrentService) GetMonthlyDataConcurrent(ctx context.Context,
-	ym domain.YearMonth) (*MonthlyDataResult, error) {
+func (s *ConcurrentService) GetMonthlyDataConcurrent(ctx context.Context, ym domain.YearMonth) (*MonthlyDataResult, error) {
 	if err := validateYM(ym); err != nil {
 		return nil, err
 	}
@@ -152,16 +151,14 @@ func (s *ConcurrentService) GetMonthlyDataConcurrent(ctx context.Context,
 }
 
 // GetMonthlyDataConcurrentWithTimeout fetches data with a custom timeout.
-func (s *ConcurrentService) GetMonthlyDataConcurrentWithTimeout(ctx context.Context, ym domain.YearMonth,
-	timeout time.Duration) (*MonthlyDataResult, error) {
+func (s *ConcurrentService) GetMonthlyDataConcurrentWithTimeout(ctx context.Context, ym domain.YearMonth, timeout time.Duration) (*MonthlyDataResult, error) {
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	return s.GetMonthlyDataConcurrent(ctx, ym)
 }
 
 // GetMonthlyDataConcurrentWithCancellation fetches data with cancellation support.
-func (s *ConcurrentService) GetMonthlyDataConcurrentWithCancellation(ctx context.Context,
-	ym domain.YearMonth, cancelFunc context.CancelFunc) (*MonthlyDataResult, error) {
+func (s *ConcurrentService) GetMonthlyDataConcurrentWithCancellation(ctx context.Context, ym domain.YearMonth, cancelFunc context.CancelFunc) (*MonthlyDataResult, error) {
 	defer cancelFunc()
 	return s.GetMonthlyDataConcurrent(ctx, ym)
 }

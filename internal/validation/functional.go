@@ -100,7 +100,8 @@ func ChainField(field string, validators ...Validator) Validator {
 						} else {
 							validationError.Field = field + "." + validationError.Field
 						}
-						validationErrors.Add(validationError.Field, validationError.Message, validationError.Value)
+						validationErrors.Add(validationError.Field, validationError.Message,
+							validationError.Value)
 					}
 				} else {
 					validationErrors.Add(field, err.Error(), value)

@@ -19,16 +19,16 @@ import (
 	"github.com/mdco1990/webapp/internal/storage"
 )
 
-// AuthStrategy defines the interface for authentication strategies
-type AuthStrategy interface {
+// Strategy defines the interface for authentication strategies
+type Strategy interface {
 	// Authenticate authenticates a user and returns session/token information
-	Authenticate(ctx context.Context, credentials AuthCredentials) (*AuthResult, error)
+	Authenticate(ctx context.Context, credentials Credentials) (*Result, error)
 
 	// Validate validates an existing session/token
-	Validate(ctx context.Context, token string) (*AuthResult, error)
+	Validate(ctx context.Context, token string) (*Result, error)
 
 	// Refresh refreshes an existing session/token
-	Refresh(ctx context.Context, token string) (*AuthResult, error)
+	Refresh(ctx context.Context, token string) (*Result, error)
 
 	// Revoke revokes a session/token
 	Revoke(ctx context.Context, token string) error
@@ -37,15 +37,15 @@ type AuthStrategy interface {
 	GetType() string
 }
 
-// AuthCredentials represents authentication credentials
-type AuthCredentials struct {
+// Credentials represents authentication credentials
+type Credentials struct {
 	Username   string `json:"username"`
 	Password   string `json:"password"`
 	RememberMe bool   `json:"remember_me"`
 }
 
-// AuthResult represents the result of authentication
-type AuthResult struct {
+// Result represents the result of authentication
+type Result struct {
 	User         *domain.User `json:"user"`
 	Token        string       `json:"token"`
 	TokenType    string       `json:"token_type"`
@@ -54,17 +54,17 @@ type AuthResult struct {
 	Permissions  []string     `json:"permissions,omitempty"`
 }
 
-// AuthService manages authentication strategies
-type AuthService struct {
-	strategies      map[string]AuthStrategy
+// Service manages authentication strategies
+type Service struct {
+	strategies      map[string]Strategy
 	defaultStrategy string
 	storage         storage.StorageProvider
 	mu              sync.RWMutex
-	config          AuthConfig
+	config          Config
 }
 
-// AuthConfig holds authentication configuration
-type AuthConfig struct {
+// Config holds authentication configuration
+type Config struct {
 	DefaultStrategy   string        `json:"default_strategy"`
 	SessionTimeout    time.Duration `json:"session_timeout"`
 	TokenTimeout      time.Duration `json:"token_timeout"`
@@ -77,31 +77,32 @@ type AuthConfig struct {
 }
 
 // NewAuthService creates a new authentication service
-func NewAuthService(storage storage.StorageProvider, config AuthConfig) *AuthService {
-	service := &AuthService{
-		strategies:      make(map[string]AuthStrategy),
+func NewAuthService(storage storage.StorageProvider, config Config) *Service {
+	service := &Service{
+		strategies:      make(map[string]Strategy),
 		defaultStrategy: config.DefaultStrategy,
 		storage:         storage,
 		config:          config,
 	}
 
 	// Register default strategies
-	service.RegisterStrategy("session", NewSessionAuthStrategy(storage, config))
-	service.RegisterStrategy("token", NewTokenAuthStrategy(storage, config))
+	service.RegisterStrategy("session", NewSessionStrategy(storage, config))
+	service.RegisterStrategy("token", NewTokenStrategy(storage, config))
 
 	return service
 }
 
 // RegisterStrategy registers an authentication strategy
-func (as *AuthService) RegisterStrategy(name string, strategy AuthStrategy) {
+func (as *Service) RegisterStrategy(name string, strategy Strategy) {
 	as.mu.Lock()
 	defer as.mu.Unlock()
 	as.strategies[name] = strategy
 }
 
 // GetStrategy returns an authentication strategy by name
+//
 //nolint:ireturn
-func (as *AuthService) GetStrategy(name string) (AuthStrategy, error) {
+func (as *Service) GetStrategy(name string) (Strategy, error) {
 	as.mu.RLock()
 	defer as.mu.RUnlock()
 
@@ -114,8 +115,7 @@ func (as *AuthService) GetStrategy(name string) (AuthStrategy, error) {
 }
 
 // Authenticate authenticates a user using the specified strategy
-func (as *AuthService) Authenticate(ctx context.Context, strategyName string,
-	credentials AuthCredentials) (*AuthResult, error) {
+func (as *Service) Authenticate(ctx context.Context, strategyName string, credentials Credentials) (*Result, error) {
 	strategy, err := as.GetStrategy(strategyName)
 	if err != nil {
 		return nil, err
@@ -140,7 +140,7 @@ func (as *AuthService) Authenticate(ctx context.Context, strategyName string,
 }
 
 // Validate validates an authentication token/session
-func (as *AuthService) Validate(ctx context.Context, strategyName, token string) (*AuthResult, error) {
+func (as *Service) Validate(ctx context.Context, strategyName, token string) (*Result, error) {
 	strategy, err := as.GetStrategy(strategyName)
 	if err != nil {
 		return nil, err
@@ -150,7 +150,7 @@ func (as *AuthService) Validate(ctx context.Context, strategyName, token string)
 }
 
 // Refresh refreshes an authentication token/session
-func (as *AuthService) Refresh(ctx context.Context, strategyName, token string) (*AuthResult, error) {
+func (as *Service) Refresh(ctx context.Context, strategyName, token string) (*Result, error) {
 	strategy, err := as.GetStrategy(strategyName)
 	if err != nil {
 		return nil, err
@@ -160,7 +160,7 @@ func (as *AuthService) Refresh(ctx context.Context, strategyName, token string) 
 }
 
 // Revoke revokes an authentication token/session
-func (as *AuthService) Revoke(ctx context.Context, strategyName, token string) error {
+func (as *Service) Revoke(ctx context.Context, strategyName, token string) error {
 	strategy, err := as.GetStrategy(strategyName)
 	if err != nil {
 		return err
@@ -170,13 +170,12 @@ func (as *AuthService) Revoke(ctx context.Context, strategyName, token string) e
 }
 
 // AuthenticateWithDefault authenticates using the default strategy
-func (as *AuthService) AuthenticateWithDefault(ctx context.Context,
-	credentials AuthCredentials) (*AuthResult, error) {
+func (as *Service) AuthenticateWithDefault(ctx context.Context, credentials Credentials) (*Result, error) {
 	return as.Authenticate(ctx, as.defaultStrategy, credentials)
 }
 
 // checkLoginAttempts checks if a user has exceeded maximum login attempts
-func (as *AuthService) checkLoginAttempts(ctx context.Context, username string) error {
+func (as *Service) checkLoginAttempts(ctx context.Context, username string) error {
 	key := "login_attempts:" + username
 
 	attemptsData, err := as.storage.Load(ctx, key)
@@ -202,7 +201,7 @@ func (as *AuthService) checkLoginAttempts(ctx context.Context, username string) 
 }
 
 // recordFailedLogin records a failed login attempt
-func (as *AuthService) recordFailedLogin(ctx context.Context, username string) {
+func (as *Service) recordFailedLogin(ctx context.Context, username string) {
 	key := "login_attempts:" + username
 
 	var attempts LoginAttempts
@@ -228,7 +227,7 @@ func (as *AuthService) recordFailedLogin(ctx context.Context, username string) {
 }
 
 // recordSuccessfulLogin records a successful login
-func (as *AuthService) recordSuccessfulLogin(ctx context.Context, username string) {
+func (as *Service) recordSuccessfulLogin(ctx context.Context, username string) {
 	key := "login_attempts:" + username
 	if deleteErr := as.storage.Delete(ctx, key); deleteErr != nil {
 		slog.Error("Failed to delete login attempts", "error", deleteErr)
@@ -273,27 +272,27 @@ func (la *LoginAttempts) IsLockedOut(maxAttempts int, lockoutDuration time.Durat
 // SESSION-BASED AUTHENTICATION STRATEGY
 // ============================================================================
 
-// SessionAuthStrategy implements session-based authentication
-type SessionAuthStrategy struct {
+// SessionStrategy implements session-based authentication
+type SessionStrategy struct {
 	storage storage.StorageProvider
-	config  AuthConfig
+	config  Config
 }
 
-// NewSessionAuthStrategy creates a new session authentication strategy
-func NewSessionAuthStrategy(storage storage.StorageProvider, config AuthConfig) *SessionAuthStrategy {
-	return &SessionAuthStrategy{
+// NewSessionStrategy creates a new session authentication strategy
+func NewSessionStrategy(storage storage.StorageProvider, config Config) *SessionStrategy {
+	return &SessionStrategy{
 		storage: storage,
 		config:  config,
 	}
 }
 
 // GetType returns the strategy type
-func (s *SessionAuthStrategy) GetType() string {
+func (s *SessionStrategy) GetType() string {
 	return "session"
 }
 
 // Authenticate authenticates a user and creates a session
-func (s *SessionAuthStrategy) Authenticate(ctx context.Context, credentials AuthCredentials) (*AuthResult, error) {
+func (s *SessionStrategy) Authenticate(ctx context.Context, credentials Credentials) (*Result, error) {
 	// Validate credentials (this would typically check against a database)
 	user, err := s.validateCredentials(ctx, credentials)
 	if err != nil {
@@ -321,7 +320,7 @@ func (s *SessionAuthStrategy) Authenticate(ctx context.Context, credentials Auth
 		return nil, fmt.Errorf("failed to store session: %w", err)
 	}
 
-	return &AuthResult{
+	return &Result{
 		User:      user,
 		Token:     sessionToken,
 		TokenType: "session",
@@ -330,7 +329,7 @@ func (s *SessionAuthStrategy) Authenticate(ctx context.Context, credentials Auth
 }
 
 // Validate validates a session token
-func (s *SessionAuthStrategy) Validate(ctx context.Context, token string) (*AuthResult, error) {
+func (s *SessionStrategy) Validate(ctx context.Context, token string) (*Result, error) {
 	// Retrieve session data
 	sessionBytes, err := s.storage.Load(ctx, "session:"+token)
 	if err != nil {
@@ -361,7 +360,7 @@ func (s *SessionAuthStrategy) Validate(ctx context.Context, token string) (*Auth
 		Username: sessionData.Username,
 	}
 
-	return &AuthResult{
+	return &Result{
 		User:      user,
 		Token:     token,
 		TokenType: "session",
@@ -370,7 +369,7 @@ func (s *SessionAuthStrategy) Validate(ctx context.Context, token string) (*Auth
 }
 
 // Refresh refreshes a session
-func (s *SessionAuthStrategy) Refresh(ctx context.Context, token string) (*AuthResult, error) {
+func (s *SessionStrategy) Refresh(ctx context.Context, token string) (*Result, error) {
 	// Validate existing session
 	result, err := s.Validate(ctx, token)
 	if err != nil {
@@ -400,12 +399,12 @@ func (s *SessionAuthStrategy) Refresh(ctx context.Context, token string) (*AuthR
 }
 
 // Revoke revokes a session
-func (s *SessionAuthStrategy) Revoke(ctx context.Context, token string) error {
+func (s *SessionStrategy) Revoke(ctx context.Context, token string) error {
 	return s.storage.Delete(ctx, "session:"+token)
 }
 
 // validateCredentials validates user credentials
-func (s *SessionAuthStrategy) validateCredentials(_ context.Context, credentials AuthCredentials) (*domain.User, error) {
+func (s *SessionStrategy) validateCredentials(_ context.Context, credentials Credentials) (*domain.User, error) {
 	// This is a simplified implementation
 	// In a real application, you would:
 	// 1. Hash the password
@@ -432,7 +431,7 @@ func (s *SessionAuthStrategy) validateCredentials(_ context.Context, credentials
 }
 
 // generateSessionToken generates a secure session token
-func (s *SessionAuthStrategy) generateSessionToken() string {
+func (s *SessionStrategy) generateSessionToken() string {
 	bytes := make([]byte, 32)
 	if _, err := rand.Read(bytes); err != nil {
 		slog.Error("Failed to generate random bytes for session token", "error", err)
@@ -456,16 +455,16 @@ type SessionData struct {
 // TOKEN-BASED AUTHENTICATION STRATEGY
 // ============================================================================
 
-// TokenAuthStrategy implements JWT-based authentication
-type TokenAuthStrategy struct {
+// TokenStrategy implements JWT-based authentication
+type TokenStrategy struct {
 	storage storage.StorageProvider
-	config  AuthConfig
+	config  Config
 	secret  []byte
 }
 
-// NewTokenAuthStrategy creates a new token authentication strategy
-func NewTokenAuthStrategy(storage storage.StorageProvider, config AuthConfig) *TokenAuthStrategy {
-	return &TokenAuthStrategy{
+// NewTokenStrategy creates a new token authentication strategy
+func NewTokenStrategy(storage storage.StorageProvider, config Config) *TokenStrategy {
+	return &TokenStrategy{
 		storage: storage,
 		config:  config,
 		secret:  []byte("your-secret-key"), // In production, use environment variable
@@ -473,12 +472,12 @@ func NewTokenAuthStrategy(storage storage.StorageProvider, config AuthConfig) *T
 }
 
 // GetType returns the strategy type
-func (s *TokenAuthStrategy) GetType() string {
+func (s *TokenStrategy) GetType() string {
 	return "token"
 }
 
 // Authenticate authenticates a user and creates a JWT token
-func (s *TokenAuthStrategy) Authenticate(ctx context.Context, credentials AuthCredentials) (*AuthResult, error) {
+func (s *TokenStrategy) Authenticate(ctx context.Context, credentials Credentials) (*Result, error) {
 	// Validate credentials
 	user, err := s.validateCredentials(ctx, credentials)
 	if err != nil {
@@ -505,7 +504,7 @@ func (s *TokenAuthStrategy) Authenticate(ctx context.Context, credentials AuthCr
 		return nil, fmt.Errorf("failed to store refresh token: %w", err)
 	}
 
-	return &AuthResult{
+	return &Result{
 		User:         user,
 		Token:        token,
 		TokenType:    "jwt",
@@ -515,7 +514,7 @@ func (s *TokenAuthStrategy) Authenticate(ctx context.Context, credentials AuthCr
 }
 
 // Validate validates a JWT token
-func (s *TokenAuthStrategy) Validate(_ context.Context, token string) (*AuthResult, error) {
+func (s *TokenStrategy) Validate(_ context.Context, token string) (*Result, error) {
 	// Parse and validate JWT token
 	claims, err := s.parseJWTToken(token)
 	if err != nil {
@@ -534,7 +533,7 @@ func (s *TokenAuthStrategy) Validate(_ context.Context, token string) (*AuthResu
 		Email:    claims.Email,
 	}
 
-	return &AuthResult{
+	return &Result{
 		User:      user,
 		Token:     token,
 		TokenType: "jwt",
@@ -543,7 +542,7 @@ func (s *TokenAuthStrategy) Validate(_ context.Context, token string) (*AuthResu
 }
 
 // Refresh refreshes a JWT token using a refresh token
-func (s *TokenAuthStrategy) Refresh(ctx context.Context, refreshToken string) (*AuthResult, error) {
+func (s *TokenStrategy) Refresh(ctx context.Context, refreshToken string) (*Result, error) {
 	// Validate refresh token
 	refreshData, err := s.validateRefreshToken(ctx, refreshToken)
 	if err != nil {
@@ -585,7 +584,7 @@ func (s *TokenAuthStrategy) Refresh(ctx context.Context, refreshToken string) (*
 		slog.Error("Failed to delete old refresh token", "error", deleteErr)
 	}
 
-	return &AuthResult{
+	return &Result{
 		User:         user,
 		Token:        token,
 		TokenType:    "jwt",
@@ -595,13 +594,13 @@ func (s *TokenAuthStrategy) Refresh(ctx context.Context, refreshToken string) (*
 }
 
 // Revoke revokes a refresh token
-func (s *TokenAuthStrategy) Revoke(ctx context.Context, refreshToken string) error {
+func (s *TokenStrategy) Revoke(ctx context.Context, refreshToken string) error {
 	return s.storage.Delete(ctx, "refresh:"+refreshToken)
 }
 
 // validateCredentials validates user credentials
-func (s *TokenAuthStrategy) validateCredentials(_ context.Context, credentials AuthCredentials) (*domain.User, error) {
-	// Same implementation as SessionAuthStrategy
+func (s *TokenStrategy) validateCredentials(_ context.Context, credentials Credentials) (*domain.User, error) {
+	// Same implementation as SessionStrategy
 	if credentials.Username == "" || credentials.Password == "" {
 		return nil, errors.New("username and password are required")
 	}
@@ -620,7 +619,7 @@ func (s *TokenAuthStrategy) validateCredentials(_ context.Context, credentials A
 }
 
 // generateJWTToken generates a JWT token
-func (s *TokenAuthStrategy) generateJWTToken(user *domain.User) string {
+func (s *TokenStrategy) generateJWTToken(user *domain.User) string {
 	// This is a simplified JWT implementation
 	// In production, use a proper JWT library
 
@@ -643,7 +642,7 @@ func (s *TokenAuthStrategy) generateJWTToken(user *domain.User) string {
 }
 
 // parseJWTToken parses and validates a JWT token
-func (s *TokenAuthStrategy) parseJWTToken(token string) (*JWTClaims, error) {
+func (s *TokenStrategy) parseJWTToken(token string) (*JWTClaims, error) {
 	parts := strings.Split(token, ".")
 	if len(parts) != 2 {
 		return nil, errors.New("invalid token format")
@@ -675,7 +674,7 @@ func (s *TokenAuthStrategy) parseJWTToken(token string) (*JWTClaims, error) {
 }
 
 // generateSignature generates a signature for JWT claims
-func (s *TokenAuthStrategy) generateSignature(claimsB64 string) []byte {
+func (s *TokenStrategy) generateSignature(claimsB64 string) []byte {
 	hash := sha256.New()
 	hash.Write([]byte(claimsB64))
 	hash.Write(s.secret)
@@ -683,7 +682,7 @@ func (s *TokenAuthStrategy) generateSignature(claimsB64 string) []byte {
 }
 
 // generateRefreshToken generates a secure refresh token
-func (s *TokenAuthStrategy) generateRefreshToken() string {
+func (s *TokenStrategy) generateRefreshToken() string {
 	bytes := make([]byte, 32)
 	if _, err := rand.Read(bytes); err != nil {
 		slog.Error("Failed to generate random bytes for refresh token", "error", err)
@@ -694,7 +693,7 @@ func (s *TokenAuthStrategy) generateRefreshToken() string {
 }
 
 // validateRefreshToken validates a refresh token
-func (s *TokenAuthStrategy) validateRefreshToken(ctx context.Context, refreshToken string) (*RefreshTokenData, error) {
+func (s *TokenStrategy) validateRefreshToken(ctx context.Context, refreshToken string) (*RefreshTokenData, error) {
 	refreshBytes, err := s.storage.Load(ctx, "refresh:"+refreshToken)
 	if err != nil {
 		return nil, errors.New("invalid refresh token")
