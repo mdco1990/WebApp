@@ -64,7 +64,8 @@ func NewBackgroundService(repo *repository.Repository) *BackgroundService {
 }
 
 // ProcessExpenseReportAsync processes an expense report in the background and returns task ID immediately.
-func (s *BackgroundService) ProcessExpenseReportAsync(ctx context.Context, ym domain.YearMonth, filters map[string]interface{}) (string, error) {
+func (s *BackgroundService) ProcessExpenseReportAsync(ctx context.Context, ym domain.YearMonth,
+	filters map[string]interface{}) (string, error) {
 	if err := validateYM(ym); err != nil {
 		return "", err
 	}
@@ -190,7 +191,7 @@ func (s *BackgroundService) ListTasks(taskType *TaskType, status *TaskStatus) []
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	var filteredTasks []*BackgroundTask
+	filteredTasks := make([]*BackgroundTask, 0, len(s.tasks))
 	for _, task := range s.tasks {
 		if taskType != nil && task.Type != *taskType {
 			continue
@@ -213,8 +214,8 @@ func (s *BackgroundService) CleanupCompletedTasks(olderThan time.Duration) int {
 	removed := 0
 
 	for taskID, task := range s.tasks {
-		if (task.Status == TaskStatusCompleted || task.Status == TaskStatusFailed || task.Status == TaskStatusCancelled) &&
-			task.CreatedAt.Before(cutoff) {
+		if (task.Status == TaskStatusCompleted || task.Status == TaskStatusFailed ||
+			task.Status == TaskStatusCancelled) && task.CreatedAt.Before(cutoff) {
 			delete(s.tasks, taskID)
 			delete(s.taskResults, taskID)
 			removed++

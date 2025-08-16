@@ -2,6 +2,7 @@
 package validation
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 	"regexp"
@@ -35,7 +36,7 @@ func (e ValidationErrors) Error() string {
 		return ""
 	}
 
-	var messages []string
+	messages := make([]string, 0, len(e))
 	for _, err := range e {
 		messages = append(messages, err.Error())
 	}
@@ -284,7 +285,7 @@ func Pattern(field, pattern string) Validator {
 			if !matched {
 				return ValidationErrors{{
 					Field:   field,
-					Message: fmt.Sprintf("value does not match pattern: %s", pattern),
+					Message: "value does not match pattern: " + pattern,
 					Value:   value,
 				}}
 			}
@@ -313,7 +314,7 @@ func In(field string, allowedValues ...interface{}) Validator {
 		}
 		return ValidationErrors{{
 			Field:   field,
-			Message: fmt.Sprintf("value must be one of: %v", allowedValues),
+			Message: "value must be one of: " + fmt.Sprint(allowedValues...),
 			Value:   value,
 		}}
 	}
@@ -457,7 +458,7 @@ func ValidateStruct(value interface{}) error {
 	t := v.Type()
 
 	if v.Kind() != reflect.Struct {
-		return fmt.Errorf("value must be a struct")
+		return errors.New("value must be a struct")
 	}
 
 	var errors ValidationErrors

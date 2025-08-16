@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"strconv"
 	"time"
 
 	"github.com/mdco1990/webapp/internal/domain"
@@ -35,7 +36,8 @@ type NotificationConfig struct {
 }
 
 // NewNotificationHandler creates a new notification handler
-func NewNotificationHandler(storage storage.StorageProvider, config NotificationConfig) *NotificationHandler {
+func NewNotificationHandler(storage storage.StorageProvider,
+	config NotificationConfig) *NotificationHandler {
 	return &NotificationHandler{
 		storage: storage,
 		config:  config,
@@ -70,12 +72,16 @@ func (nh *NotificationHandler) handleExpenseCreated(ctx context.Context, event E
 
 	// Create notification
 	notification := &domain.Notification{
-		UserID:    expenseEvent.UserID,
-		Type:      "expense_created",
-		Title:     "New Expense Added",
-		Message:   fmt.Sprintf("Expense of $%.2f in category '%s' has been added", float64(expenseEvent.Amount)/100, expenseEvent.Category),
-		Priority:  nh.config.DefaultPriority,
-		Data:      map[string]interface{}{"expense_id": expenseEvent.ExpenseID, "amount": expenseEvent.Amount, "category": expenseEvent.Category},
+		UserID:   expenseEvent.UserID,
+		Type:     "expense_created",
+		Title:    "New Expense Added",
+		Message:  fmt.Sprintf("Expense of $%.2f in category '%s' has been added", float64(expenseEvent.Amount)/100, expenseEvent.Category),
+		Priority: nh.config.DefaultPriority,
+		Data: map[string]interface{}{
+			"expense_id": expenseEvent.ExpenseID,
+			"amount":     expenseEvent.Amount,
+			"category":   expenseEvent.Category,
+		},
 		CreatedAt: time.Now(),
 		Read:      false,
 	}
@@ -114,12 +120,16 @@ func (nh *NotificationHandler) handleBudgetExceeded(ctx context.Context, event E
 
 	// Create high-priority notification
 	notification := &domain.Notification{
-		UserID:    budgetEvent.UserID,
-		Type:      "budget_exceeded",
-		Title:     "Budget Exceeded",
-		Message:   fmt.Sprintf("Your budget for %d/%d has been exceeded by $%.2f", budgetEvent.Month, budgetEvent.Year, float64(budgetEvent.Excess)/100),
-		Priority:  "high",
-		Data:      map[string]interface{}{"month": budgetEvent.Month, "year": budgetEvent.Year, "excess": budgetEvent.Excess},
+		UserID:   budgetEvent.UserID,
+		Type:     "budget_exceeded",
+		Title:    "Budget Exceeded",
+		Message:  fmt.Sprintf("Your budget for %d/%d has been exceeded by $%.2f", budgetEvent.Month, budgetEvent.Year, float64(budgetEvent.Excess)/100),
+		Priority: "high",
+		Data: map[string]interface{}{
+			"month":  budgetEvent.Month,
+			"year":   budgetEvent.Year,
+			"excess": budgetEvent.Excess,
+		},
 		CreatedAt: time.Now(),
 		Read:      false,
 	}
@@ -346,7 +356,7 @@ func (ah *AuditHandler) Handle(ctx context.Context, event Event) error {
 	// Store audit log
 	auditData, _ := json.Marshal(auditLog)
 	ttl := ah.config.RetentionPeriod
-	err := ah.storage.Save(ctx, fmt.Sprintf("audit:%s", auditLog.ID), auditData, &ttl)
+	err := ah.storage.Save(ctx, "audit:"+auditLog.ID, auditData, &ttl)
 	if err != nil {
 		return fmt.Errorf("failed to store audit log: %w", err)
 	}
@@ -379,13 +389,13 @@ func (ah *AuditHandler) extractUserID(event Event) int64 {
 func (ah *AuditHandler) extractResource(event Event) string {
 	switch e := event.(type) {
 	case *ExpenseCreatedEvent:
-		return fmt.Sprintf("expense:%d", e.ExpenseID)
+		return "expense:" + strconv.FormatInt(e.ExpenseID, 10)
 	case *BudgetExceededEvent:
-		return fmt.Sprintf("budget:%d/%d", e.Month, e.Year)
+		return "budget:" + strconv.Itoa(e.Month) + "/" + strconv.Itoa(e.Year)
 	case *UserLoginEvent:
-		return fmt.Sprintf("user:%d", e.UserID)
+		return "user:" + strconv.FormatInt(e.UserID, 10)
 	case *DataExportEvent:
-		return fmt.Sprintf("export:%s:%s", e.ExportType, e.Format)
+		return "export:" + e.ExportType + ":" + e.Format
 	default:
 		return "unknown"
 	}
@@ -395,16 +405,16 @@ func (ah *AuditHandler) extractResource(event Event) string {
 func (ah *AuditHandler) extractDetails(event Event) string {
 	switch e := event.(type) {
 	case *ExpenseCreatedEvent:
-		return fmt.Sprintf("Created expense of $%.2f in category '%s'", float64(e.Amount)/100, e.Category)
+		return "Created expense of $" + strconv.FormatFloat(float64(e.Amount)/100, 'f', 2, 64) + " in category '" + e.Category + "'"
 	case *BudgetExceededEvent:
-		return fmt.Sprintf("Budget exceeded by $%.2f for %d/%d", float64(e.Excess)/100, e.Month, e.Year)
+		return "Budget exceeded by $" + strconv.FormatFloat(float64(e.Excess)/100, 'f', 2, 64) + " for " + strconv.Itoa(e.Month) + "/" + strconv.Itoa(e.Year)
 	case *UserLoginEvent:
 		if e.Success {
-			return fmt.Sprintf("Successful login from %s", e.IPAddress)
+			return "Successful login from " + e.IPAddress
 		}
-		return fmt.Sprintf("Failed login attempt from %s", e.IPAddress)
+		return "Failed login attempt from " + e.IPAddress
 	case *DataExportEvent:
-		return fmt.Sprintf("Data export %s in %s format, status: %s", e.ExportType, e.Format, e.Status)
+		return "Data export " + e.ExportType + " in " + e.Format + " format, status: " + e.Status
 	default:
 		return "Event processed"
 	}

@@ -3,6 +3,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -84,7 +85,7 @@ func (wp *WorkerPool) Start() error {
 	defer wp.mu.Unlock()
 
 	if wp.active {
-		return fmt.Errorf("worker pool is already active")
+		return errors.New("worker pool is already active")
 	}
 
 	wp.active = true
@@ -107,7 +108,7 @@ func (wp *WorkerPool) Stop() error {
 	defer wp.mu.Unlock()
 
 	if !wp.active {
-		return fmt.Errorf("worker pool is not active")
+		return errors.New("worker pool is not active")
 	}
 
 	// Signal shutdown
@@ -132,7 +133,7 @@ func (wp *WorkerPool) SubmitJob(ctx context.Context, jobType string, data map[st
 	defer wp.mu.RUnlock()
 
 	if !wp.active {
-		return "", fmt.Errorf("worker pool is not active")
+		return "", errors.New("worker pool is not active")
 	}
 
 	job := &Job{
@@ -152,7 +153,7 @@ func (wp *WorkerPool) SubmitJob(ctx context.Context, jobType string, data map[st
 	case <-ctx.Done():
 		return "", ctx.Err()
 	case <-wp.ctx.Done():
-		return "", fmt.Errorf("worker pool is shutting down")
+		return "", errors.New("worker pool is shutting down")
 	}
 }
 
@@ -168,13 +169,13 @@ func (wp *WorkerPool) GetResult(ctx context.Context) (*JobResult, error) {
 	select {
 	case result, ok := <-wp.resultChannel:
 		if !ok {
-			return nil, fmt.Errorf("result channel is closed")
+			return nil, errors.New("result channel is closed")
 		}
 		return result, nil
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	case <-wp.ctx.Done():
-		return nil, fmt.Errorf("worker pool is shutting down")
+		return nil, errors.New("worker pool is shutting down")
 	}
 }
 
@@ -302,14 +303,14 @@ func generateJobID() string {
 // SetWorkerCount dynamically changes the number of workers.
 func (wp *WorkerPool) SetWorkerCount(count int) error {
 	if count <= 0 {
-		return fmt.Errorf("worker count must be positive")
+		return errors.New("worker count must be positive")
 	}
 
 	wp.mu.Lock()
 	defer wp.mu.Unlock()
 
 	if wp.active {
-		return fmt.Errorf("cannot change worker count while pool is active")
+		return errors.New("cannot change worker count while pool is active")
 	}
 
 	wp.workers = count

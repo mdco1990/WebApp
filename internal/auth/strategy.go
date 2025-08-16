@@ -113,7 +113,8 @@ func (as *AuthService) GetStrategy(name string) (AuthStrategy, error) {
 }
 
 // Authenticate authenticates a user using the specified strategy
-func (as *AuthService) Authenticate(ctx context.Context, strategyName string, credentials AuthCredentials) (*AuthResult, error) {
+func (as *AuthService) Authenticate(ctx context.Context, strategyName string,
+	credentials AuthCredentials) (*AuthResult, error) {
 	strategy, err := as.GetStrategy(strategyName)
 	if err != nil {
 		return nil, err
@@ -168,7 +169,8 @@ func (as *AuthService) Revoke(ctx context.Context, strategyName, token string) e
 }
 
 // AuthenticateWithDefault authenticates using the default strategy
-func (as *AuthService) AuthenticateWithDefault(ctx context.Context, credentials AuthCredentials) (*AuthResult, error) {
+func (as *AuthService) AuthenticateWithDefault(ctx context.Context,
+	credentials AuthCredentials) (*AuthResult, error) {
 	return as.Authenticate(ctx, as.defaultStrategy, credentials)
 }
 
@@ -313,7 +315,7 @@ func (s *SessionAuthStrategy) Authenticate(ctx context.Context, credentials Auth
 	// Store session
 	sessionBytes, _ := json.Marshal(sessionData)
 	ttl := s.config.SessionTimeout
-	err = s.storage.Save(ctx, "session:" + sessionToken, sessionBytes, &ttl)
+	err = s.storage.Save(ctx, "session:"+sessionToken, sessionBytes, &ttl)
 	if err != nil {
 		return nil, fmt.Errorf("failed to store session: %w", err)
 	}
@@ -329,7 +331,7 @@ func (s *SessionAuthStrategy) Authenticate(ctx context.Context, credentials Auth
 // Validate validates a session token
 func (s *SessionAuthStrategy) Validate(ctx context.Context, token string) (*AuthResult, error) {
 	// Retrieve session data
-	sessionBytes, err := s.storage.Load(ctx, "session:" + token)
+	sessionBytes, err := s.storage.Load(ctx, "session:"+token)
 	if err != nil {
 		return nil, errors.New("invalid or expired session")
 	}
@@ -337,19 +339,19 @@ func (s *SessionAuthStrategy) Validate(ctx context.Context, token string) (*Auth
 	var sessionData SessionData
 	sessionBytesData, ok := sessionBytes.([]byte)
 	if !ok {
-		return nil, fmt.Errorf("invalid session data type")
+		return nil, errors.New("invalid session data type")
 	}
 	if err := json.Unmarshal(sessionBytesData, &sessionData); err != nil {
-		return nil, fmt.Errorf("invalid session data")
+		return nil, errors.New("invalid session data")
 	}
 
 	// Check if session has expired
 	if time.Now().After(sessionData.ExpiresAt) {
 		// Remove expired session
-		if deleteErr := s.storage.Delete(ctx, "session:" + token); deleteErr != nil {
+		if deleteErr := s.storage.Delete(ctx, "session:"+token); deleteErr != nil {
 			slog.Error("Failed to delete expired session", "error", deleteErr)
 		}
-		return nil, fmt.Errorf("session expired")
+		return nil, errors.New("session expired")
 	}
 
 	// Retrieve user data (this would typically come from a database)
@@ -387,7 +389,7 @@ func (s *SessionAuthStrategy) Refresh(ctx context.Context, token string) (*AuthR
 	// Update session
 	sessionBytes, _ := json.Marshal(sessionData)
 	ttl := s.config.SessionTimeout
-	err = s.storage.Save(ctx, "session:" + token, sessionBytes, &ttl)
+	err = s.storage.Save(ctx, "session:"+token, sessionBytes, &ttl)
 	if err != nil {
 		return nil, fmt.Errorf("failed to refresh session: %w", err)
 	}
@@ -398,11 +400,11 @@ func (s *SessionAuthStrategy) Refresh(ctx context.Context, token string) (*AuthR
 
 // Revoke revokes a session
 func (s *SessionAuthStrategy) Revoke(ctx context.Context, token string) error {
-	return s.storage.Delete(ctx, "session:" + token)
+	return s.storage.Delete(ctx, "session:"+token)
 }
 
 // validateCredentials validates user credentials
-func (s *SessionAuthStrategy) validateCredentials(ctx context.Context, credentials AuthCredentials) (*domain.User, error) {
+func (s *SessionAuthStrategy) validateCredentials(_ context.Context, credentials AuthCredentials) (*domain.User, error) {
 	// This is a simplified implementation
 	// In a real application, you would:
 	// 1. Hash the password
@@ -411,11 +413,11 @@ func (s *SessionAuthStrategy) validateCredentials(ctx context.Context, credentia
 	// 4. Check if the user is active
 
 	if credentials.Username == "" || credentials.Password == "" {
-		return nil, fmt.Errorf("username and password are required")
+		return nil, errors.New("username and password are required")
 	}
 
 	if len(credentials.Password) < s.config.PasswordMinLength {
-		return nil, fmt.Errorf("password must be at least %d characters", s.config.PasswordMinLength)
+		return nil, errors.New("password must be at least " + strconv.Itoa(s.config.PasswordMinLength) + " characters")
 	}
 
 	// Mock user for demonstration
@@ -483,10 +485,7 @@ func (s *TokenAuthStrategy) Authenticate(ctx context.Context, credentials AuthCr
 	}
 
 	// Generate JWT token
-	token, err := s.generateJWTToken(user)
-	if err != nil {
-		return nil, err
-	}
+	token := s.generateJWTToken(user)
 
 	// Generate refresh token
 	refreshToken := s.generateRefreshToken()
@@ -500,7 +499,7 @@ func (s *TokenAuthStrategy) Authenticate(ctx context.Context, credentials AuthCr
 
 	refreshBytes, _ := json.Marshal(refreshData)
 	ttl := s.config.RefreshTimeout
-	err = s.storage.Save(ctx, "refresh:" + refreshToken, refreshBytes, &ttl)
+	err = s.storage.Save(ctx, "refresh:"+refreshToken, refreshBytes, &ttl)
 	if err != nil {
 		return nil, fmt.Errorf("failed to store refresh token: %w", err)
 	}
@@ -515,7 +514,7 @@ func (s *TokenAuthStrategy) Authenticate(ctx context.Context, credentials AuthCr
 }
 
 // Validate validates a JWT token
-func (s *TokenAuthStrategy) Validate(ctx context.Context, token string) (*AuthResult, error) {
+func (s *TokenAuthStrategy) Validate(_ context.Context, token string) (*AuthResult, error) {
 	// Parse and validate JWT token
 	claims, err := s.parseJWTToken(token)
 	if err != nil {
@@ -524,7 +523,7 @@ func (s *TokenAuthStrategy) Validate(ctx context.Context, token string) (*AuthRe
 
 	// Check if token has expired
 	if time.Now().After(claims.ExpiresAt) {
-		return nil, fmt.Errorf("token expired")
+		return nil, errors.New("token expired")
 	}
 
 	// Create user object from claims
@@ -557,10 +556,7 @@ func (s *TokenAuthStrategy) Refresh(ctx context.Context, refreshToken string) (*
 		Email:    refreshData.Email,
 	}
 
-	token, err := s.generateJWTToken(user)
-	if err != nil {
-		return nil, err
-	}
+	token := s.generateJWTToken(user)
 
 	// Generate new refresh token
 	newRefreshToken := s.generateRefreshToken()
@@ -578,13 +574,13 @@ func (s *TokenAuthStrategy) Refresh(ctx context.Context, refreshToken string) (*
 	ttl := s.config.RefreshTimeout
 
 	// Store new refresh token
-	err = s.storage.Save(ctx, "refresh:" + newRefreshToken, newRefreshBytes, &ttl)
+	err = s.storage.Save(ctx, "refresh:"+newRefreshToken, newRefreshBytes, &ttl)
 	if err != nil {
 		return nil, fmt.Errorf("failed to store new refresh token: %w", err)
 	}
 
 	// Remove old refresh token
-	if deleteErr := s.storage.Delete(ctx, "refresh:" + refreshToken); deleteErr != nil {
+	if deleteErr := s.storage.Delete(ctx, "refresh:"+refreshToken); deleteErr != nil {
 		slog.Error("Failed to delete old refresh token", "error", deleteErr)
 	}
 
@@ -599,18 +595,18 @@ func (s *TokenAuthStrategy) Refresh(ctx context.Context, refreshToken string) (*
 
 // Revoke revokes a refresh token
 func (s *TokenAuthStrategy) Revoke(ctx context.Context, refreshToken string) error {
-	return s.storage.Delete(ctx, "refresh:" + refreshToken)
+	return s.storage.Delete(ctx, "refresh:"+refreshToken)
 }
 
 // validateCredentials validates user credentials
-func (s *TokenAuthStrategy) validateCredentials(ctx context.Context, credentials AuthCredentials) (*domain.User, error) {
+func (s *TokenAuthStrategy) validateCredentials(_ context.Context, credentials AuthCredentials) (*domain.User, error) {
 	// Same implementation as SessionAuthStrategy
 	if credentials.Username == "" || credentials.Password == "" {
-		return nil, fmt.Errorf("username and password are required")
+		return nil, errors.New("username and password are required")
 	}
 
 	if len(credentials.Password) < s.config.PasswordMinLength {
-		return nil, fmt.Errorf("password must be at least %d characters", s.config.PasswordMinLength)
+		return nil, errors.New("password must be at least " + strconv.Itoa(s.config.PasswordMinLength) + " characters")
 	}
 
 	user := &domain.User{
@@ -623,7 +619,7 @@ func (s *TokenAuthStrategy) validateCredentials(ctx context.Context, credentials
 }
 
 // generateJWTToken generates a JWT token
-func (s *TokenAuthStrategy) generateJWTToken(user *domain.User) (string, error) {
+func (s *TokenAuthStrategy) generateJWTToken(user *domain.User) string {
 	// This is a simplified JWT implementation
 	// In production, use a proper JWT library
 
@@ -642,14 +638,14 @@ func (s *TokenAuthStrategy) generateJWTToken(user *domain.User) (string, error) 
 	signature := s.generateSignature(claimsB64)
 	signatureB64 := base64.URLEncoding.EncodeToString(signature)
 
-	return fmt.Sprintf("%s.%s", claimsB64, signatureB64), nil
+	return fmt.Sprintf("%s.%s", claimsB64, signatureB64)
 }
 
 // parseJWTToken parses and validates a JWT token
 func (s *TokenAuthStrategy) parseJWTToken(token string) (*JWTClaims, error) {
 	parts := strings.Split(token, ".")
 	if len(parts) != 2 {
-		return nil, fmt.Errorf("invalid token format")
+		return nil, errors.New("invalid token format")
 	}
 
 	claimsB64 := parts[0]
@@ -660,18 +656,18 @@ func (s *TokenAuthStrategy) parseJWTToken(token string) (*JWTClaims, error) {
 	expectedSignatureB64 := base64.URLEncoding.EncodeToString(expectedSignature)
 
 	if signatureB64 != expectedSignatureB64 {
-		return nil, fmt.Errorf("invalid signature")
+		return nil, errors.New("invalid signature")
 	}
 
 	// Parse claims
 	claimsBytes, err := base64.URLEncoding.DecodeString(claimsB64)
 	if err != nil {
-		return nil, fmt.Errorf("invalid claims encoding")
+		return nil, errors.New("invalid claims encoding")
 	}
 
 	var claims JWTClaims
 	if err := json.Unmarshal(claimsBytes, &claims); err != nil {
-		return nil, fmt.Errorf("invalid claims format")
+		return nil, errors.New("invalid claims format")
 	}
 
 	return &claims, nil
@@ -698,26 +694,26 @@ func (s *TokenAuthStrategy) generateRefreshToken() string {
 
 // validateRefreshToken validates a refresh token
 func (s *TokenAuthStrategy) validateRefreshToken(ctx context.Context, refreshToken string) (*RefreshTokenData, error) {
-	refreshBytes, err := s.storage.Load(ctx, "refresh:" + refreshToken)
+	refreshBytes, err := s.storage.Load(ctx, "refresh:"+refreshToken)
 	if err != nil {
-		return nil, fmt.Errorf("invalid refresh token")
+		return nil, errors.New("invalid refresh token")
 	}
 
 	var refreshData RefreshTokenData
 	refreshBytesData, ok := refreshBytes.([]byte)
 	if !ok {
-		return nil, fmt.Errorf("invalid refresh token data type")
+		return nil, errors.New("invalid refresh token data type")
 	}
 	if err := json.Unmarshal(refreshBytesData, &refreshData); err != nil {
-		return nil, fmt.Errorf("invalid refresh token data")
+		return nil, errors.New("invalid refresh token data")
 	}
 
 	if time.Now().After(refreshData.ExpiresAt) {
 		// Remove expired refresh token
-		if deleteErr := s.storage.Delete(ctx, "refresh:" + refreshToken); deleteErr != nil {
+		if deleteErr := s.storage.Delete(ctx, "refresh:"+refreshToken); deleteErr != nil {
 			slog.Error("Failed to delete expired refresh token", "error", deleteErr)
 		}
-		return nil, fmt.Errorf("refresh token expired")
+		return nil, errors.New("refresh token expired")
 	}
 
 	return &refreshData, nil

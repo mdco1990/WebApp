@@ -289,7 +289,9 @@ func (sf *ServiceFactory) Close(ctx context.Context) error {
 	var lastError error
 
 	for name, service := range sf.services {
-		if closer, ok := service.(interface{ Close(context.Context) error }); ok {
+		if closer, ok := service.(interface {
+			Close(ctx context.Context) error
+		}); ok {
 			if err := closer.Close(ctx); err != nil {
 				lastError = err
 			}

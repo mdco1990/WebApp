@@ -144,7 +144,8 @@ func NewEventBus(storage storage.StorageProvider) *EventBus {
 }
 
 // Subscribe registers an event handler for a specific event type
-func (eb *EventBus) Subscribe(eventType string, handler EventHandler, options ...SubscriptionOption) (string, error) {
+func (eb *EventBus) Subscribe(eventType string, handler EventHandler,
+	options ...SubscriptionOption) (string, error) {
 	eb.mu.Lock()
 	defer eb.mu.Unlock()
 
@@ -180,7 +181,8 @@ func (eb *EventBus) Subscribe(eventType string, handler EventHandler, options ..
 }
 
 // SubscribePattern registers an event handler for events matching a pattern
-func (eb *EventBus) SubscribePattern(pattern string, handler EventHandler, options ...SubscriptionOption) (string, error) {
+func (eb *EventBus) SubscribePattern(pattern string, handler EventHandler,
+	options ...SubscriptionOption) (string, error) {
 	eb.mu.Lock()
 	defer eb.mu.Unlock()
 
@@ -309,7 +311,7 @@ func (eb *EventBus) Publish(ctx context.Context, event Event) error {
 	close(errors)
 
 	// Collect errors
-	var errs []error
+	errs := make([]error, 0, len(errors))
 	for err := range errors {
 		errs = append(errs, err)
 	}
@@ -318,7 +320,7 @@ func (eb *EventBus) Publish(ctx context.Context, event Event) error {
 	if eb.storage != nil {
 		eventData, _ := json.Marshal(event)
 		ttl := 24 * time.Hour // Keep events for 24 hours
-		_ = eb.storage.Save(ctx, fmt.Sprintf("event:%s", event.ID()), eventData, &ttl)
+		_ = eb.storage.Save(ctx, "event:"+event.ID(), eventData, &ttl)
 	}
 
 	if len(errs) > 0 {
@@ -350,8 +352,16 @@ func (eb *EventBus) GetStats() *EventBusStats {
 	eb.stats.mu.RLock()
 	defer eb.stats.mu.RUnlock()
 
-	// Create a copy to avoid race conditions
-	stats := *eb.stats
+	// Create a copy to avoid race conditions (excluding the mutex)
+	stats := EventBusStats{
+		EventsPublished:     eb.stats.EventsPublished,
+		EventsProcessed:     eb.stats.EventsProcessed,
+		EventsFailed:        eb.stats.EventsFailed,
+		ActiveSubscriptions: eb.stats.ActiveSubscriptions,
+		TotalSubscriptions:  eb.stats.TotalSubscriptions,
+		AverageProcessTime:  eb.stats.AverageProcessTime,
+		LastEventTime:       eb.stats.LastEventTime,
+	}
 	return &stats
 }
 
@@ -381,8 +391,8 @@ func (eb *EventBus) matchesPattern(eventType, pattern string) bool {
 }
 
 // buildHandlerChain builds the middleware chain for event processing
-func (eb *EventBus) buildHandlerChain(event Event) EventHandler {
-	handler := func(ctx context.Context, evt Event) error {
+func (eb *EventBus) buildHandlerChain(_ Event) EventHandler {
+	handler := func(_ context.Context, _ Event) error {
 		// This is a no-op handler that will be replaced by middleware
 		return nil
 	}
@@ -446,7 +456,8 @@ type ExpenseCreatedEvent struct {
 }
 
 // NewExpenseCreatedEvent creates a new expense created event
-func NewExpenseCreatedEvent(source string, expenseID, userID int64, amount int64, category string) *ExpenseCreatedEvent {
+func NewExpenseCreatedEvent(source string, expenseID, userID int64, amount int64,
+	category string) *ExpenseCreatedEvent {
 	return &ExpenseCreatedEvent{
 		BaseEvent: NewBaseEvent("expense.created", source, nil),
 		ExpenseID: expenseID,

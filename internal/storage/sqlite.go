@@ -13,6 +13,9 @@ import (
 	_ "github.com/glebarez/go-sqlite"
 )
 
+// Sentinel errors
+var ErrNoTTL = errors.New("no TTL set")
+
 // SQLiteStorage implements StorageProvider using SQLite
 type SQLiteStorage struct {
 	db            *sql.DB
@@ -337,12 +340,12 @@ func (s *SQLiteStorage) GetTTL(ctx context.Context, key string) (*time.Duration,
 	}
 
 	if expiresAt == nil {
-		return nil, nil
+		return nil, ErrNoTTL
 	}
 
-	remaining := expiresAt.Sub(time.Now())
+	remaining := time.Until(*expiresAt)
 	if remaining <= 0 {
-		return nil, nil
+		return nil, ErrNoTTL
 	}
 
 	return &remaining, nil
@@ -448,7 +451,7 @@ func (s *SQLiteStorage) GetStats(ctx context.Context) (*StorageStats, error) {
 }
 
 // Close closes the storage provider
-func (s *SQLiteStorage) Close(ctx context.Context) error {
+func (s *SQLiteStorage) Close(_ context.Context) error {
 	// Stop cleanup routine
 	if s.cleanupTicker != nil {
 		s.cleanupTicker.Stop()
@@ -505,27 +508,6 @@ func (s *SQLiteStorage) startCleanupRoutine() {
 	}()
 }
 
-// cleanupExpired removes expired entries
-func (s *SQLiteStorage) cleanupExpired(ctx context.Context) {
-	query := "DELETE FROM storage_entries WHERE expires_at < ?"
-
-	result, err := s.db.ExecContext(ctx, query, time.Now())
-	if err != nil {
-		slog.Error("Failed to cleanup expired entries", "error", err)
-		return
-	}
-
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		slog.Error("Failed to get cleanup rows affected", "error", err)
-		return
-	}
-
-	if rowsAffected > 0 {
-		slog.Info("Cleaned up expired entries", "count", rowsAffected)
-	}
-}
-
 // cleanupExpiredBackground removes expired entries in background (no context)
 func (s *SQLiteStorage) cleanupExpiredBackground() {
 	query := "DELETE FROM storage_entries WHERE expires_at < ?"
@@ -556,7 +538,7 @@ func NewSQLiteStorageFactory() *SQLiteStorageFactory {
 }
 
 // Create creates a new SQLite storage provider
-func (f *SQLiteStorageFactory) Create(ctx context.Context, options StorageOptions) (StorageProvider, error) {
+func (f *SQLiteStorageFactory) Create(_ context.Context, options StorageOptions) (StorageProvider, error) {
 	// Extract SQLite-specific options
 	dbPath, ok := options.Metadata["db_path"].(string)
 	if !ok {

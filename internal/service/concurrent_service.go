@@ -147,7 +147,8 @@ func (s *ConcurrentService) GetMonthlyDataConcurrent(ctx context.Context, ym dom
 }
 
 // GetMonthlyDataConcurrentWithTimeout fetches data with a custom timeout.
-func (s *ConcurrentService) GetMonthlyDataConcurrentWithTimeout(ctx context.Context, ym domain.YearMonth, timeout time.Duration) (*MonthlyDataResult, error) {
+func (s *ConcurrentService) GetMonthlyDataConcurrentWithTimeout(ctx context.Context, ym domain.YearMonth,
+	timeout time.Duration) (*MonthlyDataResult, error) {
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	return s.GetMonthlyDataConcurrent(ctx, ym)
