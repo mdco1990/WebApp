@@ -66,7 +66,8 @@ type FinancialService interface {
 	// Financial summaries and reports
 	GetMonthlySummary(ctx context.Context, ym domain.YearMonth) (*domain.Summary, error)
 	GetYearlySummary(ctx context.Context, year int) (*domain.YearlySummary, error)
-	GetExpenseReport(ctx context.Context, ym domain.YearMonth, filters map[string]interface{}) (*domain.ExpenseReport, error)
+	GetExpenseReport(ctx context.Context, ym domain.YearMonth,
+		filters map[string]interface{}) (*domain.ExpenseReport, error)
 
 	// Concurrent operations
 	GetMonthlyDataConcurrent(ctx context.Context, ym domain.YearMonth) (*MonthlyDataResult, error)
@@ -151,6 +152,7 @@ func NewServiceFactory(repo *repository.Repository, storageManager *storage.Stor
 }
 
 // GetUserService returns or creates a UserService instance
+//
 //nolint:ireturn
 func (sf *ServiceFactory) GetUserService() UserService {
 	if service, exists := sf.services["user"]; exists {
@@ -159,6 +161,7 @@ func (sf *ServiceFactory) GetUserService() UserService {
 		}
 	}
 
+	//nolint:godox
 	// TODO: Implement NewUserService
 	// service := NewUserService(sf.repo)
 	// sf.services["user"] = service
@@ -167,6 +170,7 @@ func (sf *ServiceFactory) GetUserService() UserService {
 }
 
 // GetFinancialService returns or creates a FinancialService instance
+//
 //nolint:ireturn
 func (sf *ServiceFactory) GetFinancialService() FinancialService {
 	if service, exists := sf.services["financial"]; exists {
@@ -175,6 +179,7 @@ func (sf *ServiceFactory) GetFinancialService() FinancialService {
 		}
 	}
 
+	//nolint:godox
 	// TODO: Implement NewFinancialService
 	// service := NewFinancialService(sf.repo)
 	// sf.services["financial"] = service
@@ -183,6 +188,7 @@ func (sf *ServiceFactory) GetFinancialService() FinancialService {
 }
 
 // GetNotificationService returns or creates a NotificationService instance
+//
 //nolint:ireturn
 func (sf *ServiceFactory) GetNotificationService() NotificationService {
 	if service, exists := sf.services["notification"]; exists {
@@ -191,6 +197,7 @@ func (sf *ServiceFactory) GetNotificationService() NotificationService {
 		}
 	}
 
+	//nolint:godox
 	// TODO: Implement NewNotificationService
 	// service := NewNotificationService(sf.repo, sf.storageManager)
 	// sf.services["notification"] = service
@@ -199,6 +206,7 @@ func (sf *ServiceFactory) GetNotificationService() NotificationService {
 }
 
 // GetAuditService returns or creates an AuditService instance
+//
 //nolint:ireturn
 func (sf *ServiceFactory) GetAuditService() AuditService {
 	if service, exists := sf.services["audit"]; exists {
@@ -207,6 +215,7 @@ func (sf *ServiceFactory) GetAuditService() AuditService {
 		}
 	}
 
+	//nolint:godox
 	// TODO: Implement NewAuditService
 	// service := NewAuditService(sf.repo)
 	// sf.services["audit"] = service
@@ -215,6 +224,7 @@ func (sf *ServiceFactory) GetAuditService() AuditService {
 }
 
 // GetCacheService returns or creates a CacheService instance
+//
 //nolint:ireturn
 func (sf *ServiceFactory) GetCacheService() CacheService {
 	if service, exists := sf.services["cache"]; exists {
@@ -223,6 +233,7 @@ func (sf *ServiceFactory) GetCacheService() CacheService {
 		}
 	}
 
+	//nolint:godox
 	// TODO: Implement cache provider creation
 	// Get the default cache provider
 	// cacheProvider, err := sf.storageManager.GetProvider("cache")
@@ -239,6 +250,7 @@ func (sf *ServiceFactory) GetCacheService() CacheService {
 	// 	})
 	// }
 
+	//nolint:godox
 	// TODO: Implement NewCacheService
 	// service := NewCacheService(cacheProvider)
 	// sf.services["cache"] = service
@@ -247,6 +259,7 @@ func (sf *ServiceFactory) GetCacheService() CacheService {
 }
 
 // GetBackgroundTaskService returns or creates a BackgroundTaskService instance
+//
 //nolint:ireturn
 func (sf *ServiceFactory) GetBackgroundTaskService() BackgroundTaskService {
 	if service, exists := sf.services["background_task"]; exists {
@@ -255,6 +268,7 @@ func (sf *ServiceFactory) GetBackgroundTaskService() BackgroundTaskService {
 		}
 	}
 
+	//nolint:godox
 	// TODO: Implement NewBackgroundTaskService
 	// service := NewBackgroundTaskService(sf.repo)
 	// sf.services["background_task"] = service
@@ -399,18 +413,22 @@ func NewServiceHealthCheckerFactory(factory *ServiceFactory) *ServiceHealthCheck
 }
 
 // CreateHealthChecker creates a health checker for a specific service
+//
 //nolint:ireturn
 func (shcf *ServiceHealthCheckerFactory) CreateHealthChecker(serviceName string) (ServiceHealthChecker, error) {
 	switch serviceName {
 	case "user":
+		//nolint:godox
 		// TODO: Implement NewUserServiceHealthChecker
 		// return NewUserServiceHealthChecker(shcf.factory.GetUserService()), nil
 		return nil, fmt.Errorf("health checker not implemented for service: %s", serviceName)
 	case "financial":
+		//nolint:godox
 		// TODO: Implement NewFinancialServiceHealthChecker
 		// return NewFinancialServiceHealthChecker(shcf.factory.GetFinancialService()), nil
 		return nil, fmt.Errorf("health checker not implemented for service: %s", serviceName)
 	case "cache":
+		//nolint:godox
 		// TODO: Implement NewCacheServiceHealthChecker
 		// return NewCacheServiceHealthChecker(shcf.factory.GetCacheService()), nil
 		return nil, fmt.Errorf("health checker not implemented for service: %s", serviceName)

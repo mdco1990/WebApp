@@ -307,6 +307,7 @@ func (sm *StorageManager) CreateProvider(ctx context.Context, name string, facto
 }
 
 // GetProvider returns a storage provider by name
+//
 //nolint:ireturn
 func (sm *StorageManager) GetProvider(name string) (StorageProvider, error) {
 	provider, exists := sm.providers[name]

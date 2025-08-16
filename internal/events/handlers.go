@@ -72,10 +72,11 @@ func (nh *NotificationHandler) handleExpenseCreated(ctx context.Context, event E
 
 	// Create notification
 	notification := &domain.Notification{
-		UserID:   expenseEvent.UserID,
-		Type:     "expense_created",
-		Title:    "New Expense Added",
-		Message:  fmt.Sprintf("Expense of $%.2f in category '%s' has been added", float64(expenseEvent.Amount)/100, expenseEvent.Category),
+		UserID: expenseEvent.UserID,
+		Type:   "expense_created",
+		Title:  "New Expense Added",
+		Message: fmt.Sprintf("Expense of $%.2f in category '%s' has been added",
+			float64(expenseEvent.Amount)/100, expenseEvent.Category),
 		Priority: nh.config.DefaultPriority,
 		Data: map[string]interface{}{
 			"expense_id": expenseEvent.ExpenseID,
@@ -120,10 +121,11 @@ func (nh *NotificationHandler) handleBudgetExceeded(ctx context.Context, event E
 
 	// Create high-priority notification
 	notification := &domain.Notification{
-		UserID:   budgetEvent.UserID,
-		Type:     "budget_exceeded",
-		Title:    "Budget Exceeded",
-		Message:  fmt.Sprintf("Your budget for %d/%d has been exceeded by $%.2f", budgetEvent.Month, budgetEvent.Year, float64(budgetEvent.Excess)/100),
+		UserID: budgetEvent.UserID,
+		Type:   "budget_exceeded",
+		Title:  "Budget Exceeded",
+		Message: fmt.Sprintf("Your budget for %d/%d has been exceeded by $%.2f",
+			budgetEvent.Month, budgetEvent.Year, float64(budgetEvent.Excess)/100),
 		Priority: "high",
 		Data: map[string]interface{}{
 			"month":  budgetEvent.Month,

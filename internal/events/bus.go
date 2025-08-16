@@ -481,7 +481,8 @@ type BudgetExceededEvent struct {
 }
 
 // NewBudgetExceededEvent creates a new budget exceeded event
-func NewBudgetExceededEvent(source string, userID int64, month, year int, budgetLimit, actualSpent int64) *BudgetExceededEvent {
+func NewBudgetExceededEvent(source string, userID int64, month, year int,
+	budgetLimit, actualSpent int64) *BudgetExceededEvent {
 	excess := actualSpent - budgetLimit
 	if excess < 0 {
 		excess = 0
@@ -509,7 +510,8 @@ type UserLoginEvent struct {
 }
 
 // NewUserLoginEvent creates a new user login event
-func NewUserLoginEvent(source string, userID int64, username, ipAddress, userAgent string, success bool) *UserLoginEvent {
+func NewUserLoginEvent(source string, userID int64, username, ipAddress, userAgent string,
+	success bool) *UserLoginEvent {
 	return &UserLoginEvent{
 		BaseEvent: NewBaseEvent("user.login", source, nil),
 		UserID:    userID,
@@ -531,7 +533,8 @@ type DataExportEvent struct {
 }
 
 // NewDataExportEvent creates a new data export event
-func NewDataExportEvent(source string, userID int64, exportType, format string, fileSize int64, status string) *DataExportEvent {
+func NewDataExportEvent(source string, userID int64, exportType, format string, fileSize int64,
+	status string) *DataExportEvent {
 	return &DataExportEvent{
 		BaseEvent:  NewBaseEvent("data.export", source, nil),
 		UserID:     userID,

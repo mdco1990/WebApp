@@ -61,22 +61,23 @@ func (e *ValidationErrors) Add(field, message string, value interface{}) {
 // All validators are executed, and all errors are collected.
 func Chain(validators ...Validator) Validator {
 	return func(value interface{}) error {
-		var errors ValidationErrors
+		var validationErrors ValidationErrors
 
 		for _, validator := range validators {
 			if err := validator(value); err != nil {
 				// Try to extract ValidationErrors
-				if validationErrors, ok := err.(ValidationErrors); ok {
-					errors = append(errors, validationErrors...)
+				var nestedErrors ValidationErrors
+				if errors.As(err, &nestedErrors) {
+					validationErrors = append(validationErrors, nestedErrors...)
 				} else {
 					// Create a generic validation error
-					errors.Add("", err.Error(), value)
+					validationErrors.Add("", err.Error(), value)
 				}
 			}
 		}
 
-		if errors.HasErrors() {
-			return errors
+		if validationErrors.HasErrors() {
+			return validationErrors
 		}
 
 		return nil
@@ -86,28 +87,29 @@ func Chain(validators ...Validator) Validator {
 // ChainField combines multiple validators for a specific field.
 func ChainField(field string, validators ...Validator) Validator {
 	return func(value interface{}) error {
-		var errors ValidationErrors
+		var validationErrors ValidationErrors
 
 		for _, validator := range validators {
 			if err := validator(value); err != nil {
-				if validationErrors, ok := err.(ValidationErrors); ok {
+				var nestedErrors ValidationErrors
+				if errors.As(err, &nestedErrors) {
 					// Update field names to include the parent field
-					for _, validationError := range validationErrors {
+					for _, validationError := range nestedErrors {
 						if validationError.Field == "" {
 							validationError.Field = field
 						} else {
 							validationError.Field = field + "." + validationError.Field
 						}
-						errors.Add(validationError.Field, validationError.Message, validationError.Value)
+						validationErrors.Add(validationError.Field, validationError.Message, validationError.Value)
 					}
 				} else {
-					errors.Add(field, err.Error(), value)
+					validationErrors.Add(field, err.Error(), value)
 				}
 			}
 		}
 
-		if errors.HasErrors() {
-			return errors
+		if validationErrors.HasErrors() {
+			return validationErrors
 		}
 
 		return nil
@@ -379,31 +381,34 @@ func ValidateYearMonth(field string) Validator {
 func ValidateExpense() Validator {
 	return func(value interface{}) error {
 		if expense, ok := value.(*domain.Expense); ok {
-			var errors ValidationErrors
+			var validationErrors ValidationErrors
 
 			// Validate description
 			if err := ValidateDescription("description")(expense.Description); err != nil {
-				if validationErrors, ok := err.(ValidationErrors); ok {
-					errors = append(errors, validationErrors...)
+				var nestedErrors ValidationErrors
+				if errors.As(err, &nestedErrors) {
+					validationErrors = append(validationErrors, nestedErrors...)
 				}
 			}
 
 			// Validate amount
 			if err := ValidateAmount("amount")(expense.AmountCents); err != nil {
-				if validationErrors, ok := err.(ValidationErrors); ok {
-					errors = append(errors, validationErrors...)
+				var nestedErrors ValidationErrors
+				if errors.As(err, &nestedErrors) {
+					validationErrors = append(validationErrors, nestedErrors...)
 				}
 			}
 
 			// Validate year/month
 			if err := ValidateYearMonth("year_month")(domain.YearMonth{Year: expense.Year, Month: expense.Month}); err != nil {
-				if validationErrors, ok := err.(ValidationErrors); ok {
-					errors = append(errors, validationErrors...)
+				var nestedErrors ValidationErrors
+				if errors.As(err, &nestedErrors) {
+					validationErrors = append(validationErrors, nestedErrors...)
 				}
 			}
 
-			if errors.HasErrors() {
-				return errors
+			if validationErrors.HasErrors() {
+				return validationErrors
 			}
 		}
 		return nil
@@ -414,7 +419,7 @@ func ValidateExpense() Validator {
 func ValidateUser() Validator {
 	return func(value interface{}) error {
 		if user, ok := value.(*domain.User); ok {
-			var errors ValidationErrors
+			var validationErrors ValidationErrors
 
 			// Validate username
 			if err := ChainField("username",
@@ -423,22 +428,24 @@ func ValidateUser() Validator {
 				MaxLength("username", 50),
 				Pattern("username", `^[a-zA-Z0-9_]+$`),
 			)(user.Username); err != nil {
-				if validationErrors, ok := err.(ValidationErrors); ok {
-					errors = append(errors, validationErrors...)
+				var nestedErrors ValidationErrors
+				if errors.As(err, &nestedErrors) {
+					validationErrors = append(validationErrors, nestedErrors...)
 				}
 			}
 
 			// Validate email if provided
 			if user.Email != "" {
 				if err := Email("email")(user.Email); err != nil {
-					if validationErrors, ok := err.(ValidationErrors); ok {
-						errors = append(errors, validationErrors...)
+					var nestedErrors ValidationErrors
+					if errors.As(err, &nestedErrors) {
+						validationErrors = append(validationErrors, nestedErrors...)
 					}
 				}
 			}
 
-			if errors.HasErrors() {
-				return errors
+			if validationErrors.HasErrors() {
+				return validationErrors
 			}
 		}
 		return nil
@@ -463,7 +470,7 @@ func ValidateStruct(value interface{}) error {
 		return errors.New("value must be a struct")
 	}
 
-	var errors ValidationErrors
+	var validationErrors ValidationErrors
 
 	for i := 0; i < v.NumField(); i++ {
 		field := v.Field(i)
@@ -522,15 +529,16 @@ func ValidateStruct(value interface{}) error {
 		// Apply validators
 		if len(validators) > 0 {
 			if err := Chain(validators...)(field.Interface()); err != nil {
-				if validationErrors, ok := err.(ValidationErrors); ok {
-					errors = append(errors, validationErrors...)
+				var nestedErrors ValidationErrors
+				if errors.As(err, &nestedErrors) {
+					validationErrors = append(validationErrors, nestedErrors...)
 				}
 			}
 		}
 	}
 
-	if errors.HasErrors() {
-		return errors
+	if validationErrors.HasErrors() {
+		return validationErrors
 	}
 
 	return nil
