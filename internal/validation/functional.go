@@ -2,7 +2,6 @@
 package validation
 
 import (
-	stderrors "errors"
 	"fmt"
 	"reflect"
 	"regexp"
@@ -66,8 +65,7 @@ func Chain(validators ...Validator) Validator {
 		for _, validator := range validators {
 			if err := validator(value); err != nil {
 				// Try to extract ValidationErrors
-				var validationErrors ValidationErrors
-				if stderrors.As(err, &validationErrors) {
+				if validationErrors, ok := err.(ValidationErrors); ok {
 					errors = append(errors, validationErrors...)
 				} else {
 					// Create a generic validation error
@@ -91,8 +89,7 @@ func ChainField(field string, validators ...Validator) Validator {
 
 		for _, validator := range validators {
 			if err := validator(value); err != nil {
-				var validationErrors ValidationErrors
-				if stderrors.As(err, &validationErrors) {
+				if validationErrors, ok := err.(ValidationErrors); ok {
 					// Update field names to include the parent field
 					for _, validationError := range validationErrors {
 						if validationError.Field == "" {
@@ -385,24 +382,21 @@ func ValidateExpense() Validator {
 
 			// Validate description
 			if err := ValidateDescription("description")(expense.Description); err != nil {
-				var validationErrors ValidationErrors
-				if stderrors.As(err, &validationErrors) {
+				if validationErrors, ok := err.(ValidationErrors); ok {
 					errors = append(errors, validationErrors...)
 				}
 			}
 
 			// Validate amount
 			if err := ValidateAmount("amount")(expense.AmountCents); err != nil {
-				var validationErrors ValidationErrors
-				if stderrors.As(err, &validationErrors) {
+				if validationErrors, ok := err.(ValidationErrors); ok {
 					errors = append(errors, validationErrors...)
 				}
 			}
 
 			// Validate year/month
 			if err := ValidateYearMonth("year_month")(domain.YearMonth{Year: expense.Year, Month: expense.Month}); err != nil {
-				var validationErrors ValidationErrors
-				if stderrors.As(err, &validationErrors) {
+				if validationErrors, ok := err.(ValidationErrors); ok {
 					errors = append(errors, validationErrors...)
 				}
 			}
@@ -428,8 +422,7 @@ func ValidateUser() Validator {
 				MaxLength("username", 50),
 				Pattern("username", `^[a-zA-Z0-9_]+$`),
 			)(user.Username); err != nil {
-				var validationErrors ValidationErrors
-				if stderrors.As(err, &validationErrors) {
+				if validationErrors, ok := err.(ValidationErrors); ok {
 					errors = append(errors, validationErrors...)
 				}
 			}
@@ -437,8 +430,7 @@ func ValidateUser() Validator {
 			// Validate email if provided
 			if user.Email != "" {
 				if err := Email("email")(user.Email); err != nil {
-					var validationErrors ValidationErrors
-					if stderrors.As(err, &validationErrors) {
+					if validationErrors, ok := err.(ValidationErrors); ok {
 						errors = append(errors, validationErrors...)
 					}
 				}
@@ -457,59 +449,6 @@ func ValidateUser() Validator {
 // IsValid checks if a value passes all validators.
 func IsValid(value interface{}, validators ...Validator) bool {
 	return Chain(validators...)(value) == nil
-}
-
-// parseValidationRule parses a single validation rule and returns a validator
-func parseValidationRule(fieldName, rule string) Validator {
-	rule = strings.TrimSpace(rule)
-	if rule == "" {
-		return nil
-	}
-
-	// Parse rule (e.g., "required", "min:5", "max:100")
-	if strings.Contains(rule, ":") {
-		parts := strings.SplitN(rule, ":", 2)
-		ruleName := parts[0]
-		ruleValue := parts[1]
-
-		switch ruleName {
-		case "min":
-			if f, err := strconv.ParseFloat(ruleValue, 64); err == nil {
-				return Min(fieldName, f)
-			}
-		case "max":
-			if f, err := strconv.ParseFloat(ruleValue, 64); err == nil {
-				return Max(fieldName, f)
-			}
-		case "minlen":
-			if i, err := strconv.Atoi(ruleValue); err == nil {
-				return MinLength(fieldName, i)
-			}
-		case "maxlen":
-			if i, err := strconv.Atoi(ruleValue); err == nil {
-				return MaxLength(fieldName, i)
-			}
-		}
-	} else {
-		switch rule {
-		case "required":
-			return Required(fieldName)
-		case "email":
-			return Email(fieldName)
-		}
-	}
-
-	return nil
-}
-
-// buildValidatorsFromTag builds validators from a validation tag
-func buildValidatorsFromTag(fieldName, tag string) []Validator {
-	rules := strings.Split(tag, ",")
-	var validators []Validator
-
-	}
-
-	return validators
 }
 
 // ValidateStruct validates a struct using field tags.
@@ -533,9 +472,15 @@ func ValidateStruct(value interface{}) error {
 			continue
 		}
 
-		// Build validators from tag
-		validators := buildValidatorsFromTag(fieldType.Name, tag)
+		// Parse validation rules from tag
+		rules := strings.Split(tag, ",")
+		var validators []Validator
 
+		for _, rule := range rules {
+			rule = strings.TrimSpace(rule)
+			if rule == "" {
+				continue
+			}
 
 			// Parse rule (e.g., "required", "min:5", "max:100")
 			if strings.Contains(rule, ":") {
@@ -574,8 +519,7 @@ func ValidateStruct(value interface{}) error {
 		// Apply validators
 		if len(validators) > 0 {
 			if err := Chain(validators...)(field.Interface()); err != nil {
-				var validationErrors ValidationErrors
-				if stderrors.As(err, &validationErrors) {
+				if validationErrors, ok := err.(ValidationErrors); ok {
 					errors = append(errors, validationErrors...)
 				}
 			}

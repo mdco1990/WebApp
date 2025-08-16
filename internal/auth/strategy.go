@@ -7,8 +7,10 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -172,7 +174,7 @@ func (as *AuthService) AuthenticateWithDefault(ctx context.Context, credentials 
 
 // checkLoginAttempts checks if a user has exceeded maximum login attempts
 func (as *AuthService) checkLoginAttempts(ctx context.Context, username string) error {
-	key := fmt.Sprintf("login_attempts:%s", username)
+	key := "login_attempts:" + username
 
 	attemptsData, err := as.storage.Load(ctx, key)
 	if err != nil {
@@ -190,7 +192,7 @@ func (as *AuthService) checkLoginAttempts(ctx context.Context, username string) 
 
 	// Check if locked out
 	if attempts.IsLockedOut(as.config.MaxLoginAttempts, as.config.LockoutDuration) {
-		return fmt.Errorf("account temporarily locked due to too many failed login attempts")
+		return errors.New("account temporarily locked due to too many failed login attempts")
 	}
 
 	return nil
@@ -198,7 +200,7 @@ func (as *AuthService) checkLoginAttempts(ctx context.Context, username string) 
 
 // recordFailedLogin records a failed login attempt
 func (as *AuthService) recordFailedLogin(ctx context.Context, username string) {
-	key := fmt.Sprintf("login_attempts:%s", username)
+	key := "login_attempts:" + username
 
 	var attempts LoginAttempts
 	attemptsData, err := as.storage.Load(ctx, key)
@@ -224,7 +226,7 @@ func (as *AuthService) recordFailedLogin(ctx context.Context, username string) {
 
 // recordSuccessfulLogin records a successful login
 func (as *AuthService) recordSuccessfulLogin(ctx context.Context, username string) {
-	key := fmt.Sprintf("login_attempts:%s", username)
+	key := "login_attempts:" + username
 	if deleteErr := as.storage.Delete(ctx, key); deleteErr != nil {
 		slog.Error("Failed to delete login attempts", "error", deleteErr)
 	}
@@ -311,7 +313,7 @@ func (s *SessionAuthStrategy) Authenticate(ctx context.Context, credentials Auth
 	// Store session
 	sessionBytes, _ := json.Marshal(sessionData)
 	ttl := s.config.SessionTimeout
-	err = s.storage.Save(ctx, fmt.Sprintf("session:%s", sessionToken), sessionBytes, &ttl)
+	err = s.storage.Save(ctx, "session:" + sessionToken, sessionBytes, &ttl)
 	if err != nil {
 		return nil, fmt.Errorf("failed to store session: %w", err)
 	}
@@ -327,9 +329,9 @@ func (s *SessionAuthStrategy) Authenticate(ctx context.Context, credentials Auth
 // Validate validates a session token
 func (s *SessionAuthStrategy) Validate(ctx context.Context, token string) (*AuthResult, error) {
 	// Retrieve session data
-	sessionBytes, err := s.storage.Load(ctx, fmt.Sprintf("session:%s", token))
+	sessionBytes, err := s.storage.Load(ctx, "session:" + token)
 	if err != nil {
-		return nil, fmt.Errorf("invalid or expired session")
+		return nil, errors.New("invalid or expired session")
 	}
 
 	var sessionData SessionData
@@ -344,7 +346,7 @@ func (s *SessionAuthStrategy) Validate(ctx context.Context, token string) (*Auth
 	// Check if session has expired
 	if time.Now().After(sessionData.ExpiresAt) {
 		// Remove expired session
-		if deleteErr := s.storage.Delete(ctx, fmt.Sprintf("session:%s", token)); deleteErr != nil {
+		if deleteErr := s.storage.Delete(ctx, "session:" + token); deleteErr != nil {
 			slog.Error("Failed to delete expired session", "error", deleteErr)
 		}
 		return nil, fmt.Errorf("session expired")
@@ -385,7 +387,7 @@ func (s *SessionAuthStrategy) Refresh(ctx context.Context, token string) (*AuthR
 	// Update session
 	sessionBytes, _ := json.Marshal(sessionData)
 	ttl := s.config.SessionTimeout
-	err = s.storage.Save(ctx, fmt.Sprintf("session:%s", token), sessionBytes, &ttl)
+	err = s.storage.Save(ctx, "session:" + token, sessionBytes, &ttl)
 	if err != nil {
 		return nil, fmt.Errorf("failed to refresh session: %w", err)
 	}
@@ -396,7 +398,7 @@ func (s *SessionAuthStrategy) Refresh(ctx context.Context, token string) (*AuthR
 
 // Revoke revokes a session
 func (s *SessionAuthStrategy) Revoke(ctx context.Context, token string) error {
-	return s.storage.Delete(ctx, fmt.Sprintf("session:%s", token))
+	return s.storage.Delete(ctx, "session:" + token)
 }
 
 // validateCredentials validates user credentials
@@ -420,7 +422,7 @@ func (s *SessionAuthStrategy) validateCredentials(ctx context.Context, credentia
 	user := &domain.User{
 		ID:       1,
 		Username: credentials.Username,
-		Email:    fmt.Sprintf("%s@example.com", credentials.Username),
+		Email:    credentials.Username + "@example.com",
 	}
 
 	return user, nil
@@ -432,7 +434,7 @@ func (s *SessionAuthStrategy) generateSessionToken() string {
 	if _, err := rand.Read(bytes); err != nil {
 		slog.Error("Failed to generate random bytes for session token", "error", err)
 		// Fallback to a deterministic but unique token
-		return fmt.Sprintf("fallback_%d_%d", time.Now().UnixNano(), s.config.SessionTimeout)
+		return "fallback_" + strconv.FormatInt(time.Now().UnixNano(), 10) + "_" + strconv.FormatInt(int64(s.config.SessionTimeout), 10)
 	}
 	return base64.URLEncoding.EncodeToString(bytes)
 }
@@ -498,7 +500,7 @@ func (s *TokenAuthStrategy) Authenticate(ctx context.Context, credentials AuthCr
 
 	refreshBytes, _ := json.Marshal(refreshData)
 	ttl := s.config.RefreshTimeout
-	err = s.storage.Save(ctx, fmt.Sprintf("refresh:%s", refreshToken), refreshBytes, &ttl)
+	err = s.storage.Save(ctx, "refresh:" + refreshToken, refreshBytes, &ttl)
 	if err != nil {
 		return nil, fmt.Errorf("failed to store refresh token: %w", err)
 	}
@@ -576,13 +578,13 @@ func (s *TokenAuthStrategy) Refresh(ctx context.Context, refreshToken string) (*
 	ttl := s.config.RefreshTimeout
 
 	// Store new refresh token
-	err = s.storage.Save(ctx, fmt.Sprintf("refresh:%s", newRefreshToken), newRefreshBytes, &ttl)
+	err = s.storage.Save(ctx, "refresh:" + newRefreshToken, newRefreshBytes, &ttl)
 	if err != nil {
 		return nil, fmt.Errorf("failed to store new refresh token: %w", err)
 	}
 
 	// Remove old refresh token
-	if deleteErr := s.storage.Delete(ctx, fmt.Sprintf("refresh:%s", refreshToken)); deleteErr != nil {
+	if deleteErr := s.storage.Delete(ctx, "refresh:" + refreshToken); deleteErr != nil {
 		slog.Error("Failed to delete old refresh token", "error", deleteErr)
 	}
 
@@ -597,7 +599,7 @@ func (s *TokenAuthStrategy) Refresh(ctx context.Context, refreshToken string) (*
 
 // Revoke revokes a refresh token
 func (s *TokenAuthStrategy) Revoke(ctx context.Context, refreshToken string) error {
-	return s.storage.Delete(ctx, fmt.Sprintf("refresh:%s", refreshToken))
+	return s.storage.Delete(ctx, "refresh:" + refreshToken)
 }
 
 // validateCredentials validates user credentials
@@ -614,7 +616,7 @@ func (s *TokenAuthStrategy) validateCredentials(ctx context.Context, credentials
 	user := &domain.User{
 		ID:       1,
 		Username: credentials.Username,
-		Email:    fmt.Sprintf("%s@example.com", credentials.Username),
+		Email:    credentials.Username + "@example.com",
 	}
 
 	return user, nil
@@ -689,14 +691,14 @@ func (s *TokenAuthStrategy) generateRefreshToken() string {
 	if _, err := rand.Read(bytes); err != nil {
 		slog.Error("Failed to generate random bytes for refresh token", "error", err)
 		// Fallback to a deterministic but unique token
-		return fmt.Sprintf("fallback_refresh_%d_%d", time.Now().UnixNano(), s.config.RefreshTimeout)
+		return "fallback_refresh_" + strconv.FormatInt(time.Now().UnixNano(), 10) + "_" + strconv.FormatInt(int64(s.config.RefreshTimeout), 10)
 	}
 	return base64.URLEncoding.EncodeToString(bytes)
 }
 
 // validateRefreshToken validates a refresh token
 func (s *TokenAuthStrategy) validateRefreshToken(ctx context.Context, refreshToken string) (*RefreshTokenData, error) {
-	refreshBytes, err := s.storage.Load(ctx, fmt.Sprintf("refresh:%s", refreshToken))
+	refreshBytes, err := s.storage.Load(ctx, "refresh:" + refreshToken)
 	if err != nil {
 		return nil, fmt.Errorf("invalid refresh token")
 	}
@@ -712,7 +714,7 @@ func (s *TokenAuthStrategy) validateRefreshToken(ctx context.Context, refreshTok
 
 	if time.Now().After(refreshData.ExpiresAt) {
 		// Remove expired refresh token
-		if deleteErr := s.storage.Delete(ctx, fmt.Sprintf("refresh:%s", refreshToken)); deleteErr != nil {
+		if deleteErr := s.storage.Delete(ctx, "refresh:" + refreshToken); deleteErr != nil {
 			slog.Error("Failed to delete expired refresh token", "error", deleteErr)
 		}
 		return nil, fmt.Errorf("refresh token expired")
