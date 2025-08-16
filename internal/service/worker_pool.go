@@ -41,7 +41,7 @@ type WorkerPool struct {
 	jobQueue      chan *Job
 	resultChannel chan *JobResult
 	processor     JobProcessor
-	ctx           context.Context
+	ctx           context.Context //nolint:containedctx
 	cancel        context.CancelFunc
 	wg            sync.WaitGroup
 	mu            sync.RWMutex

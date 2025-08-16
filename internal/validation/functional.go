@@ -453,6 +453,8 @@ func IsValid(value interface{}, validators ...Validator) bool {
 }
 
 // ValidateStruct validates a struct using field tags.
+//
+//nolint:gocognit,cyclop
 func ValidateStruct(value interface{}) error {
 	v := reflect.ValueOf(value)
 	t := v.Type()

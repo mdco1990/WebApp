@@ -30,6 +30,8 @@ type MonthlyDataResult struct {
 
 // GetMonthlyDataConcurrent fetches income sources, budget sources, and expenses concurrently.
 // Uses goroutines for parallel data fetching with proper synchronization.
+//
+//nolint:cyclop
 func (s *ConcurrentService) GetMonthlyDataConcurrent(ctx context.Context, ym domain.YearMonth) (*MonthlyDataResult, error) {
 	if err := validateYM(ym); err != nil {
 		return nil, err

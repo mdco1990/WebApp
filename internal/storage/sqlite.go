@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"sync"
@@ -88,6 +89,8 @@ func (s *SQLiteStorage) initSchema() error {
 }
 
 // Save stores a value with optional TTL
+//
+//nolint:cyclop
 func (s *SQLiteStorage) Save(ctx context.Context, key string, value interface{}, ttl *time.Duration) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()

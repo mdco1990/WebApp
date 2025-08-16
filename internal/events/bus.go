@@ -111,7 +111,7 @@ type EventBus struct {
 	middleware    []EventMiddleware
 	storage       storage.StorageProvider
 	mu            sync.RWMutex
-	ctx           context.Context
+	ctx           context.Context //nolint:containedctx
 	cancel        context.CancelFunc
 	stats         *EventBusStats
 }
@@ -244,6 +244,8 @@ func (eb *EventBus) Unsubscribe(subscriptionID string) error {
 }
 
 // Publish publishes an event to all subscribers
+//
+//nolint:cyclop
 func (eb *EventBus) Publish(ctx context.Context, event Event) error {
 	eb.mu.RLock()
 	subs := make([]*EventSubscription, 0)

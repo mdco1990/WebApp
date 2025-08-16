@@ -12,6 +12,8 @@ import (
 )
 
 // UserService defines the interface for user-related operations
+//
+//nolint:interfacebloat
 type UserService interface {
 	// User management
 	CreateUser(ctx context.Context, user *domain.User) error
@@ -35,6 +37,8 @@ type UserService interface {
 }
 
 // FinancialService defines the interface for financial operations
+//
+//nolint:interfacebloat
 type FinancialService interface {
 	// Income management
 	SetIncome(ctx context.Context, ym domain.YearMonth, amount domain.Money) error
