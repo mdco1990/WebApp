@@ -15,32 +15,32 @@ import (
 type Event interface {
 	// Type returns the event type identifier
 	Type() string
-	
+
 	// Data returns the event payload data
 	Data() interface{}
-	
+
 	// Timestamp returns when the event was created
 	Timestamp() time.Time
-	
+
 	// Source returns the source of the event
 	Source() string
-	
+
 	// ID returns the unique event identifier
 	ID() string
-	
+
 	// Version returns the event schema version
 	Version() string
 }
 
 // BaseEvent provides common event functionality
 type BaseEvent struct {
-	EventType  string                 `json:"event_type"`
-	EventData  interface{}            `json:"event_data"`
-	EventTime  time.Time              `json:"event_time"`
-	EventSource string                `json:"event_source"`
-	EventID    string                 `json:"event_id"`
-	EventVersion string               `json:"event_version"`
-	Metadata   map[string]interface{} `json:"metadata,omitempty"`
+	EventType    string                 `json:"event_type"`
+	EventData    interface{}            `json:"event_data"`
+	EventTime    time.Time              `json:"event_time"`
+	EventSource  string                 `json:"event_source"`
+	EventID      string                 `json:"event_id"`
+	EventVersion string                 `json:"event_version"`
+	Metadata     map[string]interface{} `json:"metadata,omitempty"`
 }
 
 // Type implements Event.Type
@@ -76,13 +76,13 @@ func (e BaseEvent) Version() string {
 // NewBaseEvent creates a new base event
 func NewBaseEvent(eventType, source string, data interface{}) BaseEvent {
 	return BaseEvent{
-		EventType:   eventType,
-		EventData:   data,
-		EventTime:   time.Now(),
-		EventSource: source,
-		EventID:     generateEventID(),
+		EventType:    eventType,
+		EventData:    data,
+		EventTime:    time.Now(),
+		EventSource:  source,
+		EventID:      generateEventID(),
 		EventVersion: "1.0",
-		Metadata:    make(map[string]interface{}),
+		Metadata:     make(map[string]interface{}),
 	}
 }
 
@@ -116,20 +116,20 @@ type EventBus struct {
 
 // EventBusStats tracks event bus statistics
 type EventBusStats struct {
-	EventsPublished   int64         `json:"events_published"`
-	EventsProcessed   int64         `json:"events_processed"`
-	EventsFailed      int64         `json:"events_failed"`
-	ActiveSubscriptions int64       `json:"active_subscriptions"`
-	TotalSubscriptions int64        `json:"total_subscriptions"`
-	AverageProcessTime time.Duration `json:"average_process_time"`
-	LastEventTime     time.Time     `json:"last_event_time"`
-	mu                sync.RWMutex
+	EventsPublished     int64         `json:"events_published"`
+	EventsProcessed     int64         `json:"events_processed"`
+	EventsFailed        int64         `json:"events_failed"`
+	ActiveSubscriptions int64         `json:"active_subscriptions"`
+	TotalSubscriptions  int64         `json:"total_subscriptions"`
+	AverageProcessTime  time.Duration `json:"average_process_time"`
+	LastEventTime       time.Time     `json:"last_event_time"`
+	mu                  sync.RWMutex
 }
 
 // NewEventBus creates a new event bus
 func NewEventBus(storage storage.StorageProvider) *EventBus {
 	ctx, cancel := context.WithCancel(context.Background())
-	
+
 	return &EventBus{
 		subscriptions: make(map[string][]*EventSubscription),
 		handlers:      make(map[string][]EventHandler),
@@ -163,10 +163,10 @@ func (eb *EventBus) Subscribe(eventType string, handler EventHandler, options ..
 
 	// Add to subscriptions
 	eb.subscriptions[eventType] = append(eb.subscriptions[eventType], sub)
-	
+
 	// Sort by priority (higher priority first)
 	eb.sortSubscriptionsByPriority(eventType)
-	
+
 	// Update stats
 	eb.stats.mu.Lock()
 	eb.stats.ActiveSubscriptions++
@@ -198,10 +198,10 @@ func (eb *EventBus) SubscribePattern(pattern string, handler EventHandler, optio
 
 	// Add to pattern subscriptions
 	eb.subscriptions[pattern] = append(eb.subscriptions[pattern], sub)
-	
+
 	// Sort by priority
 	eb.sortSubscriptionsByPriority(pattern)
-	
+
 	// Update stats
 	eb.stats.mu.Lock()
 	eb.stats.ActiveSubscriptions++
@@ -221,14 +221,14 @@ func (eb *EventBus) Unsubscribe(subscriptionID string) error {
 			if sub.ID == subscriptionID {
 				// Remove subscription
 				eb.subscriptions[eventType] = append(subs[:i], subs[i+1:]...)
-				
+
 				// Update stats
 				eb.stats.mu.Lock()
 				if sub.Active {
 					eb.stats.ActiveSubscriptions--
 				}
 				eb.stats.mu.Unlock()
-				
+
 				return nil
 			}
 		}
@@ -241,7 +241,7 @@ func (eb *EventBus) Unsubscribe(subscriptionID string) error {
 func (eb *EventBus) Publish(ctx context.Context, event Event) error {
 	eb.mu.RLock()
 	subs := make([]*EventSubscription, 0)
-	
+
 	// Collect all matching subscriptions
 	for pattern, subscriptions := range eb.subscriptions {
 		if eb.matchesPattern(event.Type(), pattern) {
@@ -262,24 +262,24 @@ func (eb *EventBus) Publish(ctx context.Context, event Event) error {
 
 	// Process event with middleware
 	handler := eb.buildHandlerChain(event)
-	
+
 	// Process event concurrently
 	var wg sync.WaitGroup
 	errors := make(chan error, len(subs))
-	
+
 	for _, sub := range subs {
 		if !sub.Active {
 			continue
 		}
-		
+
 		wg.Add(1)
 		go func(subscription *EventSubscription) {
 			defer wg.Done()
-			
+
 			start := time.Now()
 			err := handler(ctx, event)
 			duration := time.Since(start)
-			
+
 			// Update stats
 			eb.stats.mu.Lock()
 			eb.stats.EventsProcessed++
@@ -293,34 +293,34 @@ func (eb *EventBus) Publish(ctx context.Context, event Event) error {
 				eb.stats.AverageProcessTime = (eb.stats.AverageProcessTime + duration) / 2
 			}
 			eb.stats.mu.Unlock()
-			
+
 			if err != nil {
 				errors <- fmt.Errorf("handler %s failed: %w", subscription.ID, err)
 			}
 		}(sub)
 	}
-	
+
 	// Wait for all handlers to complete
 	wg.Wait()
 	close(errors)
-	
+
 	// Collect errors
 	var errs []error
 	for err := range errors {
 		errs = append(errs, err)
 	}
-	
+
 	// Store event in storage for audit/replay
 	if eb.storage != nil {
 		eventData, _ := json.Marshal(event)
 		ttl := 24 * time.Hour // Keep events for 24 hours
 		_ = eb.storage.Save(ctx, fmt.Sprintf("event:%s", event.ID()), eventData, &ttl)
 	}
-	
+
 	if len(errs) > 0 {
 		return fmt.Errorf("some event handlers failed: %v", errs)
 	}
-	
+
 	return nil
 }
 
@@ -345,7 +345,7 @@ func (eb *EventBus) Use(middleware ...EventMiddleware) {
 func (eb *EventBus) GetStats() *EventBusStats {
 	eb.stats.mu.RLock()
 	defer eb.stats.mu.RUnlock()
-	
+
 	// Create a copy to avoid race conditions
 	stats := *eb.stats
 	return &stats
@@ -362,17 +362,17 @@ func (eb *EventBus) matchesPattern(eventType, pattern string) bool {
 	if pattern == eventType {
 		return true
 	}
-	
+
 	// Simple wildcard pattern matching
 	if pattern == "*" {
 		return true
 	}
-	
+
 	if len(pattern) > 1 && pattern[len(pattern)-1] == '*' {
 		prefix := pattern[:len(pattern)-1]
 		return len(eventType) >= len(prefix) && eventType[:len(prefix)] == prefix
 	}
-	
+
 	return false
 }
 
@@ -382,12 +382,12 @@ func (eb *EventBus) buildHandlerChain(event Event) EventHandler {
 		// This is a no-op handler that will be replaced by middleware
 		return nil
 	}
-	
+
 	// Apply middleware in reverse order
 	for i := len(eb.middleware) - 1; i >= 0; i-- {
 		handler = eb.middleware[i](handler)
 	}
-	
+
 	return handler
 }
 
@@ -397,7 +397,7 @@ func (eb *EventBus) sortSubscriptionsByPriority(eventType string) {
 	if len(subs) <= 1 {
 		return
 	}
-	
+
 	// Simple bubble sort for small lists
 	for i := 0; i < len(subs)-1; i++ {
 		for j := 0; j < len(subs)-i-1; j++ {
@@ -455,12 +455,12 @@ func NewExpenseCreatedEvent(source string, expenseID, userID int64, amount int64
 // BudgetExceededEvent represents a budget exceeded event
 type BudgetExceededEvent struct {
 	BaseEvent
-	UserID      int64  `json:"user_id"`
-	Month       int    `json:"month"`
-	Year        int    `json:"year"`
-	BudgetLimit int64  `json:"budget_limit_cents"`
-	ActualSpent int64  `json:"actual_spent_cents"`
-	Excess      int64  `json:"excess_cents"`
+	UserID      int64 `json:"user_id"`
+	Month       int   `json:"month"`
+	Year        int   `json:"year"`
+	BudgetLimit int64 `json:"budget_limit_cents"`
+	ActualSpent int64 `json:"actual_spent_cents"`
+	Excess      int64 `json:"excess_cents"`
 }
 
 // NewBudgetExceededEvent creates a new budget exceeded event
@@ -469,15 +469,15 @@ func NewBudgetExceededEvent(source string, userID int64, month, year int, budget
 	if excess < 0 {
 		excess = 0
 	}
-	
+
 	return &BudgetExceededEvent{
-		BaseEvent:    NewBaseEvent("budget.exceeded", source, nil),
-		UserID:       userID,
-		Month:        month,
-		Year:         year,
-		BudgetLimit:  budgetLimit,
-		ActualSpent:  actualSpent,
-		Excess:       excess,
+		BaseEvent:   NewBaseEvent("budget.exceeded", source, nil),
+		UserID:      userID,
+		Month:       month,
+		Year:        year,
+		BudgetLimit: budgetLimit,
+		ActualSpent: actualSpent,
+		Excess:      excess,
 	}
 }
 
@@ -516,8 +516,8 @@ type DataExportEvent struct {
 // NewDataExportEvent creates a new data export event
 func NewDataExportEvent(source string, userID int64, exportType, format string, fileSize int64, status string) *DataExportEvent {
 	return &DataExportEvent{
-		BaseEvent: NewBaseEvent("data.export", source, nil),
-		UserID:    userID,
+		BaseEvent:  NewBaseEvent("data.export", source, nil),
+		UserID:     userID,
 		ExportType: exportType,
 		Format:     format,
 		FileSize:   fileSize,

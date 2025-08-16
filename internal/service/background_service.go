@@ -3,7 +3,6 @@ package service
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"sync"
 	"time"
@@ -119,11 +118,11 @@ func (s *BackgroundService) processExpenseReportTask(ctx context.Context, task *
 
 	// Generate report data
 	reportData := map[string]interface{}{
-		"year_month": task.Data["year_month"],
+		"year_month":    task.Data["year_month"],
 		"expense_count": len(expenses),
-		"total_amount": calculateTotalExpenses(expenses),
-		"expenses": expenses,
-		"generated_at": time.Now(),
+		"total_amount":  calculateTotalExpenses(expenses),
+		"expenses":      expenses,
+		"generated_at":  time.Now(),
 	}
 
 	// Store result and mark as completed
@@ -263,7 +262,7 @@ func generateTaskID() string {
 func calculateTotalExpenses(expenses []domain.Expense) int64 {
 	var total int64
 	for _, expense := range expenses {
-		total += expense.AmountCents
+		total += int64(expense.AmountCents)
 	}
 	return total
 }

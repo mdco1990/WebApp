@@ -245,10 +245,10 @@ func (nh *NotificationHandler) sendEmailNotification(ctx context.Context, notifi
 	// This would integrate with an email service
 	// For now, just log the action
 	log.Printf("Sending email notification to user %d: %s", notification.UserID, notification.Title)
-	
+
 	// Simulate email sending delay
 	time.Sleep(100 * time.Millisecond)
-	
+
 	// Mark notification as sent
 	nh.markNotificationSent(ctx, notification.ID, "email")
 }
@@ -258,10 +258,10 @@ func (nh *NotificationHandler) sendPushNotification(ctx context.Context, notific
 	// This would integrate with a push notification service
 	// For now, just log the action
 	log.Printf("Sending push notification to user %d: %s", notification.UserID, notification.Title)
-	
+
 	// Simulate push notification delay
 	time.Sleep(50 * time.Millisecond)
-	
+
 	// Mark notification as sent
 	nh.markNotificationSent(ctx, notification.ID, "push")
 }
@@ -271,10 +271,10 @@ func (nh *NotificationHandler) sendSMSNotification(ctx context.Context, notifica
 	// This would integrate with an SMS service
 	// For now, just log the action
 	log.Printf("Sending SMS notification to user %d: %s", notification.UserID, notification.Title)
-	
+
 	// Simulate SMS sending delay
 	time.Sleep(200 * time.Millisecond)
-	
+
 	// Mark notification as sent
 	nh.markNotificationSent(ctx, notification.ID, "sms")
 }
@@ -288,7 +288,7 @@ func (nh *NotificationHandler) markNotificationSent(ctx context.Context, notific
 		"channel": channel,
 		"status":  "sent",
 	}
-	
+
 	statusData, _ := json.Marshal(status)
 	ttl := 7 * 24 * time.Hour // 7 days
 	_ = nh.storage.Save(ctx, key, statusData, &ttl)
@@ -459,7 +459,7 @@ func NewCompositeHandler(handlers []EventHandler, config CompositeConfig) *Compo
 // Handle processes events through all registered handlers
 func (ch *CompositeHandler) Handle(ctx context.Context, event Event) error {
 	var errors []error
-	
+
 	// Process event through all handlers
 	for _, handler := range ch.handlers {
 		// Create context with timeout if configured
@@ -469,44 +469,44 @@ func (ch *CompositeHandler) Handle(ctx context.Context, event Event) error {
 			handlerCtx, cancel = context.WithTimeout(ctx, ch.config.Timeout)
 			defer cancel()
 		}
-		
+
 		// Execute handler with retry logic
 		err := ch.executeWithRetry(handlerCtx, handler, event)
 		if err != nil {
 			errors = append(errors, err)
-			
+
 			// Stop processing if configured to stop on error
 			if !ch.config.ContinueOnError {
 				break
 			}
 		}
 	}
-	
+
 	// Return combined errors if any
 	if len(errors) > 0 {
 		return fmt.Errorf("composite handler errors: %v", errors)
 	}
-	
+
 	return nil
 }
 
 // executeWithRetry executes a handler with retry logic
 func (ch *CompositeHandler) executeWithRetry(ctx context.Context, handler EventHandler, event Event) error {
 	var lastError error
-	
+
 	for attempt := 0; attempt <= ch.config.MaxRetries; attempt++ {
 		err := handler(ctx, event)
 		if err == nil {
 			return nil
 		}
-		
+
 		lastError = err
-		
+
 		// Don't retry on last attempt
 		if attempt == ch.config.MaxRetries {
 			break
 		}
-		
+
 		// Wait before retry
 		select {
 		case <-ctx.Done():
@@ -515,7 +515,7 @@ func (ch *CompositeHandler) executeWithRetry(ctx context.Context, handler EventH
 			continue
 		}
 	}
-	
+
 	return fmt.Errorf("handler failed after %d attempts: %w", ch.config.MaxRetries+1, lastError)
 }
 
@@ -528,18 +528,18 @@ func LoggingMiddleware(logger *log.Logger) EventMiddleware {
 	return func(next EventHandler) EventHandler {
 		return func(ctx context.Context, event Event) error {
 			start := time.Now()
-			
+
 			logger.Printf("Processing event: %s (ID: %s)", event.Type(), event.ID())
-			
+
 			err := next(ctx, event)
-			
+
 			duration := time.Since(start)
 			if err != nil {
 				logger.Printf("Event processing failed: %s (ID: %s) - %v (took %v)", event.Type(), event.ID(), err, duration)
 			} else {
 				logger.Printf("Event processed successfully: %s (ID: %s) (took %v)", event.Type(), event.ID(), duration)
 			}
-			
+
 			return err
 		}
 	}
@@ -550,22 +550,22 @@ func MetricsMiddleware(metrics MetricsCollector) EventMiddleware {
 	return func(next EventHandler) EventHandler {
 		return func(ctx context.Context, event Event) error {
 			start := time.Now()
-			
+
 			// Increment event counter
 			metrics.IncrementCounter("events_processed_total", map[string]string{
 				"event_type": event.Type(),
 				"source":     event.Source(),
 			})
-			
+
 			err := next(ctx, event)
-			
+
 			duration := time.Since(start)
-			
+
 			// Record processing time
 			metrics.RecordHistogram("event_processing_duration_seconds", duration.Seconds(), map[string]string{
 				"event_type": event.Type(),
 			})
-			
+
 			// Record success/failure
 			if err != nil {
 				metrics.IncrementCounter("events_failed_total", map[string]string{
@@ -577,7 +577,7 @@ func MetricsMiddleware(metrics MetricsCollector) EventMiddleware {
 					"event_type": event.Type(),
 				})
 			}
-			
+
 			return err
 		}
 	}
@@ -592,12 +592,12 @@ func ErrorHandlingMiddleware(errorHandler ErrorHandler) EventMiddleware {
 					errorHandler.HandlePanic(ctx, event, r)
 				}
 			}()
-			
+
 			err := next(ctx, event)
 			if err != nil {
 				errorHandler.HandleError(ctx, event, err)
 			}
-			
+
 			return err
 		}
 	}
@@ -618,4 +618,3 @@ type ErrorHandler interface {
 	HandleError(ctx context.Context, event Event, err error)
 	HandlePanic(ctx context.Context, event Event, panic interface{})
 }
-

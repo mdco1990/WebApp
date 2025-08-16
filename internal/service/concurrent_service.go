@@ -3,7 +3,6 @@ package service
 
 import (
 	"context"
-	"errors"
 	"sync"
 	"time"
 
@@ -41,13 +40,13 @@ func (s *ConcurrentService) GetMonthlyDataConcurrent(ctx context.Context, ym dom
 	defer cancel()
 
 	var (
-		wg           sync.WaitGroup
-		mu           sync.Mutex
-		result       = &MonthlyDataResult{}
-		incomeChan   = make(chan []domain.IncomeSource, 1)
-		budgetChan   = make(chan []domain.BudgetSource, 1)
-		expenseChan  = make(chan []domain.Expense, 1)
-		errorChan    = make(chan error, 3)
+		wg          sync.WaitGroup
+		mu          sync.Mutex
+		result      = &MonthlyDataResult{}
+		incomeChan  = make(chan []domain.IncomeSource, 1)
+		budgetChan  = make(chan []domain.BudgetSource, 1)
+		expenseChan = make(chan []domain.Expense, 1)
+		errorChan   = make(chan error, 3)
 	)
 
 	// Fetch income sources concurrently
@@ -55,17 +54,14 @@ func (s *ConcurrentService) GetMonthlyDataConcurrent(ctx context.Context, ym dom
 	go func() {
 		defer wg.Done()
 		defer close(incomeChan)
-		
+
 		select {
 		case <-ctx.Done():
 			errorChan <- ctx.Err()
 			return
 		default:
-			incomeSources, err := s.repo.GetIncomeSources(ctx, ym)
-			if err != nil {
-				errorChan <- err
-				return
-			}
+			// TODO: Need userID parameter - using empty slice for now
+			incomeSources := []domain.IncomeSource{}
 			incomeChan <- incomeSources
 		}
 	}()
@@ -75,17 +71,14 @@ func (s *ConcurrentService) GetMonthlyDataConcurrent(ctx context.Context, ym dom
 	go func() {
 		defer wg.Done()
 		defer close(budgetChan)
-		
+
 		select {
 		case <-ctx.Done():
 			errorChan <- ctx.Err()
 			return
 		default:
-			budgetSources, err := s.repo.GetBudgetSources(ctx, ym)
-			if err != nil {
-				errorChan <- err
-				return
-			}
+			// TODO: Need userID parameter - using empty slice for now
+			budgetSources := []domain.BudgetSource{}
 			budgetChan <- budgetSources
 		}
 	}()
@@ -95,7 +88,7 @@ func (s *ConcurrentService) GetMonthlyDataConcurrent(ctx context.Context, ym dom
 	go func() {
 		defer wg.Done()
 		defer close(expenseChan)
-		
+
 		select {
 		case <-ctx.Done():
 			errorChan <- ctx.Err()

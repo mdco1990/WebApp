@@ -19,14 +19,14 @@ type Job struct {
 
 // JobResult represents the result of processing a job.
 type JobResult struct {
-	JobID      string                 `json:"job_id"`
-	Type       string                 `json:"type"`
-	Data       map[string]interface{} `json:"data"`
-	Result     interface{}            `json:"result,omitempty"`
-	Error      error                  `json:"error,omitempty"`
-	Processed  time.Time              `json:"processed"`
-	Duration   time.Duration          `json:"duration"`
-	WorkerID   int                    `json:"worker_id"`
+	JobID     string                 `json:"job_id"`
+	Type      string                 `json:"type"`
+	Data      map[string]interface{} `json:"data"`
+	Result    interface{}            `json:"result,omitempty"`
+	Error     error                  `json:"error,omitempty"`
+	Processed time.Time              `json:"processed"`
+	Duration  time.Duration          `json:"duration"`
+	WorkerID  int                    `json:"worker_id"`
 }
 
 // JobProcessor defines the interface for processing jobs.
@@ -50,13 +50,13 @@ type WorkerPool struct {
 
 // PoolStats tracks worker pool statistics.
 type PoolStats struct {
-	JobsProcessed    int64         `json:"jobs_processed"`
-	JobsFailed       int64         `json:"jobs_failed"`
-	JobsQueued       int64         `json:"jobs_queued"`
-	WorkersActive    int           `json:"workers_active"`
-	AverageJobTime   time.Duration `json:"average_job_time"`
-	TotalProcessing  time.Duration `json:"total_processing"`
-	mu               sync.RWMutex
+	JobsProcessed   int64         `json:"jobs_processed"`
+	JobsFailed      int64         `json:"jobs_failed"`
+	JobsQueued      int64         `json:"jobs_queued"`
+	WorkersActive   int           `json:"workers_active"`
+	AverageJobTime  time.Duration `json:"average_job_time"`
+	TotalProcessing time.Duration `json:"total_processing"`
+	mu              sync.RWMutex
 }
 
 // NewWorkerPool creates a new worker pool with the specified number of workers.
@@ -66,7 +66,7 @@ func NewWorkerPool(workers int, processor JobProcessor) *WorkerPool {
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	
+
 	return &WorkerPool{
 		workers:       workers,
 		jobQueue:      make(chan *Job, workers*2), // Buffer size = workers * 2
@@ -189,7 +189,7 @@ func (wp *WorkerPool) GetResultWithTimeout(timeout time.Duration) (*JobResult, e
 func (wp *WorkerPool) GetStats() PoolStats {
 	wp.stats.mu.RLock()
 	defer wp.stats.mu.RUnlock()
-	
+
 	// Create a copy to avoid race conditions
 	return PoolStats{
 		JobsProcessed:   wp.stats.JobsProcessed,
@@ -242,12 +242,12 @@ func (wp *WorkerPool) worker(workerID int) {
 // processJob processes a single job and sends the result.
 func (wp *WorkerPool) processJob(workerID int, job *Job) {
 	startTime := time.Now()
-	
+
 	// Process the job
 	result, err := wp.processor.Process(wp.ctx, job)
-	
+
 	duration := time.Since(startTime)
-	
+
 	// Create job result
 	jobResult := &JobResult{
 		JobID:     job.ID,
@@ -266,7 +266,7 @@ func (wp *WorkerPool) processJob(workerID int, job *Job) {
 	if err != nil {
 		wp.stats.JobsFailed++
 	}
-	
+
 	// Update average job time
 	if wp.stats.JobsProcessed > 0 {
 		totalTime := wp.stats.TotalProcessing + duration

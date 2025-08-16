@@ -9,27 +9,27 @@ import (
 	"sync"
 	"time"
 
-	_ "github.com/mattn/go-sqlite3"
+	_ "github.com/glebarez/go-sqlite"
 )
 
 // SQLiteStorage implements StorageProvider using SQLite
 type SQLiteStorage struct {
-	db        *sql.DB
-	options   StorageOptions
-	mu        sync.RWMutex
+	db            *sql.DB
+	options       StorageOptions
+	mu            sync.RWMutex
 	eventHandlers []StorageEventHandler
 	cleanupTicker *time.Ticker
-	done       chan bool
+	done          chan bool
 }
 
 // SQLiteStorageEntry represents a storage entry in SQLite
 type SQLiteStorageEntry struct {
-	Key       string          `json:"key"`
-	Value     []byte          `json:"value"`
-	CreatedAt time.Time       `json:"created_at"`
-	ExpiresAt *time.Time      `json:"expires_at,omitempty"`
-	Size      int64           `json:"size_bytes"`
-	Metadata  []byte          `json:"metadata,omitempty"`
+	Key       string     `json:"key"`
+	Value     []byte     `json:"value"`
+	CreatedAt time.Time  `json:"created_at"`
+	ExpiresAt *time.Time `json:"expires_at,omitempty"`
+	Size      int64      `json:"size_bytes"`
+	Metadata  []byte     `json:"metadata,omitempty"`
 }
 
 // NewSQLiteStorage creates a new SQLite storage provider
@@ -40,10 +40,10 @@ func NewSQLiteStorage(dbPath string, options StorageOptions) (*SQLiteStorage, er
 	}
 
 	storage := &SQLiteStorage{
-		db:        db,
-		options:   options,
+		db:            db,
+		options:       options,
 		eventHandlers: make([]StorageEventHandler, 0),
-		done:       make(chan bool),
+		done:          make(chan bool),
 	}
 
 	// Initialize database schema
@@ -506,7 +506,7 @@ func (s *SQLiteStorage) startCleanupRoutine() {
 func (s *SQLiteStorage) cleanupExpired() {
 	ctx := context.Background()
 	query := "DELETE FROM storage_entries WHERE expires_at < ?"
-	
+
 	result, err := s.db.ExecContext(ctx, query, time.Now())
 	if err != nil {
 		fmt.Printf("Failed to cleanup expired entries: %v\n", err)

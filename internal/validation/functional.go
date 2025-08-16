@@ -7,7 +7,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/mdco1990/webapp/internal/domain"
 )
@@ -17,8 +16,8 @@ type Validator func(interface{}) error
 
 // ValidationError represents a single validation error.
 type ValidationError struct {
-	Field   string `json:"field"`
-	Message string `json:"message"`
+	Field   string      `json:"field"`
+	Message string      `json:"message"`
 	Value   interface{} `json:"value"`
 }
 
@@ -35,7 +34,7 @@ func (e ValidationErrors) Error() string {
 	if len(e) == 0 {
 		return ""
 	}
-	
+
 	var messages []string
 	for _, err := range e {
 		messages = append(messages, err.Error())
@@ -62,7 +61,7 @@ func (e *ValidationErrors) Add(field, message string, value interface{}) {
 func Chain(validators ...Validator) Validator {
 	return func(value interface{}) error {
 		var errors ValidationErrors
-		
+
 		for _, validator := range validators {
 			if err := validator(value); err != nil {
 				// Try to extract ValidationErrors
@@ -74,11 +73,11 @@ func Chain(validators ...Validator) Validator {
 				}
 			}
 		}
-		
+
 		if errors.HasErrors() {
 			return errors
 		}
-		
+
 		return nil
 	}
 }
@@ -87,7 +86,7 @@ func Chain(validators ...Validator) Validator {
 func ChainField(field string, validators ...Validator) Validator {
 	return func(value interface{}) error {
 		var errors ValidationErrors
-		
+
 		for _, validator := range validators {
 			if err := validator(value); err != nil {
 				if validationErrors, ok := err.(ValidationErrors); ok {
@@ -105,11 +104,11 @@ func ChainField(field string, validators ...Validator) Validator {
 				}
 			}
 		}
-		
+
 		if errors.HasErrors() {
 			return errors
 		}
-		
+
 		return nil
 	}
 }
@@ -124,7 +123,7 @@ func Required(field string) Validator {
 				Value:   value,
 			}}
 		}
-		
+
 		switch v := value.(type) {
 		case string:
 			if strings.TrimSpace(v) == "" {
@@ -151,7 +150,7 @@ func Required(field string) Validator {
 				}}
 			}
 		}
-		
+
 		return nil
 	}
 }
@@ -358,15 +357,15 @@ func ValidateYearMonth(field string) Validator {
 	return func(value interface{}) error {
 		if ym, ok := value.(domain.YearMonth); ok {
 			var errors ValidationErrors
-			
+
 			if ym.Year < 1970 || ym.Year > 3000 {
 				errors.Add(field+".year", "year must be between 1970 and 3000", ym.Year)
 			}
-			
+
 			if ym.Month < 1 || ym.Month > 12 {
 				errors.Add(field+".month", "month must be between 1 and 12", ym.Month)
 			}
-			
+
 			if errors.HasErrors() {
 				return errors
 			}
@@ -380,28 +379,28 @@ func ValidateExpense() Validator {
 	return func(value interface{}) error {
 		if expense, ok := value.(*domain.Expense); ok {
 			var errors ValidationErrors
-			
+
 			// Validate description
 			if err := ValidateDescription("description")(expense.Description); err != nil {
 				if validationErrors, ok := err.(ValidationErrors); ok {
 					errors = append(errors, validationErrors...)
 				}
 			}
-			
+
 			// Validate amount
 			if err := ValidateAmount("amount")(expense.AmountCents); err != nil {
 				if validationErrors, ok := err.(ValidationErrors); ok {
 					errors = append(errors, validationErrors...)
 				}
 			}
-			
+
 			// Validate year/month
 			if err := ValidateYearMonth("year_month")(domain.YearMonth{Year: expense.Year, Month: expense.Month}); err != nil {
 				if validationErrors, ok := err.(ValidationErrors); ok {
 					errors = append(errors, validationErrors...)
 				}
 			}
-			
+
 			if errors.HasErrors() {
 				return errors
 			}
@@ -415,7 +414,7 @@ func ValidateUser() Validator {
 	return func(value interface{}) error {
 		if user, ok := value.(*domain.User); ok {
 			var errors ValidationErrors
-			
+
 			// Validate username
 			if err := ChainField("username",
 				Required("username"),
@@ -427,7 +426,7 @@ func ValidateUser() Validator {
 					errors = append(errors, validationErrors...)
 				}
 			}
-			
+
 			// Validate email if provided
 			if user.Email != "" {
 				if err := Email("email")(user.Email); err != nil {
@@ -436,7 +435,7 @@ func ValidateUser() Validator {
 					}
 				}
 			}
-			
+
 			if errors.HasErrors() {
 				return errors
 			}
@@ -456,39 +455,39 @@ func IsValid(value interface{}, validators ...Validator) bool {
 func ValidateStruct(value interface{}) error {
 	v := reflect.ValueOf(value)
 	t := v.Type()
-	
+
 	if v.Kind() != reflect.Struct {
 		return fmt.Errorf("value must be a struct")
 	}
-	
+
 	var errors ValidationErrors
-	
+
 	for i := 0; i < v.NumField(); i++ {
 		field := v.Field(i)
 		fieldType := t.Field(i)
-		
+
 		// Get validation tags
 		tag := fieldType.Tag.Get("validate")
 		if tag == "" {
 			continue
 		}
-		
+
 		// Parse validation rules from tag
 		rules := strings.Split(tag, ",")
 		var validators []Validator
-		
+
 		for _, rule := range rules {
 			rule = strings.TrimSpace(rule)
 			if rule == "" {
 				continue
 			}
-			
+
 			// Parse rule (e.g., "required", "min:5", "max:100")
 			if strings.Contains(rule, ":") {
 				parts := strings.SplitN(rule, ":", 2)
 				ruleName := parts[0]
 				ruleValue := parts[1]
-				
+
 				switch ruleName {
 				case "min":
 					if f, err := strconv.ParseFloat(ruleValue, 64); err == nil {
@@ -516,7 +515,7 @@ func ValidateStruct(value interface{}) error {
 				}
 			}
 		}
-		
+
 		// Apply validators
 		if len(validators) > 0 {
 			if err := Chain(validators...)(field.Interface()); err != nil {
@@ -526,10 +525,10 @@ func ValidateStruct(value interface{}) error {
 			}
 		}
 	}
-	
+
 	if errors.HasErrors() {
 		return errors
 	}
-	
+
 	return nil
 }
