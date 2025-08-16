@@ -1,0 +1,702 @@
+// Package auth implements authentication strategies using the strategy pattern.
+package auth
+
+import (
+	"context"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/base64"
+	"encoding/json"
+	"fmt"
+	"strings"
+	"sync"
+	"time"
+
+	"github.com/mdco1990/webapp/internal/domain"
+	"github.com/mdco1990/webapp/internal/storage"
+)
+
+// AuthStrategy defines the interface for authentication strategies
+type AuthStrategy interface {
+	// Authenticate authenticates a user and returns session/token information
+	Authenticate(ctx context.Context, credentials AuthCredentials) (*AuthResult, error)
+	
+	// Validate validates an existing session/token
+	Validate(ctx context.Context, token string) (*AuthResult, error)
+	
+	// Refresh refreshes an existing session/token
+	Refresh(ctx context.Context, token string) (*AuthResult, error)
+	
+	// Revoke revokes a session/token
+	Revoke(ctx context.Context, token string) error
+	
+	// GetType returns the type of authentication strategy
+	GetType() string
+}
+
+// AuthCredentials represents authentication credentials
+type AuthCredentials struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+	RememberMe bool `json:"remember_me"`
+}
+
+// AuthResult represents the result of authentication
+type AuthResult struct {
+	User        *domain.User `json:"user"`
+	Token       string       `json:"token"`
+	TokenType   string       `json:"token_type"`
+	ExpiresAt   time.Time    `json:"expires_at"`
+	RefreshToken string      `json:"refresh_token,omitempty"`
+	Permissions []string     `json:"permissions,omitempty"`
+}
+
+// AuthService manages authentication strategies
+type AuthService struct {
+	strategies map[string]AuthStrategy
+	defaultStrategy string
+	storage    storage.StorageProvider
+	mu         sync.RWMutex
+	config     AuthConfig
+}
+
+// AuthConfig holds authentication configuration
+type AuthConfig struct {
+	DefaultStrategy    string        `json:"default_strategy"`
+	SessionTimeout     time.Duration `json:"session_timeout"`
+	TokenTimeout       time.Duration `json:"token_timeout"`
+	RefreshTimeout     time.Duration `json:"refresh_timeout"`
+	MaxLoginAttempts   int           `json:"max_login_attempts"`
+	LockoutDuration    time.Duration `json:"lockout_duration"`
+	RequireMFA         bool          `json:"require_mfa"`
+	PasswordMinLength  int           `json:"password_min_length"`
+	PasswordMaxLength  int           `json:"password_max_length"`
+}
+
+// NewAuthService creates a new authentication service
+func NewAuthService(storage storage.StorageProvider, config AuthConfig) *AuthService {
+	service := &AuthService{
+		strategies:     make(map[string]AuthStrategy),
+		defaultStrategy: config.DefaultStrategy,
+		storage:        storage,
+		config:         config,
+	}
+	
+	// Register default strategies
+	service.RegisterStrategy("session", NewSessionAuthStrategy(storage, config))
+	service.RegisterStrategy("token", NewTokenAuthStrategy(storage, config))
+	
+	return service
+}
+
+// RegisterStrategy registers an authentication strategy
+func (as *AuthService) RegisterStrategy(name string, strategy AuthStrategy) {
+	as.mu.Lock()
+	defer as.mu.Unlock()
+	as.strategies[name] = strategy
+}
+
+// GetStrategy returns an authentication strategy by name
+func (as *AuthService) GetStrategy(name string) (AuthStrategy, error) {
+	as.mu.RLock()
+	defer as.mu.RUnlock()
+	
+	strategy, exists := as.strategies[name]
+	if !exists {
+		return nil, fmt.Errorf("authentication strategy not found: %s", name)
+	}
+	
+	return strategy, nil
+}
+
+// Authenticate authenticates a user using the specified strategy
+func (as *AuthService) Authenticate(ctx context.Context, strategyName string, credentials AuthCredentials) (*AuthResult, error) {
+	strategy, err := as.GetStrategy(strategyName)
+	if err != nil {
+		return nil, err
+	}
+	
+	// Check login attempts
+	if err := as.checkLoginAttempts(credentials.Username); err != nil {
+		return nil, err
+	}
+	
+	// Attempt authentication
+	result, err := strategy.Authenticate(ctx, credentials)
+	if err != nil {
+		as.recordFailedLogin(credentials.Username)
+		return nil, err
+	}
+	
+	// Record successful login
+	as.recordSuccessfulLogin(credentials.Username)
+	
+	return result, nil
+}
+
+// Validate validates an authentication token/session
+func (as *AuthService) Validate(ctx context.Context, strategyName, token string) (*AuthResult, error) {
+	strategy, err := as.GetStrategy(strategyName)
+	if err != nil {
+		return nil, err
+	}
+	
+	return strategy.Validate(ctx, token)
+}
+
+// Refresh refreshes an authentication token/session
+func (as *AuthService) Refresh(ctx context.Context, strategyName, token string) (*AuthResult, error) {
+	strategy, err := as.GetStrategy(strategyName)
+	if err != nil {
+		return nil, err
+	}
+	
+	return strategy.Refresh(ctx, token)
+}
+
+// Revoke revokes an authentication token/session
+func (as *AuthService) Revoke(ctx context.Context, strategyName, token string) error {
+	strategy, err := as.GetStrategy(strategyName)
+	if err != nil {
+		return err
+	}
+	
+	return strategy.Revoke(ctx, token)
+}
+
+// AuthenticateWithDefault authenticates using the default strategy
+func (as *AuthService) AuthenticateWithDefault(ctx context.Context, credentials AuthCredentials) (*AuthResult, error) {
+	return as.Authenticate(ctx, as.defaultStrategy, credentials)
+}
+
+// checkLoginAttempts checks if a user has exceeded maximum login attempts
+func (as *AuthService) checkLoginAttempts(username string) error {
+	key := fmt.Sprintf("login_attempts:%s", username)
+	
+	attemptsData, err := as.storage.Load(context.Background(), key)
+	if err != nil {
+		return nil // No previous attempts
+	}
+	
+	var attempts LoginAttempts
+	if err := json.Unmarshal(attemptsData.([]byte), &attempts); err != nil {
+		return nil // Invalid data, treat as no attempts
+	}
+	
+	// Check if locked out
+	if attempts.IsLockedOut(as.config.MaxLoginAttempts, as.config.LockoutDuration) {
+		return fmt.Errorf("account temporarily locked due to too many failed login attempts")
+	}
+	
+	return nil
+}
+
+// recordFailedLogin records a failed login attempt
+func (as *AuthService) recordFailedLogin(username string) {
+	key := fmt.Sprintf("login_attempts:%s", username)
+	
+	var attempts LoginAttempts
+	attemptsData, err := as.storage.Load(context.Background(), key)
+	if err == nil {
+		json.Unmarshal(attemptsData.([]byte), &attempts)
+	}
+	
+	attempts.RecordFailedAttempt()
+	
+	attemptsBytes, _ := json.Marshal(attempts)
+	ttl := as.config.LockoutDuration * 2
+	as.storage.Save(context.Background(), key, attemptsBytes, &ttl)
+}
+
+// recordSuccessfulLogin records a successful login
+func (as *AuthService) recordSuccessfulLogin(username string) {
+	key := fmt.Sprintf("login_attempts:%s", username)
+	as.storage.Delete(context.Background(), key)
+}
+
+// LoginAttempts tracks login attempts for a user
+type LoginAttempts struct {
+	FailedAttempts []time.Time `json:"failed_attempts"`
+	LastAttempt    time.Time   `json:"last_attempt"`
+}
+
+// RecordFailedAttempt records a failed login attempt
+func (la *LoginAttempts) RecordFailedAttempt() {
+	now := time.Now()
+	la.FailedAttempts = append(la.FailedAttempts, now)
+	la.LastAttempt = now
+	
+	// Keep only recent attempts (last 24 hours)
+	cutoff := now.Add(-24 * time.Hour)
+	var recent []time.Time
+	for _, attempt := range la.FailedAttempts {
+		if attempt.After(cutoff) {
+			recent = append(recent, attempt)
+		}
+	}
+	la.FailedAttempts = recent
+}
+
+// IsLockedOut checks if the account is locked out
+func (la *LoginAttempts) IsLockedOut(maxAttempts int, lockoutDuration time.Duration) bool {
+	if len(la.FailedAttempts) < maxAttempts {
+		return false
+	}
+	
+	// Check if lockout period has passed
+	lockoutEnd := la.LastAttempt.Add(lockoutDuration)
+	return time.Now().Before(lockoutEnd)
+}
+
+// ============================================================================
+// SESSION-BASED AUTHENTICATION STRATEGY
+// ============================================================================
+
+// SessionAuthStrategy implements session-based authentication
+type SessionAuthStrategy struct {
+	storage storage.StorageProvider
+	config  AuthConfig
+}
+
+// NewSessionAuthStrategy creates a new session authentication strategy
+func NewSessionAuthStrategy(storage storage.StorageProvider, config AuthConfig) *SessionAuthStrategy {
+	return &SessionAuthStrategy{
+		storage: storage,
+		config:  config,
+	}
+}
+
+// GetType returns the strategy type
+func (s *SessionAuthStrategy) GetType() string {
+	return "session"
+}
+
+// Authenticate authenticates a user and creates a session
+func (s *SessionAuthStrategy) Authenticate(ctx context.Context, credentials AuthCredentials) (*AuthResult, error) {
+	// Validate credentials (this would typically check against a database)
+	user, err := s.validateCredentials(ctx, credentials)
+	if err != nil {
+		return nil, err
+	}
+	
+	// Generate session token
+	sessionToken := s.generateSessionToken()
+	
+	// Create session data
+	sessionData := SessionData{
+		UserID:    user.ID,
+		Username:  user.Username,
+		CreatedAt: time.Now(),
+		ExpiresAt: time.Now().Add(s.config.SessionTimeout),
+		IPAddress: "", // Would be extracted from context in real implementation
+		UserAgent: "", // Would be extracted from context in real implementation
+	}
+	
+	// Store session
+	sessionBytes, _ := json.Marshal(sessionData)
+	ttl := s.config.SessionTimeout
+	err = s.storage.Save(ctx, fmt.Sprintf("session:%s", sessionToken), sessionBytes, &ttl)
+	if err != nil {
+		return nil, fmt.Errorf("failed to store session: %w", err)
+	}
+	
+	return &AuthResult{
+		User:      user,
+		Token:     sessionToken,
+		TokenType: "session",
+		ExpiresAt: sessionData.ExpiresAt,
+	}, nil
+}
+
+// Validate validates a session token
+func (s *SessionAuthStrategy) Validate(ctx context.Context, token string) (*AuthResult, error) {
+	// Retrieve session data
+	sessionBytes, err := s.storage.Load(ctx, fmt.Sprintf("session:%s", token))
+	if err != nil {
+		return nil, fmt.Errorf("invalid or expired session")
+	}
+	
+	var sessionData SessionData
+	if err := json.Unmarshal(sessionBytes.([]byte), &sessionData); err != nil {
+		return nil, fmt.Errorf("invalid session data")
+	}
+	
+	// Check if session has expired
+	if time.Now().After(sessionData.ExpiresAt) {
+		// Remove expired session
+		s.storage.Delete(ctx, fmt.Sprintf("session:%s", token))
+		return nil, fmt.Errorf("session expired")
+	}
+	
+	// Retrieve user data (this would typically come from a database)
+	user := &domain.User{
+		ID:       sessionData.UserID,
+		Username: sessionData.Username,
+	}
+	
+	return &AuthResult{
+		User:      user,
+		Token:     token,
+		TokenType: "session",
+		ExpiresAt: sessionData.ExpiresAt,
+	}, nil
+}
+
+// Refresh refreshes a session
+func (s *SessionAuthStrategy) Refresh(ctx context.Context, token string) (*AuthResult, error) {
+	// Validate existing session
+	result, err := s.Validate(ctx, token)
+	if err != nil {
+		return nil, err
+	}
+	
+	// Extend session
+	sessionData := SessionData{
+		UserID:    result.User.ID,
+		Username:  result.Username,
+		CreatedAt: time.Now(),
+		ExpiresAt: time.Now().Add(s.config.SessionTimeout),
+		IPAddress: "",
+		UserAgent: "",
+	}
+	
+	// Update session
+	sessionBytes, _ := json.Marshal(sessionData)
+	ttl := s.config.SessionTimeout
+	err = s.storage.Save(ctx, fmt.Sprintf("session:%s", token), sessionBytes, &ttl)
+	if err != nil {
+		return nil, fmt.Errorf("failed to refresh session: %w", err)
+	}
+	
+	result.ExpiresAt = sessionData.ExpiresAt
+	return result, nil
+}
+
+// Revoke revokes a session
+func (s *SessionAuthStrategy) Revoke(ctx context.Context, token string) error {
+	return s.storage.Delete(ctx, fmt.Sprintf("session:%s", token))
+}
+
+// validateCredentials validates user credentials
+func (s *SessionAuthStrategy) validateCredentials(ctx context.Context, credentials AuthCredentials) (*domain.User, error) {
+	// This is a simplified implementation
+	// In a real application, you would:
+	// 1. Hash the password
+	// 2. Query the database for the user
+	// 3. Compare password hashes
+	// 4. Check if the user is active
+	
+	if credentials.Username == "" || credentials.Password == "" {
+		return nil, fmt.Errorf("username and password are required")
+	}
+	
+	if len(credentials.Password) < s.config.PasswordMinLength {
+		return nil, fmt.Errorf("password must be at least %d characters", s.config.PasswordMinLength)
+	}
+	
+	// Mock user for demonstration
+	user := &domain.User{
+		ID:       1,
+		Username: credentials.Username,
+		Email:    fmt.Sprintf("%s@example.com", credentials.Username),
+	}
+	
+	return user, nil
+}
+
+// generateSessionToken generates a secure session token
+func (s *SessionAuthStrategy) generateSessionToken() string {
+	bytes := make([]byte, 32)
+	rand.Read(bytes)
+	return base64.URLEncoding.EncodeToString(bytes)
+}
+
+// SessionData represents session information
+type SessionData struct {
+	UserID    int64     `json:"user_id"`
+	Username  string    `json:"username"`
+	CreatedAt time.Time `json:"created_at"`
+	ExpiresAt time.Time `json:"expires_at"`
+	IPAddress string    `json:"ip_address"`
+	UserAgent string    `json:"user_agent"`
+}
+
+// ============================================================================
+// TOKEN-BASED AUTHENTICATION STRATEGY
+// ============================================================================
+
+// TokenAuthStrategy implements JWT-based authentication
+type TokenAuthStrategy struct {
+	storage storage.StorageProvider
+	config  AuthConfig
+	secret  []byte
+}
+
+// NewTokenAuthStrategy creates a new token authentication strategy
+func NewTokenAuthStrategy(storage storage.StorageProvider, config AuthConfig) *TokenAuthStrategy {
+	return &TokenAuthStrategy{
+		storage: storage,
+		config:  config,
+		secret:  []byte("your-secret-key"), // In production, use environment variable
+	}
+}
+
+// GetType returns the strategy type
+func (s *TokenAuthStrategy) GetType() string {
+	return "token"
+}
+
+// Authenticate authenticates a user and creates a JWT token
+func (s *TokenAuthStrategy) Authenticate(ctx context.Context, credentials AuthCredentials) (*AuthResult, error) {
+	// Validate credentials
+	user, err := s.validateCredentials(ctx, credentials)
+	if err != nil {
+		return nil, err
+	}
+	
+	// Generate JWT token
+	token, err := s.generateJWTToken(user)
+	if err != nil {
+		return nil, err
+	}
+	
+	// Generate refresh token
+	refreshToken := s.generateRefreshToken()
+	
+	// Store refresh token
+	refreshData := RefreshTokenData{
+		UserID:    user.ID,
+		Token:     refreshToken,
+		ExpiresAt: time.Now().Add(s.config.RefreshTimeout),
+	}
+	
+	refreshBytes, _ := json.Marshal(refreshData)
+	ttl := s.config.RefreshTimeout
+	err = s.storage.Save(ctx, fmt.Sprintf("refresh:%s", refreshToken), refreshBytes, &ttl)
+	if err != nil {
+		return nil, fmt.Errorf("failed to store refresh token: %w", err)
+	}
+	
+	return &AuthResult{
+		User:         user,
+		Token:        token,
+		TokenType:    "jwt",
+		ExpiresAt:    time.Now().Add(s.config.TokenTimeout),
+		RefreshToken: refreshToken,
+	}, nil
+}
+
+// Validate validates a JWT token
+func (s *TokenAuthStrategy) Validate(ctx context.Context, token string) (*AuthResult, error) {
+	// Parse and validate JWT token
+	claims, err := s.parseJWTToken(token)
+	if err != nil {
+		return nil, err
+	}
+	
+	// Check if token has expired
+	if time.Now().After(claims.ExpiresAt) {
+		return nil, fmt.Errorf("token expired")
+	}
+	
+	// Create user object from claims
+	user := &domain.User{
+		ID:       claims.UserID,
+		Username: claims.Username,
+		Email:    claims.Email,
+	}
+	
+	return &AuthResult{
+		User:      user,
+		Token:     token,
+		TokenType: "jwt",
+		ExpiresAt: claims.ExpiresAt,
+	}, nil
+}
+
+// Refresh refreshes a JWT token using a refresh token
+func (s *TokenAuthStrategy) Refresh(ctx context.Context, refreshToken string) (*AuthResult, error) {
+	// Validate refresh token
+	refreshData, err := s.validateRefreshToken(ctx, refreshToken)
+	if err != nil {
+		return nil, err
+	}
+	
+	// Generate new JWT token
+	user := &domain.User{
+		ID:       refreshData.UserID,
+		Username: refreshData.Username,
+		Email:    refreshData.Email,
+	}
+	
+	token, err := s.generateJWTToken(user)
+	if err != nil {
+		return nil, err
+	}
+	
+	// Generate new refresh token
+	newRefreshToken := s.generateRefreshToken()
+	
+	// Update refresh token
+	newRefreshData := RefreshTokenData{
+		UserID:    refreshData.UserID,
+		Username:  refreshData.Username,
+		Email:     refreshData.Email,
+		Token:     newRefreshToken,
+		ExpiresAt: time.Now().Add(s.config.RefreshTimeout),
+	}
+	
+	newRefreshBytes, _ := json.Marshal(newRefreshData)
+	ttl := s.config.RefreshTimeout
+	
+	// Store new refresh token
+	err = s.storage.Save(ctx, fmt.Sprintf("refresh:%s", newRefreshToken), newRefreshBytes, &ttl)
+	if err != nil {
+		return nil, fmt.Errorf("failed to store new refresh token: %w", err)
+	}
+	
+	// Remove old refresh token
+	s.storage.Delete(ctx, fmt.Sprintf("refresh:%s", refreshToken))
+	
+	return &AuthResult{
+		User:         user,
+		Token:        token,
+		TokenType:    "jwt",
+		ExpiresAt:    time.Now().Add(s.config.TokenTimeout),
+		RefreshToken: newRefreshToken,
+	}, nil
+}
+
+// Revoke revokes a refresh token
+func (s *TokenAuthStrategy) Revoke(ctx context.Context, refreshToken string) error {
+	return s.storage.Delete(ctx, fmt.Sprintf("refresh:%s", refreshToken))
+}
+
+// validateCredentials validates user credentials
+func (s *TokenAuthStrategy) validateCredentials(ctx context.Context, credentials AuthCredentials) (*domain.User, error) {
+	// Same implementation as SessionAuthStrategy
+	if credentials.Username == "" || credentials.Password == "" {
+		return nil, fmt.Errorf("username and password are required")
+	}
+	
+	if len(credentials.Password) < s.config.PasswordMinLength {
+		return nil, fmt.Errorf("password must be at least %d characters", s.config.PasswordMinLength)
+	}
+	
+	user := &domain.User{
+		ID:       1,
+		Username: credentials.Username,
+		Email:    fmt.Sprintf("%s@example.com", credentials.Username),
+	}
+	
+	return user, nil
+}
+
+// generateJWTToken generates a JWT token
+func (s *TokenAuthStrategy) generateJWTToken(user *domain.User) (string, error) {
+	// This is a simplified JWT implementation
+	// In production, use a proper JWT library
+	
+	claims := JWTClaims{
+		UserID:    user.ID,
+		Username:  user.Username,
+		Email:     user.Email,
+		IssuedAt:  time.Now(),
+		ExpiresAt: time.Now().Add(s.config.TokenTimeout),
+	}
+	
+	claimsBytes, _ := json.Marshal(claims)
+	claimsB64 := base64.URLEncoding.EncodeToString(claimsBytes)
+	
+	// Generate signature (simplified)
+	signature := s.generateSignature(claimsB64)
+	signatureB64 := base64.URLEncoding.EncodeToString(signature)
+	
+	return fmt.Sprintf("%s.%s", claimsB64, signatureB64), nil
+}
+
+// parseJWTToken parses and validates a JWT token
+func (s *TokenAuthStrategy) parseJWTToken(token string) (*JWTClaims, error) {
+	parts := strings.Split(token, ".")
+	if len(parts) != 2 {
+		return nil, fmt.Errorf("invalid token format")
+	}
+	
+	claimsB64 := parts[0]
+	signatureB64 := parts[1]
+	
+	// Verify signature
+	expectedSignature := s.generateSignature(claimsB64)
+	expectedSignatureB64 := base64.URLEncoding.EncodeToString(expectedSignature)
+	
+	if signatureB64 != expectedSignatureB64 {
+		return nil, fmt.Errorf("invalid signature")
+	}
+	
+	// Parse claims
+	claimsBytes, err := base64.URLEncoding.DecodeString(claimsB64)
+	if err != nil {
+		return nil, fmt.Errorf("invalid claims encoding")
+	}
+	
+	var claims JWTClaims
+	if err := json.Unmarshal(claimsBytes, &claims); err != nil {
+		return nil, fmt.Errorf("invalid claims format")
+	}
+	
+	return &claims, nil
+}
+
+// generateSignature generates a signature for JWT claims
+func (s *TokenAuthStrategy) generateSignature(claimsB64 string) []byte {
+	hash := sha256.New()
+	hash.Write([]byte(claimsB64))
+	hash.Write(s.secret)
+	return hash.Sum(nil)
+}
+
+// generateRefreshToken generates a secure refresh token
+func (s *TokenAuthStrategy) generateRefreshToken() string {
+	bytes := make([]byte, 32)
+	rand.Read(bytes)
+	return base64.URLEncoding.EncodeToString(bytes)
+}
+
+// validateRefreshToken validates a refresh token
+func (s *TokenAuthStrategy) validateRefreshToken(ctx context.Context, refreshToken string) (*RefreshTokenData, error) {
+	refreshBytes, err := s.storage.Load(ctx, fmt.Sprintf("refresh:%s", refreshToken))
+	if err != nil {
+		return nil, fmt.Errorf("invalid refresh token")
+	}
+	
+	var refreshData RefreshTokenData
+	if err := json.Unmarshal(refreshBytes.([]byte), &refreshData); err != nil {
+		return nil, fmt.Errorf("invalid refresh token data")
+	}
+	
+	if time.Now().After(refreshData.ExpiresAt) {
+		// Remove expired refresh token
+		s.storage.Delete(ctx, fmt.Sprintf("refresh:%s", refreshToken))
+		return nil, fmt.Errorf("refresh token expired")
+	}
+	
+	return &refreshData, nil
+}
+
+// JWTClaims represents JWT token claims
+type JWTClaims struct {
+	UserID    int64     `json:"user_id"`
+	Username  string    `json:"username"`
+	Email     string    `json:"email"`
+	IssuedAt  time.Time `json:"iat"`
+	ExpiresAt time.Time `json:"exp"`
+}
+
+// RefreshTokenData represents refresh token information
+type RefreshTokenData struct {
+	UserID    int64     `json:"user_id"`
+	Username  string    `json:"username"`
+	Email     string    `json:"email"`
+	Token     string    `json:"token"`
+	ExpiresAt time.Time `json:"expires_at"`
+}
