@@ -137,7 +137,7 @@ func (c *CompositeStorageProvider) Save(ctx context.Context, key string, value i
 
 	// Also save to fallback for redundancy
 	go func() {
-		_ = c.fallback.Save(context.Background(), key, value, ttl)
+		_ = c.fallback.Save(ctx, key, value, ttl)
 	}()
 
 	return nil
@@ -156,7 +156,7 @@ func (c *CompositeStorageProvider) Load(ctx context.Context, key string) (interf
 	if err == nil {
 		// Restore to primary
 		go func() {
-			_ = c.primary.Save(context.Background(), key, value, nil)
+			_ = c.primary.Save(ctx, key, value, nil)
 		}()
 	}
 

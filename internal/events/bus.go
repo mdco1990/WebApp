@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"sync"
 	"time"
 
@@ -100,6 +101,7 @@ type EventSubscription struct {
 	Priority int
 	Active   bool
 	Created  time.Time
+	Metadata map[string]interface{}
 }
 
 // EventBus manages event publishing and subscription
@@ -154,6 +156,7 @@ func (eb *EventBus) Subscribe(eventType string, handler EventHandler, options ..
 		Priority: 0,
 		Active:   true,
 		Created:  time.Now(),
+		Metadata: make(map[string]interface{}),
 	}
 
 	// Apply options
@@ -189,6 +192,7 @@ func (eb *EventBus) SubscribePattern(pattern string, handler EventHandler, optio
 		Priority: 0,
 		Active:   true,
 		Created:  time.Now(),
+		Metadata: make(map[string]interface{}),
 	}
 
 	// Apply options
@@ -329,7 +333,7 @@ func (eb *EventBus) PublishAsync(ctx context.Context, event Event) {
 	go func() {
 		if err := eb.Publish(ctx, event); err != nil {
 			// Log error but don't block
-			fmt.Printf("Async event publishing failed: %v\n", err)
+			slog.Error("Async event publishing failed", "error", err)
 		}
 	}()
 }

@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"sync"
 	"time"
 
@@ -48,7 +49,9 @@ func NewSQLiteStorage(dbPath string, options StorageOptions) (*SQLiteStorage, er
 
 	// Initialize database schema
 	if err := storage.initSchema(); err != nil {
-		db.Close()
+		if closeErr := db.Close(); closeErr != nil {
+			slog.Error("Failed to close database after schema init error", "error", closeErr)
+		}
 		return nil, fmt.Errorf("failed to initialize schema: %w", err)
 	}
 
@@ -218,7 +221,7 @@ func (s *SQLiteStorage) Load(ctx context.Context, key string) (interface{}, erro
 	if expiresAt != nil && time.Now().After(*expiresAt) {
 		// Remove expired entry
 		go func() {
-			_ = s.Delete(context.Background(), key)
+			_ = s.Delete(ctx, key)
 		}()
 
 		return nil, &StorageError{
@@ -475,7 +478,7 @@ func (s *SQLiteStorage) emitEvent(event StorageEvent) {
 			defer func() {
 				if r := recover(); r != nil {
 					// Log panic but don't crash
-					fmt.Printf("Storage event handler panicked: %v\n", r)
+					slog.Error("Storage event handler panicked", "panic", r)
 				}
 			}()
 			h(e)
@@ -494,7 +497,7 @@ func (s *SQLiteStorage) startCleanupRoutine() {
 		for {
 			select {
 			case <-s.cleanupTicker.C:
-				s.cleanupExpired()
+				s.cleanupExpiredBackground()
 			case <-s.done:
 				return
 			}
@@ -503,24 +506,44 @@ func (s *SQLiteStorage) startCleanupRoutine() {
 }
 
 // cleanupExpired removes expired entries
-func (s *SQLiteStorage) cleanupExpired() {
-	ctx := context.Background()
+func (s *SQLiteStorage) cleanupExpired(ctx context.Context) {
 	query := "DELETE FROM storage_entries WHERE expires_at < ?"
 
 	result, err := s.db.ExecContext(ctx, query, time.Now())
 	if err != nil {
-		fmt.Printf("Failed to cleanup expired entries: %v\n", err)
+		slog.Error("Failed to cleanup expired entries", "error", err)
 		return
 	}
 
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
-		fmt.Printf("Failed to get cleanup rows affected: %v\n", err)
+		slog.Error("Failed to get cleanup rows affected", "error", err)
 		return
 	}
 
 	if rowsAffected > 0 {
-		fmt.Printf("Cleaned up %d expired entries\n", rowsAffected)
+		slog.Info("Cleaned up expired entries", "count", rowsAffected)
+	}
+}
+
+// cleanupExpiredBackground removes expired entries in background (no context)
+func (s *SQLiteStorage) cleanupExpiredBackground() {
+	query := "DELETE FROM storage_entries WHERE expires_at < ?"
+
+	result, err := s.db.Exec(query, time.Now())
+	if err != nil {
+		slog.Error("Failed to cleanup expired entries", "error", err)
+		return
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		slog.Error("Failed to get cleanup rows affected", "error", err)
+		return
+	}
+
+	if rowsAffected > 0 {
+		slog.Info("Cleaned up expired entries", "count", rowsAffected)
 	}
 }
 

@@ -149,7 +149,9 @@ func NewServiceFactory(repo *repository.Repository, storageManager *storage.Stor
 // GetUserService returns or creates a UserService instance
 func (sf *ServiceFactory) GetUserService() UserService {
 	if service, exists := sf.services["user"]; exists {
-		return service.(UserService)
+		if userService, ok := service.(UserService); ok {
+			return userService
+		}
 	}
 
 	// TODO: Implement NewUserService
@@ -162,7 +164,9 @@ func (sf *ServiceFactory) GetUserService() UserService {
 // GetFinancialService returns or creates a FinancialService instance
 func (sf *ServiceFactory) GetFinancialService() FinancialService {
 	if service, exists := sf.services["financial"]; exists {
-		return service.(FinancialService)
+		if financialService, ok := service.(FinancialService); ok {
+			return financialService
+		}
 	}
 
 	// TODO: Implement NewFinancialService
@@ -175,7 +179,9 @@ func (sf *ServiceFactory) GetFinancialService() FinancialService {
 // GetNotificationService returns or creates a NotificationService instance
 func (sf *ServiceFactory) GetNotificationService() NotificationService {
 	if service, exists := sf.services["notification"]; exists {
-		return service.(NotificationService)
+		if notificationService, ok := service.(NotificationService); ok {
+			return notificationService
+		}
 	}
 
 	// TODO: Implement NewNotificationService
@@ -188,7 +194,9 @@ func (sf *ServiceFactory) GetNotificationService() NotificationService {
 // GetAuditService returns or creates an AuditService instance
 func (sf *ServiceFactory) GetAuditService() AuditService {
 	if service, exists := sf.services["audit"]; exists {
-		return service.(AuditService)
+		if auditService, ok := service.(AuditService); ok {
+			return auditService
+		}
 	}
 
 	// TODO: Implement NewAuditService
@@ -201,7 +209,9 @@ func (sf *ServiceFactory) GetAuditService() AuditService {
 // GetCacheService returns or creates a CacheService instance
 func (sf *ServiceFactory) GetCacheService() CacheService {
 	if service, exists := sf.services["cache"]; exists {
-		return service.(CacheService)
+		if cacheService, ok := service.(CacheService); ok {
+			return cacheService
+		}
 	}
 
 	// TODO: Implement cache provider creation
@@ -230,7 +240,9 @@ func (sf *ServiceFactory) GetCacheService() CacheService {
 // GetBackgroundTaskService returns or creates a BackgroundTaskService instance
 func (sf *ServiceFactory) GetBackgroundTaskService() BackgroundTaskService {
 	if service, exists := sf.services["background_task"]; exists {
-		return service.(BackgroundTaskService)
+		if backgroundTaskService, ok := service.(BackgroundTaskService); ok {
+			return backgroundTaskService
+		}
 	}
 
 	// TODO: Implement NewBackgroundTaskService

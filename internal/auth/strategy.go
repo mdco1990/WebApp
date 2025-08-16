@@ -8,6 +8,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"strings"
 	"sync"
 	"time"
@@ -117,19 +118,19 @@ func (as *AuthService) Authenticate(ctx context.Context, strategyName string, cr
 	}
 
 	// Check login attempts
-	if err := as.checkLoginAttempts(credentials.Username); err != nil {
+	if err := as.checkLoginAttempts(ctx, credentials.Username); err != nil {
 		return nil, err
 	}
 
 	// Attempt authentication
 	result, err := strategy.Authenticate(ctx, credentials)
 	if err != nil {
-		as.recordFailedLogin(credentials.Username)
+		as.recordFailedLogin(ctx, credentials.Username)
 		return nil, err
 	}
 
 	// Record successful login
-	as.recordSuccessfulLogin(credentials.Username)
+	as.recordSuccessfulLogin(ctx, credentials.Username)
 
 	return result, nil
 }
@@ -170,16 +171,20 @@ func (as *AuthService) AuthenticateWithDefault(ctx context.Context, credentials 
 }
 
 // checkLoginAttempts checks if a user has exceeded maximum login attempts
-func (as *AuthService) checkLoginAttempts(username string) error {
+func (as *AuthService) checkLoginAttempts(ctx context.Context, username string) error {
 	key := fmt.Sprintf("login_attempts:%s", username)
 
-	attemptsData, err := as.storage.Load(context.Background(), key)
+	attemptsData, err := as.storage.Load(ctx, key)
 	if err != nil {
 		return nil // No previous attempts
 	}
 
 	var attempts LoginAttempts
-	if err := json.Unmarshal(attemptsData.([]byte), &attempts); err != nil {
+	attemptsBytes, ok := attemptsData.([]byte)
+	if !ok {
+		return nil // Invalid data type, treat as no attempts
+	}
+	if err := json.Unmarshal(attemptsBytes, &attempts); err != nil {
 		return nil // Invalid data, treat as no attempts
 	}
 
@@ -192,26 +197,37 @@ func (as *AuthService) checkLoginAttempts(username string) error {
 }
 
 // recordFailedLogin records a failed login attempt
-func (as *AuthService) recordFailedLogin(username string) {
+func (as *AuthService) recordFailedLogin(ctx context.Context, username string) {
 	key := fmt.Sprintf("login_attempts:%s", username)
 
 	var attempts LoginAttempts
-	attemptsData, err := as.storage.Load(context.Background(), key)
+	attemptsData, err := as.storage.Load(ctx, key)
 	if err == nil {
-		json.Unmarshal(attemptsData.([]byte), &attempts)
+		attemptsBytes, ok := attemptsData.([]byte)
+		if ok {
+			if unmarshalErr := json.Unmarshal(attemptsBytes, &attempts); unmarshalErr != nil {
+				// Log error but continue with empty attempts
+				slog.Error("Failed to unmarshal login attempts", "error", unmarshalErr)
+				attempts = LoginAttempts{}
+			}
+		}
 	}
 
 	attempts.RecordFailedAttempt()
 
 	attemptsBytes, _ := json.Marshal(attempts)
 	ttl := as.config.LockoutDuration * 2
-	as.storage.Save(context.Background(), key, attemptsBytes, &ttl)
+	if saveErr := as.storage.Save(ctx, key, attemptsBytes, &ttl); saveErr != nil {
+		slog.Error("Failed to save login attempts", "error", saveErr)
+	}
 }
 
 // recordSuccessfulLogin records a successful login
-func (as *AuthService) recordSuccessfulLogin(username string) {
+func (as *AuthService) recordSuccessfulLogin(ctx context.Context, username string) {
 	key := fmt.Sprintf("login_attempts:%s", username)
-	as.storage.Delete(context.Background(), key)
+	if deleteErr := as.storage.Delete(ctx, key); deleteErr != nil {
+		slog.Error("Failed to delete login attempts", "error", deleteErr)
+	}
 }
 
 // LoginAttempts tracks login attempts for a user
@@ -317,14 +333,20 @@ func (s *SessionAuthStrategy) Validate(ctx context.Context, token string) (*Auth
 	}
 
 	var sessionData SessionData
-	if err := json.Unmarshal(sessionBytes.([]byte), &sessionData); err != nil {
+	sessionBytesData, ok := sessionBytes.([]byte)
+	if !ok {
+		return nil, fmt.Errorf("invalid session data type")
+	}
+	if err := json.Unmarshal(sessionBytesData, &sessionData); err != nil {
 		return nil, fmt.Errorf("invalid session data")
 	}
 
 	// Check if session has expired
 	if time.Now().After(sessionData.ExpiresAt) {
 		// Remove expired session
-		s.storage.Delete(ctx, fmt.Sprintf("session:%s", token))
+		if deleteErr := s.storage.Delete(ctx, fmt.Sprintf("session:%s", token)); deleteErr != nil {
+			slog.Error("Failed to delete expired session", "error", deleteErr)
+		}
 		return nil, fmt.Errorf("session expired")
 	}
 
@@ -353,7 +375,7 @@ func (s *SessionAuthStrategy) Refresh(ctx context.Context, token string) (*AuthR
 	// Extend session
 	sessionData := SessionData{
 		UserID:    result.User.ID,
-		Username:  result.Username,
+		Username:  result.User.Username,
 		CreatedAt: time.Now(),
 		ExpiresAt: time.Now().Add(s.config.SessionTimeout),
 		IPAddress: "",
@@ -407,7 +429,11 @@ func (s *SessionAuthStrategy) validateCredentials(ctx context.Context, credentia
 // generateSessionToken generates a secure session token
 func (s *SessionAuthStrategy) generateSessionToken() string {
 	bytes := make([]byte, 32)
-	rand.Read(bytes)
+	if _, err := rand.Read(bytes); err != nil {
+		slog.Error("Failed to generate random bytes for session token", "error", err)
+		// Fallback to a deterministic but unique token
+		return fmt.Sprintf("fallback_%d_%d", time.Now().UnixNano(), s.config.SessionTimeout)
+	}
 	return base64.URLEncoding.EncodeToString(bytes)
 }
 
@@ -556,7 +582,9 @@ func (s *TokenAuthStrategy) Refresh(ctx context.Context, refreshToken string) (*
 	}
 
 	// Remove old refresh token
-	s.storage.Delete(ctx, fmt.Sprintf("refresh:%s", refreshToken))
+	if deleteErr := s.storage.Delete(ctx, fmt.Sprintf("refresh:%s", refreshToken)); deleteErr != nil {
+		slog.Error("Failed to delete old refresh token", "error", deleteErr)
+	}
 
 	return &AuthResult{
 		User:         user,
@@ -658,7 +686,11 @@ func (s *TokenAuthStrategy) generateSignature(claimsB64 string) []byte {
 // generateRefreshToken generates a secure refresh token
 func (s *TokenAuthStrategy) generateRefreshToken() string {
 	bytes := make([]byte, 32)
-	rand.Read(bytes)
+	if _, err := rand.Read(bytes); err != nil {
+		slog.Error("Failed to generate random bytes for refresh token", "error", err)
+		// Fallback to a deterministic but unique token
+		return fmt.Sprintf("fallback_refresh_%d_%d", time.Now().UnixNano(), s.config.RefreshTimeout)
+	}
 	return base64.URLEncoding.EncodeToString(bytes)
 }
 
@@ -670,13 +702,19 @@ func (s *TokenAuthStrategy) validateRefreshToken(ctx context.Context, refreshTok
 	}
 
 	var refreshData RefreshTokenData
-	if err := json.Unmarshal(refreshBytes.([]byte), &refreshData); err != nil {
+	refreshBytesData, ok := refreshBytes.([]byte)
+	if !ok {
+		return nil, fmt.Errorf("invalid refresh token data type")
+	}
+	if err := json.Unmarshal(refreshBytesData, &refreshData); err != nil {
 		return nil, fmt.Errorf("invalid refresh token data")
 	}
 
 	if time.Now().After(refreshData.ExpiresAt) {
 		// Remove expired refresh token
-		s.storage.Delete(ctx, fmt.Sprintf("refresh:%s", refreshToken))
+		if deleteErr := s.storage.Delete(ctx, fmt.Sprintf("refresh:%s", refreshToken)); deleteErr != nil {
+			slog.Error("Failed to delete expired refresh token", "error", deleteErr)
+		}
 		return nil, fmt.Errorf("refresh token expired")
 	}
 

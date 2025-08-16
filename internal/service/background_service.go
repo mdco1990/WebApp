@@ -110,7 +110,12 @@ func (s *BackgroundService) processExpenseReportTask(ctx context.Context, task *
 	}
 
 	// Perform actual expense report processing
-	expenses, err := s.repo.ListExpenses(ctx, task.Data["year_month"].(domain.YearMonth))
+	yearMonthData, ok := task.Data["year_month"].(domain.YearMonth)
+	if !ok {
+		s.updateTaskStatus(task.ID, TaskStatusFailed, nil, "invalid year_month data type")
+		return
+	}
+	expenses, err := s.repo.ListExpenses(ctx, yearMonthData)
 	if err != nil {
 		s.updateTaskStatus(task.ID, TaskStatusFailed, nil, err.Error())
 		return
