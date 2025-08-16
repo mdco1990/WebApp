@@ -126,6 +126,12 @@ type LoginRequest struct {
 	Password string `json:"password"`
 }
 
+// OAuthRequest represents OAuth credentials for authentication.
+type OAuthRequest struct {
+	Token    string `json:"token"`
+	Provider string `json:"provider"`
+}
+
 // LoginResponse is returned after a successful or failed login attempt.
 type LoginResponse struct {
 	Success   bool   `json:"success"`
@@ -154,4 +160,36 @@ type CreateBudgetSourceRequest struct {
 type UpdateSourceRequest struct {
 	Name        string `json:"name"`
 	AmountCents Money  `json:"amount_cents"`
+}
+
+// AuditLog represents an audit trail entry
+type AuditLog struct {
+	ID         int64                  `json:"id"`
+	UserID     int64                  `json:"user_id"`
+	Action     string                 `json:"action"`
+	Resource   string                 `json:"resource"`
+	ResourceID int64                  `json:"resource_id"`
+	Timestamp  time.Time              `json:"timestamp"`
+	Details    map[string]interface{} `json:"details,omitempty"`
+	IPAddress  string                 `json:"ip_address,omitempty"`
+	UserAgent  string                 `json:"user_agent,omitempty"`
+}
+
+// HealthCheck represents a system health check
+type HealthCheck struct {
+	ID        int64                  `json:"id"`
+	Status    string                 `json:"status"` // healthy, warning, critical
+	Message   string                 `json:"message"`
+	Metrics   map[string]interface{} `json:"metrics,omitempty"`
+	Timestamp time.Time              `json:"timestamp"`
+	Source    string                 `json:"source"`
+}
+
+// SystemStatus represents the overall system status
+type SystemStatus struct {
+	Status    string                 `json:"status"`
+	Message   string                 `json:"message"`
+	Metrics   map[string]interface{} `json:"metrics,omitempty"`
+	Timestamp time.Time              `json:"timestamp"`
+	Uptime    time.Duration          `json:"uptime"`
 }

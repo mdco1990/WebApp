@@ -39,7 +39,7 @@ describe('ManualBudgetSection (unit)', () => {
     // Check that setManualBudget was called with the correctly parsed value
     expect(mockSetManualBudget).toHaveBeenCalledWith({
       bankAmount: 123.45,
-      items: []
+      items: [],
     });
   });
 });

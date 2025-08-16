@@ -1,11 +1,13 @@
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { useManualBudget } from '../useManualBudget';
-import * as api from '../../services/api';
+// import * as api from '../../services/api'; // Not used in this test
 
 // Mock the API
 jest.mock('../../services/api', () => ({
-  getManualBudget: jest.fn(),
-  saveManualBudget: jest.fn(),
+  ApiService: {
+    getManualBudget: jest.fn(),
+    saveManualBudget: jest.fn(),
+  },
 }));
 
 // Mock localStorage
@@ -13,9 +15,15 @@ const localStorageMock = (() => {
   let store: Record<string, string> = {};
   return {
     getItem: (key: string) => store[key] || null,
-    setItem: (key: string, value: string) => { store[key] = value; },
-    removeItem: (key: string) => { delete store[key]; },
-    clear: () => { store = {}; },
+    setItem: (key: string, value: string) => {
+      store[key] = value;
+    },
+    removeItem: (key: string) => {
+      delete store[key];
+    },
+    clear: () => {
+      store = {};
+    },
   };
 })();
 
@@ -23,8 +31,11 @@ Object.defineProperty(window, 'localStorage', {
   value: localStorageMock,
 });
 
-const mockGetManualBudget = api.getManualBudget as jest.MockedFunction<typeof api.getManualBudget>;
-const mockSaveManualBudget = api.saveManualBudget as jest.MockedFunction<typeof api.saveManualBudget>;
+const mockGetManualBudget = jest.fn();
+const mockSaveManualBudget = jest.fn();
+
+// Get the mocked functions
+import { ApiService } from '../../services/api';
 
 describe('useManualBudget', () => {
   beforeEach(() => {
@@ -34,6 +45,10 @@ describe('useManualBudget', () => {
     jest.clearAllMocks();
     jest.clearAllTimers();
     jest.useFakeTimers();
+    
+    // Assign mock functions to ApiService methods
+    ApiService.getManualBudget = mockGetManualBudget;
+    ApiService.saveManualBudget = mockSaveManualBudget;
   });
 
   afterEach(() => {
@@ -66,7 +81,7 @@ describe('useManualBudget', () => {
         { id: '2', name: 'Income', amount_cents: 50000 }, // $500
       ],
     };
-    mockGetManualBudget.mockResolvedValue(serverData);
+    mockGetManualBudget.mockResolvedValue({ data: serverData });
 
     const { result } = renderHook(() => useManualBudget(testDate));
 
@@ -80,7 +95,7 @@ describe('useManualBudget', () => {
       });
     });
 
-    expect(mockGetManualBudget).toHaveBeenCalledWith({ year: 2024, month: 1 });
+    expect(mockGetManualBudget).toHaveBeenCalledWith(2024, 1);
   });
 
   it('should fallback to localStorage when server fails', async () => {
@@ -99,7 +114,7 @@ describe('useManualBudget', () => {
   });
 
   it('should save to both localStorage and server when data changes', async () => {
-    mockGetManualBudget.mockResolvedValue({ bank_amount_cents: 0, items: [] });
+    mockGetManualBudget.mockResolvedValue({ data: { bank_amount_cents: 0, items: [] } });
     mockSaveManualBudget.mockResolvedValue({} as Response);
 
     const { result } = renderHook(() => useManualBudget(testDate));
@@ -125,9 +140,7 @@ describe('useManualBudget', () => {
     });
 
     await waitFor(() => {
-      expect(mockSaveManualBudget).toHaveBeenCalledWith({
-        year: 2024,
-        month: 1,
+      expect(mockSaveManualBudget).toHaveBeenCalledWith(2024, 1, {
         bank_amount_cents: 200000,
         items: [
           {
@@ -145,12 +158,11 @@ describe('useManualBudget', () => {
   });
 
   it('should handle month changes correctly', async () => {
-    mockGetManualBudget.mockResolvedValue({ bank_amount_cents: 0, items: [] });
+    mockGetManualBudget.mockResolvedValue({ data: { bank_amount_cents: 0, items: [] } });
 
-    const { result, rerender } = renderHook(
-      ({ date }) => useManualBudget(date),
-      { initialProps: { date: testDate } }
-    );
+    const { result, rerender } = renderHook(({ date }) => useManualBudget(date), {
+      initialProps: { date: testDate },
+    });
 
     await waitFor(() => {
       expect(result.current.manualBudget.bankAmount).toBe(0);
@@ -161,14 +173,16 @@ describe('useManualBudget', () => {
     rerender({ date: febDate });
 
     await waitFor(() => {
-      expect(mockGetManualBudget).toHaveBeenCalledWith({ year: 2024, month: 2 });
+      expect(mockGetManualBudget).toHaveBeenCalledWith(2024, 2);
     });
   });
 
   it('should not save during initial load', async () => {
     mockGetManualBudget.mockResolvedValue({
-      bank_amount_cents: 100000,
-      items: [{ id: '1', name: 'Test', amount_cents: 5000 }],
+      data: {
+        bank_amount_cents: 100000,
+        items: [{ id: '1', name: 'Test', amount_cents: 5000 }],
+      },
     });
     mockSaveManualBudget.mockResolvedValue({} as Response);
 

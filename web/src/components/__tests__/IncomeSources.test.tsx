@@ -65,13 +65,7 @@ describe('IncomeSources', () => {
     const sources = [{ client_id: '1', name: 'Old Name', amount_cents: 100000 }];
     const onUpdate = jest.fn();
 
-    render(
-      <IncomeSources
-        {...defaultProps}
-        sources={sources}
-        onUpdate={onUpdate}
-      />
-    );
+    render(<IncomeSources {...defaultProps} sources={sources} onUpdate={onUpdate} />);
 
     const nameInput = screen.getByDisplayValue('Old Name');
     fireEvent.change(nameInput, { target: { value: 'New Name' } });
@@ -79,7 +73,7 @@ describe('IncomeSources', () => {
     expect(onUpdate).toHaveBeenCalledWith(0, {
       client_id: '1',
       name: 'New Name',
-      amount_cents: 100000
+      amount_cents: 100000,
     });
   });
 
@@ -87,13 +81,7 @@ describe('IncomeSources', () => {
     const sources = [{ client_id: '1', name: 'Salary', amount_cents: 100000 }];
     const onBlurSave = jest.fn();
 
-    render(
-      <IncomeSources
-        {...defaultProps}
-        sources={sources}
-        onBlurSave={onBlurSave}
-      />
-    );
+    render(<IncomeSources {...defaultProps} sources={sources} onBlurSave={onBlurSave} />);
 
     const nameInput = screen.getByDisplayValue('Salary');
     fireEvent.blur(nameInput);
@@ -105,13 +93,7 @@ describe('IncomeSources', () => {
     const sources = [{ client_id: '1', name: 'Salary', amount_cents: 100000 }];
     const onUpdate = jest.fn();
 
-    render(
-      <IncomeSources
-        {...defaultProps}
-        sources={sources}
-        onUpdate={onUpdate}
-      />
-    );
+    render(<IncomeSources {...defaultProps} sources={sources} onUpdate={onUpdate} />);
 
     const amountInput = screen.getByDisplayValue('1000');
     fireEvent.change(amountInput, { target: { value: '2000' } });
@@ -119,7 +101,7 @@ describe('IncomeSources', () => {
     expect(onUpdate).toHaveBeenCalledWith(0, {
       client_id: '1',
       name: 'Salary',
-      amount_cents: 200000 // $2000 in cents
+      amount_cents: 200000, // $2000 in cents
     });
   });
 
@@ -127,13 +109,7 @@ describe('IncomeSources', () => {
     const sources = [{ client_id: '1', name: 'Salary', amount_cents: 100000 }];
     const onBlurSave = jest.fn();
 
-    render(
-      <IncomeSources
-        {...defaultProps}
-        sources={sources}
-        onBlurSave={onBlurSave}
-      />
-    );
+    render(<IncomeSources {...defaultProps} sources={sources} onBlurSave={onBlurSave} />);
 
     const amountInput = screen.getByDisplayValue('1000');
     fireEvent.blur(amountInput);
@@ -145,13 +121,7 @@ describe('IncomeSources', () => {
     const sources = [{ client_id: '1', name: 'Unsaved', amount_cents: 100000 }];
     const onRemoveUnsaved = jest.fn();
 
-    render(
-      <IncomeSources
-        {...defaultProps}
-        sources={sources}
-        onRemoveUnsaved={onRemoveUnsaved}
-      />
-    );
+    render(<IncomeSources {...defaultProps} sources={sources} onRemoveUnsaved={onRemoveUnsaved} />);
 
     const deleteButton = screen.getByRole('button', { name: /delete this source/i });
     fireEvent.click(deleteButton);
@@ -164,11 +134,7 @@ describe('IncomeSources', () => {
     const onDeletePersisted = jest.fn().mockResolvedValue(undefined);
 
     render(
-      <IncomeSources
-        {...defaultProps}
-        sources={sources}
-        onDeletePersisted={onDeletePersisted}
-      />
+      <IncomeSources {...defaultProps} sources={sources} onDeletePersisted={onDeletePersisted} />
     );
 
     const deleteButton = screen.getByRole('button', { name: /delete this source/i });
@@ -192,25 +158,14 @@ describe('IncomeSources', () => {
   });
 
   it('should display custom title and help text', () => {
-    render(
-      <IncomeSources
-        {...defaultProps}
-        title="Custom Title"
-        helpText="This is help text"
-      />
-    );
+    render(<IncomeSources {...defaultProps} title="Custom Title" helpText="This is help text" />);
 
     expect(screen.getByText('Custom Title')).toBeInTheDocument();
     expect(screen.getByText('This is help text')).toBeInTheDocument();
   });
 
   it('should use custom button text', () => {
-    render(
-      <IncomeSources
-        {...defaultProps}
-        addButtonText="Custom Add Button"
-      />
-    );
+    render(<IncomeSources {...defaultProps} addButtonText="Custom Add Button" />);
 
     expect(screen.getByRole('button', { name: 'Custom Add Button' })).toBeInTheDocument();
   });
@@ -233,14 +188,12 @@ describe('IncomeSources', () => {
 
   it('should handle parseLocaleAmount errors gracefully', () => {
     const sources = [{ client_id: '1', name: 'Salary', amount_cents: 100000 }];
-    const parseLocaleAmount = jest.fn(() => { throw new Error('Parse error'); });
+    const parseLocaleAmount = jest.fn(() => {
+      throw new Error('Parse error');
+    });
 
     render(
-      <IncomeSources
-        {...defaultProps}
-        sources={sources}
-        parseLocaleAmount={parseLocaleAmount}
-      />
+      <IncomeSources {...defaultProps} sources={sources} parseLocaleAmount={parseLocaleAmount} />
     );
 
     const amountInput = screen.getByDisplayValue('1000');

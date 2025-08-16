@@ -17,9 +17,8 @@ const ShutdownTimeout = 10 * time.Second
 // Config holds application configuration.
 type Config struct {
 	HTTPAddress        string
-	DBPath             string // used when DBDriver=sqlite
-	DBDriver           string // sqlite or mysql
-	DBDSN              string // used when DBDriver!=sqlite
+	DBPath             string // SQLite database file path
+	DBDriver           string // always sqlite
 	CORSAllowedOrigins []string
 	APIKey             string
 	Env                string // dev or prod
@@ -40,8 +39,7 @@ func Load() Config {
 	cfg := Config{
 		HTTPAddress: getenv("HTTP_ADDRESS", "127.0.0.1:8082"),
 		DBPath:      getenv("DB_PATH", "./data/app.db"),
-		DBDriver:    getenv("DB_DRIVER", "sqlite"),
-		DBDSN:       os.Getenv("DB_DSN"),
+		DBDriver:    "sqlite", // Always use SQLite
 		APIKey:      os.Getenv("API_KEY"),
 		Env:         getenv("ENV", "dev"),
 		LogLevel:    getenv("LOG_LEVEL", "info"),
@@ -70,15 +68,8 @@ func Load() Config {
 	if cfg.HTTPAddress == "" {
 		log.Fatal("HTTP_ADDRESS must not be empty")
 	}
-	switch cfg.DBDriver {
-	case "sqlite":
-		if cfg.DBPath == "" {
-			log.Fatal("DB_PATH must not be empty for sqlite driver")
-		}
-	case "mysql":
-		if cfg.DBDSN == "" {
-			log.Fatal("DB_DSN must not be empty for mysql driver")
-		}
+	if cfg.DBPath == "" {
+		log.Fatal("DB_PATH must not be empty for SQLite database")
 	}
 
 	return cfg

@@ -14,7 +14,7 @@ const SavingsCategoriesChart: React.FC<SavingsCategoriesChartProps> = ({
   formatCurrency,
 }) => {
   // Filter out categories with no amount or name
-  const validCategories = categories.filter(cat => cat.name.trim() && cat.amount > 0);
+  const validCategories = categories.filter((cat) => cat.name.trim() && cat.amount > 0);
 
   // No data case
   if (validCategories.length === 0) {
@@ -32,13 +32,13 @@ const SavingsCategoriesChart: React.FC<SavingsCategoriesChartProps> = ({
   }
 
   const chartData = {
-    labels: validCategories.map(cat => cat.name),
+    labels: validCategories.map((cat) => cat.name),
     datasets: [
       {
         label: 'Amount',
-        data: validCategories.map(cat => cat.amount),
-        backgroundColor: validCategories.map(cat => cat.color),
-        borderColor: validCategories.map(cat => cat.color),
+        data: validCategories.map((cat) => cat.amount),
+        backgroundColor: validCategories.map((cat) => cat.color),
+        borderColor: validCategories.map((cat) => cat.color),
         borderWidth: 1,
         borderRadius: 4,
         borderSkipped: false,

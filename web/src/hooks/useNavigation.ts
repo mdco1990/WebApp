@@ -2,9 +2,9 @@ import { useState, useEffect } from 'react';
 
 export const useNavigation = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [activeSection, setActiveSection] = useState<'planning' | 'tracking' | 'savings' | 'analytics'>(
-    'planning'
-  );
+  const [activeSection, setActiveSection] = useState<
+    'planning' | 'tracking' | 'savings' | 'analytics'
+  >('planning');
   const [showBackToTop, setShowBackToTop] = useState(false);
 
   // Month navigation

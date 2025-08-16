@@ -23,10 +23,10 @@ func main() {
 	obslog.Setup(cfg.LogLevel, cfg.LogFormat)
 
 	// Prepare filesystem and database
-	ensureDataDir(cfg.DBDriver)
-	dbConn := openDBWithRetry(cfg.DBDriver, cfg.DBPath, cfg.DBDSN)
+	ensureDataDir()
+	dbConn := openDB(cfg.DBPath)
 	defer func() { _ = dbConn.Close() }()
-	if err := migrateIfSQLite(cfg.DBDriver, dbConn); err != nil {
+	if err := migrateDB(dbConn); err != nil {
 		slog.Error("db migrate failed", "err", err)
 		os.Exit(1)
 	}
@@ -34,61 +34,32 @@ func main() {
 	// HTTP server
 	r := httpapi.NewRouter(cfg, dbConn)
 	srv := newHTTPServer(cfg, r)
-	runServerAsync(srv, cfg.HTTPAddress, cfg.Env, cfg.DBDriver)
+	runServerAsync(srv, cfg.HTTPAddress, cfg.Env)
 
 	// Graceful shutdown
 	waitForShutdown(srv, config.ShutdownTimeout)
 }
 
 // ensureDataDir creates the sqlite data directory when needed.
-func ensureDataDir(driver string) {
-	if driver != "sqlite" {
-		return
-	}
+func ensureDataDir() {
 	if err := os.MkdirAll("data", 0o700); err != nil {
 		slog.Error("failed to create data dir", "err", err)
 		os.Exit(1)
 	}
 }
 
-// openDBWithRetry opens the database and retries with backoff for MySQL.
-func openDBWithRetry(driver, path, dsn string) *sql.DB {
-	if driver != "mysql" {
-		dbConn, err := db.Open(driver, path, dsn)
-		if err != nil {
-			slog.Error("db open failed", "err", err)
-			os.Exit(1)
-		}
-		return dbConn
+// openDB opens the SQLite database.
+func openDB(path string) *sql.DB {
+	dbConn, err := db.Open("sqlite", path, "")
+	if err != nil {
+		slog.Error("db open failed", "err", err)
+		os.Exit(1)
 	}
-	var (
-		dbConn   *sql.DB
-		err      error
-		backoff  = time.Second
-		deadline = time.Now().Add(90 * time.Second)
-	)
-	for {
-		dbConn, err = db.Open(driver, path, dsn)
-		if err == nil {
-			return dbConn
-		}
-		if time.Now().After(deadline) {
-			slog.Error("db open (mysql) timeout", "err", err)
-			os.Exit(1)
-		}
-		slog.Warn("db open failed (mysql), retrying", "err", err, "backoff", backoff.String())
-		time.Sleep(backoff)
-		if backoff < 5*time.Second {
-			backoff += time.Second
-		}
-	}
+	return dbConn
 }
 
-// migrateIfSQLite runs embedded migrations automatically for sqlite.
-func migrateIfSQLite(driver string, dbConn *sql.DB) error {
-	if driver != "sqlite" {
-		return nil
-	}
+// migrateDB runs embedded migrations automatically.
+func migrateDB(dbConn *sql.DB) error {
 	return db.Migrate(dbConn)
 }
 
@@ -105,9 +76,9 @@ func newHTTPServer(cfg config.Config, handler http.Handler) *http.Server {
 }
 
 // runServerAsync starts the HTTP server in a goroutine and logs lifecycle events.
-func runServerAsync(srv *http.Server, addr, env, dbDriver string) {
+func runServerAsync(srv *http.Server, addr, env string) {
 	go func() {
-		slog.Info("server starting", "addr", addr, "env", env, "db_driver", dbDriver)
+		slog.Info("server starting", "addr", addr, "env", env, "db_driver", "sqlite")
 		start := time.Now()
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			slog.Error("server listen error", "err", err)

@@ -1,0 +1,218 @@
+# Database Configuration
+# This file contains database configuration for different environments
+
+# Development Environment
+development:
+  driver: postgres
+  host: localhost
+  port: 5432
+  database: webapp_dev
+  username: webapp_user
+  password: webapp_password
+  sslmode: disable
+  max_open_conns: 25
+  max_idle_conns: 5
+  conn_max_lifetime: 300s
+  conn_max_idle_time: 60s
+
+# Test Environment
+test:
+  driver: postgres
+  host: localhost
+  port: 5432
+  database: webapp_test
+  username: webapp_user
+  password: webapp_password
+  sslmode: disable
+  max_open_conns: 10
+  max_idle_conns: 2
+  conn_max_lifetime: 60s
+  conn_max_idle_time: 30s
+
+# Staging Environment
+staging:
+  driver: postgres
+  host: ${DB_HOST}
+  port: ${DB_PORT:-5432}
+  database: ${DB_NAME:-webapp_staging}
+  username: ${DB_USER}
+  password: ${DB_PASSWORD}
+  sslmode: require
+  max_open_conns: 50
+  max_idle_conns: 10
+  conn_max_lifetime: 600s
+  conn_max_idle_time: 120s
+
+# Production Environment
+production:
+  driver: postgres
+  host: ${DB_HOST}
+  port: ${DB_PORT:-5432}
+  database: ${DB_NAME:-webapp}
+  username: ${DB_USER}
+  password: ${DB_PASSWORD}
+  sslmode: require
+  max_open_conns: 100
+  max_idle_conns: 20
+  conn_max_lifetime: 1800s
+  conn_max_idle_time: 300s
+  # Connection pooling settings
+  pool_size: 20
+  pool_timeout: 30s
+  # Read replica configuration (optional)
+  read_replica:
+    host: ${DB_READ_HOST}
+    port: ${DB_READ_PORT:-5432}
+    database: ${DB_READ_NAME}
+    username: ${DB_READ_USER}
+    password: ${DB_READ_PASSWORD}
+    sslmode: require
+
+# Redis Configuration
+redis:
+  development:
+    host: localhost
+    port: 6379
+    password: ""
+    db: 0
+    pool_size: 10
+  
+  test:
+    host: localhost
+    port: 6379
+    password: ""
+    db: 1
+    pool_size: 5
+  
+  staging:
+    host: ${REDIS_HOST}
+    port: ${REDIS_PORT:-6379}
+    password: ${REDIS_PASSWORD}
+    db: 0
+    pool_size: 20
+  
+  production:
+    host: ${REDIS_HOST}
+    port: ${REDIS_PORT:-6379}
+    password: ${REDIS_PASSWORD}
+    db: 0
+    pool_size: 50
+    # Redis cluster configuration (optional)
+    cluster:
+      enabled: ${REDIS_CLUSTER_ENABLED:-false}
+      nodes: ${REDIS_CLUSTER_NODES}
+
+# Database Migration Settings
+migrations:
+  # Migration table name
+  table_name: schema_migrations
+  
+  # Migration directory
+  directory: migrations
+  
+  # Migration timeout
+  timeout: 300s
+  
+  # Allow destructive operations in production
+  allow_destructive: false
+  
+  # Backup before migration
+  backup_before_migration: true
+  
+  # Rollback on failure
+  rollback_on_failure: true
+
+# Database Monitoring
+monitoring:
+  # Enable query logging
+  query_logging: false
+  
+  # Enable slow query logging (queries taking longer than this threshold)
+  slow_query_threshold: 1s
+  
+  # Enable connection pool monitoring
+  pool_monitoring: true
+  
+  # Metrics collection interval
+  metrics_interval: 60s
+
+# Database Backup Configuration
+backup:
+  # Backup directory
+  directory: backups
+  
+  # Backup retention (days)
+  retention_days: 30
+  
+  # Backup compression
+  compression: true
+  
+  # Backup encryption
+  encryption: false
+  
+  # Backup schedule (cron format)
+  schedule: "0 2 * * *"  # Daily at 2 AM
+  
+  # Backup notification
+  notification:
+    enabled: true
+    email: ${BACKUP_NOTIFICATION_EMAIL}
+    webhook: ${BACKUP_NOTIFICATION_WEBHOOK}
+
+# Database Security
+security:
+  # Enable SSL/TLS
+  ssl_enabled: true
+  
+  # SSL certificate verification
+  ssl_verify: true
+  
+  # Connection encryption
+  encryption: true
+  
+  # Password encryption
+  password_encryption: true
+  
+  # Audit logging
+  audit_logging: true
+  
+  # Data masking
+  data_masking: false
+
+# Database Performance
+performance:
+  # Query timeout
+  query_timeout: 30s
+  
+  # Statement timeout
+  statement_timeout: 60s
+  
+  # Idle session timeout
+  idle_session_timeout: 1800s
+  
+  # Connection timeout
+  connection_timeout: 10s
+  
+  # Read timeout
+  read_timeout: 30s
+  
+  # Write timeout
+  write_timeout: 30s
+
+# Database Maintenance
+maintenance:
+  # Vacuum schedule (cron format)
+  vacuum_schedule: "0 3 * * 0"  # Weekly on Sunday at 3 AM
+  
+  # Analyze schedule (cron format)
+  analyze_schedule: "0 4 * * 0"  # Weekly on Sunday at 4 AM
+  
+  # Reindex schedule (cron format)
+  reindex_schedule: "0 5 * * 0"  # Weekly on Sunday at 5 AM
+  
+  # Log rotation
+  log_rotation:
+    enabled: true
+    max_size: 100MB
+    max_files: 10
+    compress: true

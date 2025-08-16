@@ -4,37 +4,24 @@ package db
 import (
 	"database/sql"
 	"embed"
-	"errors"
 	"fmt"
 	"log"
 
 	// sqlite driver is required at runtime when DBDriver=sqlite; imported for side effects.
 	_ "github.com/glebarez/sqlite"
-	_ "github.com/go-sql-driver/mysql"
 )
 
 //go:embed schema.sql
 var schemaFS embed.FS
 
-// Open opens a database based on driver and DSN or sqlite path.
+// Open opens a SQLite database at the specified path.
 func Open(driver string, path string, dsn string) (*sql.DB, error) {
-	var (
-		db  *sql.DB
-		err error
-	)
-	switch driver {
-	case "sqlite":
-		dsnSqlite := fmt.Sprintf("file:%s?_pragma=busy_timeout=5000&_fk=1", path)
-		db, err = sql.Open("sqlite", dsnSqlite)
-	case "mysql":
-		// dsn example: user:pass@tcp(db:3306)/webapp?parseTime=true&multiStatements=true
-		if dsn == "" {
-			return nil, errors.New("empty DSN for mysql driver")
-		}
-		db, err = sql.Open("mysql", dsn)
-	default:
-		return nil, fmt.Errorf("unsupported driver: %s", driver)
+	if driver != "sqlite" {
+		return nil, fmt.Errorf("unsupported driver: %s, only sqlite is supported", driver)
 	}
+
+	dsnSqlite := fmt.Sprintf("file:%s?_pragma=busy_timeout=5000&_fk=1", path)
+	db, err := sql.Open("sqlite", dsnSqlite)
 	if err != nil {
 		return nil, err
 	}
@@ -42,7 +29,7 @@ func Open(driver string, path string, dsn string) (*sql.DB, error) {
 		_ = db.Close()
 		return nil, err
 	}
-	log.Printf("db: connected using driver %s", driver)
+	log.Printf("db: connected using sqlite driver at %s", path)
 	return db, nil
 }
 

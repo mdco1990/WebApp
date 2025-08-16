@@ -4,12 +4,21 @@
  */
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { useManualBudget } from '../useManualBudget';
-import * as api from '../../services/api';
+// import * as api from '../../services/api'; // Not used in this test
 
 // Mock the API
-jest.mock('../../services/api');
-const mockGetManualBudget = api.getManualBudget as jest.MockedFunction<typeof api.getManualBudget>;
-const mockSaveManualBudget = api.saveManualBudget as jest.MockedFunction<typeof api.saveManualBudget>;
+jest.mock('../../services/api', () => ({
+  ApiService: {
+    getManualBudget: jest.fn(),
+    saveManualBudget: jest.fn(),
+  },
+}));
+
+const mockGetManualBudget = jest.fn();
+const mockSaveManualBudget = jest.fn();
+
+// Get the mocked functions
+import { ApiService } from '../../services/api';
 
 // Mock localStorage
 type LocalStorageMock = {
@@ -47,6 +56,10 @@ describe('useManualBudget - Integration Tests', () => {
     localStorageMock.clear();
     // Set up a mock session to enable server calls
     localStorageMock.setItem('session_id', 'test-session-id');
+    
+    // Assign mock functions to ApiService methods
+    ApiService.getManualBudget = mockGetManualBudget;
+    ApiService.saveManualBudget = mockSaveManualBudget;
   });
 
   afterEach(() => {
@@ -56,7 +69,7 @@ describe('useManualBudget - Integration Tests', () => {
   it('should handle rapid consecutive updates without data loss', async () => {
     console.log('\n🧪 EDGE CASE: Rapid consecutive updates (race conditions)');
 
-    mockGetManualBudget.mockResolvedValue({ bank_amount_cents: 0, items: [] });
+    mockGetManualBudget.mockResolvedValue({ data: { bank_amount_cents: 0, items: [] } });
     mockSaveManualBudget.mockResolvedValue({} as Response);
 
     const { result } = renderHook(() => useManualBudget(testDate));
@@ -110,7 +123,7 @@ describe('useManualBudget - Integration Tests', () => {
   it('should preserve data when server fails but localStorage succeeds', async () => {
     console.log('\n💥 EDGE CASE: Server save failure with localStorage fallback');
 
-    mockGetManualBudget.mockResolvedValue({ bank_amount_cents: 0, items: [] });
+    mockGetManualBudget.mockResolvedValue({ data: { bank_amount_cents: 0, items: [] } });
     mockSaveManualBudget.mockRejectedValue(new Error('Network error'));
 
     const { result } = renderHook(() => useManualBudget(testDate));
@@ -155,12 +168,16 @@ describe('useManualBudget - Integration Tests', () => {
     // January data
     mockGetManualBudget
       .mockResolvedValueOnce({
-        bank_amount_cents: 100000,
-        items: [{ id: '1', name: 'Jan Item', amount_cents: 50000 }]
+        data: {
+          bank_amount_cents: 100000,
+          items: [{ id: '1', name: 'Jan Item', amount_cents: 50000 }],
+        },
       })
       .mockResolvedValueOnce({
-        bank_amount_cents: 0,
-        items: []
+        data: {
+          bank_amount_cents: 0,
+          items: [],
+        },
       });
 
     const { result: janResult } = renderHook(() => useManualBudget(janDate));
@@ -190,7 +207,7 @@ describe('useManualBudget - Integration Tests', () => {
     };
 
     console.log('\n🏠 Step 1: User opens app - loading existing budget...');
-    mockGetManualBudget.mockResolvedValue(existingData);
+    mockGetManualBudget.mockResolvedValue({ data: existingData });
     mockSaveManualBudget.mockResolvedValue({} as Response);
 
     const { result } = renderHook(() => useManualBudget(testDate));
@@ -206,10 +223,7 @@ describe('useManualBudget - Integration Tests', () => {
       const currentBudget = result.current.manualBudget;
       result.current.setManualBudget({
         ...currentBudget,
-        items: [
-          ...currentBudget.items,
-          { id: 'temp-groceries', name: 'Groceries', amount: -400 },
-        ],
+        items: [...currentBudget.items, { id: 'temp-groceries', name: 'Groceries', amount: -400 }],
       });
     });
 
@@ -218,10 +232,7 @@ describe('useManualBudget - Integration Tests', () => {
       const currentBudget = result.current.manualBudget;
       result.current.setManualBudget({
         ...currentBudget,
-        items: [
-          ...currentBudget.items,
-          { id: 'temp-utilities', name: 'Utilities', amount: -150 },
-        ],
+        items: [...currentBudget.items, { id: 'temp-utilities', name: 'Utilities', amount: -150 }],
       });
     });
 
@@ -248,7 +259,7 @@ describe('useManualBudget - Integration Tests', () => {
       expect(mockSaveManualBudget).toHaveBeenCalledTimes(1);
     });
 
-    const finalSaveData = mockSaveManualBudget.mock.calls[0][0];
+    const finalSaveData = mockSaveManualBudget.mock.calls[0][2];
     console.log('   Data sent to server:', JSON.stringify(finalSaveData, null, 2));
     expect(finalSaveData.items.length).toBe(4);
     expect(finalSaveData.bank_amount_cents).toBe(350000);
@@ -270,20 +281,27 @@ describe('useManualBudget - Integration Tests', () => {
       ],
     };
 
-    mockGetManualBudget.mockResolvedValue(savedData);
+    mockGetManualBudget.mockResolvedValue({ data: savedData });
 
     // Simulate page reload by creating new hook instance
     const { result: reloadedResult } = renderHook(() => useManualBudget(testDate));
 
     await waitFor(() => {
-      console.log('   Budget after reload:', JSON.stringify(reloadedResult.current.manualBudget, null, 2));
+      console.log(
+        '   Budget after reload:',
+        JSON.stringify(reloadedResult.current.manualBudget, null, 2)
+      );
       expect(reloadedResult.current.manualBudget.items.length).toBe(4);
       expect(reloadedResult.current.manualBudget.bankAmount).toBe(3500);
     });
 
     // Verify specific items persisted
-    const groceriesItem = reloadedResult.current.manualBudget.items.find(item => item.name === 'Groceries');
-    const utilitiesItem = reloadedResult.current.manualBudget.items.find(item => item.name === 'Utilities');
+    const groceriesItem = reloadedResult.current.manualBudget.items.find(
+      (item) => item.name === 'Groceries'
+    );
+    const utilitiesItem = reloadedResult.current.manualBudget.items.find(
+      (item) => item.name === 'Utilities'
+    );
 
     expect(groceriesItem?.amount).toBe(-400);
     expect(utilitiesItem?.amount).toBe(-150);

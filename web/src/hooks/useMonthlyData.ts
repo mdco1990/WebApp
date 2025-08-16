@@ -1,135 +1,72 @@
-import { useCallback, useEffect, useState } from 'react';
-import type { MonthlyData, YearMonth, IncomeSource, OutcomeSource } from '../types/budget';
-import {
-  getMonthlyData,
-  seedDefaults,
-  createIncomeSource,
-  updateIncomeSource,
-  deleteIncomeSource,
-  createBudgetSource,
-  updateBudgetSource,
-  deleteBudgetSource,
-} from '../services/api';
+import { useState, useCallback, useEffect } from 'react';
+import { ApiService } from '../services/api';
+import { MonthlyData } from '../types/budget';
 
-export type UseMonthlyDataResult = {
+export interface MonthlyDataHook {
   data: MonthlyData | null;
   loading: boolean;
-  reload: () => Promise<void>;
-  addDefaultData: () => Promise<void>;
-  autoSaveIncomeSource: (source: IncomeSource, ym: YearMonth) => Promise<void>;
-  autoSaveOutcomeSource: (source: OutcomeSource, ym: YearMonth) => Promise<void>;
-  deleteIncome: (id: number) => Promise<void>;
-  deleteOutcome: (id: number) => Promise<void>;
-};
+  error: string | null;
+  loadData: () => Promise<void>;
+  refresh: () => Promise<void>;
+  refetch: () => Promise<void>;
+  setYearMonth: (year: number, month: number) => void;
+  currentYear: number;
+  currentMonth: number;
+}
 
-export function useMonthlyData(ym: YearMonth | null): UseMonthlyDataResult {
+export function useMonthlyData(options?: { initialYear?: number; initialMonth?: number }): MonthlyDataHook {
+  const currentDate = new Date();
+  const [currentYear, setCurrentYear] = useState(options?.initialYear || currentDate.getFullYear());
+  const [currentMonth, setCurrentMonth] = useState(options?.initialMonth || currentDate.getMonth() + 1);
   const [data, setData] = useState<MonthlyData | null>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const reload = useCallback(async () => {
-    if (!ym) return;
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+
     try {
-      setLoading(true);
-      const d = await getMonthlyData(ym);
-      setData(d);
+      const response = await ApiService.getMonthlyData(currentYear, currentMonth);
+      if (response.success && response.data) {
+        setData(response.data);
+      } else {
+        setError(response.error || 'Failed to load monthly data');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load monthly data');
     } finally {
       setLoading(false);
     }
-  }, [ym]);
+  }, [currentYear, currentMonth]);
 
-  const addDefaultData = useCallback(async () => {
-    if (!ym) return;
-    await seedDefaults(ym);
-    await reload();
-  }, [ym, reload]);
+  const refresh = useCallback(async () => {
+    await loadData();
+  }, [loadData]);
 
-  // mutations
-  const autoSaveIncomeSource = useCallback(
-    async (source: IncomeSource, cur: YearMonth) => {
-      try {
-        if (source.id) {
-          await updateIncomeSource(source.id, {
-            name: source.name,
-            amount_cents: source.amount_cents,
-          });
-        } else {
-          await createIncomeSource({
-            name: source.name,
-            year: cur.year,
-            month: cur.month,
-            amount_cents: source.amount_cents,
-          });
-        }
-        // Only reload if this was a creation (no id) to get the new server-assigned id
-        if (!source.id) {
-          await reload();
-        }
-      } catch (error) {
-        // If save fails, reload to get the correct server state
-        await reload();
-        throw error;
-      }
-    },
-    [reload]
-  );
+  const refetch = useCallback(async () => {
+    await loadData();
+  }, [loadData]);
 
-  const autoSaveOutcomeSource = useCallback(
-    async (source: OutcomeSource, cur: YearMonth) => {
-      try {
-        if (source.id) {
-          await updateBudgetSource(source.id, {
-            name: source.name,
-            amount_cents: source.amount_cents,
-          });
-        } else {
-          await createBudgetSource({
-            name: source.name,
-            year: cur.year,
-            month: cur.month,
-            amount_cents: source.amount_cents,
-          });
-        }
-        // Only reload if this was a creation (no id) to get the new server-assigned id
-        if (!source.id) {
-          await reload();
-        }
-      } catch (error) {
-        // If save fails, reload to get the correct server state
-        await reload();
-        throw error;
-      }
-    },
-    [reload]
-  );
+  const setYearMonth = useCallback((year: number, month: number) => {
+    setCurrentYear(year);
+    setCurrentMonth(month);
+  }, []);
 
-  const deleteIncome = useCallback(
-    async (id: number) => {
-      await deleteIncomeSource(id);
-      await reload();
-    },
-    [reload]
-  );
-
-  const deleteOutcome = useCallback(
-    async (id: number) => {
-      await deleteBudgetSource(id);
-      await reload();
-    },
-    [reload]
-  );
-
+  // Load data when year/month changes
   useEffect(() => {
-    reload();
-  }, [reload]);
+    loadData();
+  }, [loadData]);
 
   return {
     data,
     loading,
-    reload,
-    addDefaultData,
-    autoSaveIncomeSource,
-    autoSaveOutcomeSource,
-    deleteIncome,
-    deleteOutcome,
+    error,
+    loadData,
+    refresh,
+    refetch,
+    setYearMonth,
+    currentYear,
+    currentMonth,
   };
 }

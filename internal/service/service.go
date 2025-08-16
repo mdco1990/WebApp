@@ -6,16 +6,15 @@ import (
 	"errors"
 
 	"github.com/mdco1990/webapp/internal/domain"
-	"github.com/mdco1990/webapp/internal/repository"
 )
 
 // Service exposes business operations.
 type Service struct {
-	repo *repository.Repository
+	repo RepositoryInterface
 }
 
 // New creates a Service backed by the provided repository.
-func New(repo *repository.Repository) *Service { return &Service{repo: repo} }
+func New(repo RepositoryInterface) *Service { return &Service{repo: repo} }
 
 // ErrValidation is returned when inputs fail validation.
 var ErrValidation = errors.New("validation error")

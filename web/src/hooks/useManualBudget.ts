@@ -1,6 +1,6 @@
 /* eslint-disable no-console */
 import { useState, useRef, useEffect } from 'react';
-import { getManualBudget, saveManualBudget } from '../services/api';
+import { ApiService } from '../services/api';
 
 interface ManualBudgetItem {
   id: string;
@@ -30,16 +30,16 @@ export const useManualBudget = (currentDate: Date) => {
     if (!manualBudgetLoadedRef.current) return;
 
     // Debug: Log saving operation
-    		// console.log('💾 Manual Budget - Saving data:', {
-		// 	key,
-		// 	bankAmount: manualBudget.bankAmount,
-		// 	itemsCount: manualBudget.items.length,
-		// 	items: manualBudget.items
-		// });
+    // console.log('💾 Manual Budget - Saving data:', {
+    // 	key,
+    // 	bankAmount: manualBudget.bankAmount,
+    // 	itemsCount: manualBudget.items.length,
+    // 	items: manualBudget.items
+    // });
 
     try {
       localStorage.setItem(key, JSON.stringify(manualBudget));
-      		// console.log('✅ localStorage saved successfully');
+      // console.log('✅ localStorage saved successfully');
     } catch {
       console.error('❌ localStorage save failed');
       // ignore storage quota or availability issues
@@ -63,19 +63,22 @@ export const useManualBudget = (currentDate: Date) => {
     if (manualBudgetSaveTimer.current) window.clearTimeout(manualBudgetSaveTimer.current);
     manualBudgetSaveTimer.current = window.setTimeout(async () => {
       // console.log('📡 Attempting server save:', payload);
-      
+
       // Check if user is authenticated before trying server save
       const sessionId = localStorage.getItem('session_id');
       if (!sessionId) {
-        console.log('⏭️ No session, skipping server save');
+        // No session, skipping server save
         return;
       }
-      
+
       try {
-        await saveManualBudget(payload);
+        await ApiService.saveManualBudget(payload.year, payload.month, {
+          bank_amount_cents: payload.bank_amount_cents,
+          items: payload.items,
+        });
         // console.log('✅ Server save successful');
-      } catch (error) {
-        console.error('❌ Server save failed:', error);
+      } catch {
+        // Server save failed
         // ignore - backend may not implement this yet; localStorage remains the fallback
       }
     }, 400);
@@ -86,28 +89,25 @@ export const useManualBudget = (currentDate: Date) => {
     manualBudgetLoadedRef.current = false;
     const key = `manualBudget:${currentDate.getFullYear()}-${currentDate.getMonth() + 1}`;
 
-    console.log('🔄 Manual Budget - Loading month data:', {
-      year: currentDate.getFullYear(),
-      month: currentDate.getMonth() + 1,
-      key
-    });
+    // Manual Budget - Loading month data
 
     const load = async () => {
       // Check if user is authenticated before trying server
       const sessionId = localStorage.getItem('session_id');
       if (!sessionId) {
-        console.log('⏭️ No session, skipping server load');
+        // No session, skipping server load
         // Fall through to localStorage only
       } else {
         // Try server first
         try {
           const year = currentDate.getFullYear();
           const month = currentDate.getMonth() + 1;
-          console.log('📡 Attempting server load');
-          const data = await getManualBudget({ year, month });
-          console.log('📡 Server response:', data);
-          
-          if (data && typeof data.bank_amount_cents === 'number' && Array.isArray(data.items)) {
+          // Attempting server load
+          const response = await ApiService.getManualBudget(year, month);
+          const data = response.data;
+          // Server response received
+
+          if (data && typeof (data as { bank_amount_cents?: number; items?: unknown[] }).bank_amount_cents === 'number' && Array.isArray((data as { bank_amount_cents?: number; items?: unknown[] }).items)) {
             interface ServerItem {
               id?: string | number;
               client_id?: string | number;
@@ -115,14 +115,14 @@ export const useManualBudget = (currentDate: Date) => {
               amount_cents?: number;
             }
             const fromServer: ManualBudgetState = {
-              bankAmount: (data.bank_amount_cents || 0) / 100,
-              items: (data.items as ServerItem[]).map((it) => ({
+              bankAmount: ((data as { bank_amount_cents?: number; items?: unknown[] }).bank_amount_cents || 0) / 100,
+              items: ((data as { bank_amount_cents?: number; items?: unknown[] }).items as ServerItem[]).map((it) => ({
                 id: String(it.id ?? it.client_id ?? Math.random().toString(36).slice(2)),
                 name: String(it.name ?? ''),
                 amount: (it.amount_cents ?? 0) / 100,
               })),
             };
-            console.log('✅ Server data loaded:', fromServer);
+            // Server data loaded
             setManualBudget(fromServer);
             // cache locally as well
             try {
@@ -133,24 +133,24 @@ export const useManualBudget = (currentDate: Date) => {
             manualBudgetLoadedRef.current = true;
             return;
           }
-        } catch (error) {
-          console.error('❌ Server load failed, using localStorage:', error);
-          // fall back to localStorage
-        }
+                  } catch {
+            // Server load failed, using localStorage
+            // fall back to localStorage
+          }
       }
 
-      console.log('📱 Loading from localStorage');
+      // Loading from localStorage
       const saved = localStorage.getItem(key);
       if (saved) {
         try {
           const parsed = JSON.parse(saved) as ManualBudgetState;
-          console.log('✅ localStorage data loaded:', parsed);
+          // localStorage data loaded
           setManualBudget(parsed);
         } catch {
           // ignore parse errors; fall through to default state
         }
       } else {
-        console.log('ℹ️ No saved data, using default state');
+        // No saved data, using default state
         // default zero state for months without saved data
         setManualBudget({ bankAmount: 0, items: [] });
       }

@@ -31,12 +31,12 @@ export const useManualBudgetFixed = (currentDate: Date) => {
   // Save to localStorage with debouncing
   const saveToStorage = useCallback((data: ManualBudgetState, date: Date) => {
     const key = getStorageKey(date);
-    
+
     // Clear existing timer
     if (saveTimer.current) {
       window.clearTimeout(saveTimer.current);
     }
-    
+
     // Debounce saves
     saveTimer.current = window.setTimeout(() => {
       try {
@@ -51,7 +51,7 @@ export const useManualBudgetFixed = (currentDate: Date) => {
   // Load from localStorage
   const loadFromStorage = useCallback((date: Date): ManualBudgetState | null => {
     const key = getStorageKey(date);
-    
+
     try {
       const saved = localStorage.getItem(key);
       if (saved) {
@@ -62,7 +62,7 @@ export const useManualBudgetFixed = (currentDate: Date) => {
     } catch (error) {
       console.error('❌ Failed to load manual budget from localStorage:', error);
     }
-    
+
     return null;
   }, []);
 
@@ -75,7 +75,7 @@ export const useManualBudgetFixed = (currentDate: Date) => {
       date: currentDate.toISOString(),
       bankAmount: manualBudget.bankAmount,
       itemsCount: manualBudget.items.length,
-      items: manualBudget.items
+      items: manualBudget.items,
     });
 
     saveToStorage(manualBudget, currentDate);
@@ -87,7 +87,7 @@ export const useManualBudgetFixed = (currentDate: Date) => {
       date: currentDate.toISOString(),
       year: currentDate.getFullYear(),
       month: currentDate.getMonth() + 1,
-      key: getStorageKey(currentDate)
+      key: getStorageKey(currentDate),
     });
 
     // Block saves until load completes
@@ -95,7 +95,7 @@ export const useManualBudgetFixed = (currentDate: Date) => {
 
     // Load data for this month
     const savedData = loadFromStorage(currentDate);
-    
+
     if (savedData) {
       setManualBudget(savedData);
     } else {

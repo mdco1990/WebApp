@@ -47,8 +47,7 @@ func TestLoad(t *testing.T) {
 func TestLoadWithEnvironment(t *testing.T) {
 	// Test environment variable override
 	t.Setenv("HTTP_ADDRESS", "0.0.0.0:8080")
-	t.Setenv("DB_DRIVER", "mysql")
-	t.Setenv("DB_DSN", "user:pass@tcp(localhost:3306)/db")
+	t.Setenv("DB_PATH", "/custom/path/app.db")
 	t.Setenv("ENV", "prod")
 	t.Setenv("LOG_LEVEL", "debug")
 	t.Setenv("LOG_FORMAT", "text")
@@ -59,12 +58,12 @@ func TestLoadWithEnvironment(t *testing.T) {
 		t.Errorf("Expected HTTP_ADDRESS 0.0.0.0:8080, got %s", cfg.HTTPAddress)
 	}
 
-	if cfg.DBDriver != "mysql" {
-		t.Errorf("Expected DB_DRIVER mysql, got %s", cfg.DBDriver)
+	if cfg.DBDriver != "sqlite" {
+		t.Errorf("Expected DB_DRIVER sqlite, got %s", cfg.DBDriver)
 	}
 
-	if cfg.DBDSN != "user:pass@tcp(localhost:3306)/db" {
-		t.Errorf("Expected DB_DSN user:pass@tcp(localhost:3306)/db, got %s", cfg.DBDSN)
+	if cfg.DBPath != "/custom/path/app.db" {
+		t.Errorf("Expected DB_PATH /custom/path/app.db, got %s", cfg.DBPath)
 	}
 
 	if cfg.Env != "prod" {
@@ -325,21 +324,21 @@ func TestConfigValidation(t *testing.T) {
 		t.Error("Expected DB_PATH to have a default value for SQLite")
 	}
 
-	// Test MySQL validation - this should work with valid DSN
-	t.Setenv("DB_DRIVER", "mysql")
-	t.Setenv("DB_DSN", "user:pass@tcp(localhost:3306)/testdb")
+	// Test SQLite validation with custom path
+	t.Setenv("DB_DRIVER", "sqlite")
+	t.Setenv("DB_PATH", "/custom/test/path.db")
 	defer func() {
 		if err := os.Unsetenv("DB_DRIVER"); err != nil {
 			t.Logf("Failed to unset DB_DRIVER: %v", err)
 		}
-		if err := os.Unsetenv("DB_DSN"); err != nil {
-			t.Logf("Failed to unset DB_DSN: %v", err)
+		if err := os.Unsetenv("DB_PATH"); err != nil {
+			t.Logf("Failed to unset DB_PATH: %v", err)
 		}
 	}()
 
-	// This should not panic with valid DSN
+	// This should not panic with valid path
 	cfg = Load()
-	if cfg.DBDSN != "user:pass@tcp(localhost:3306)/testdb" {
-		t.Error("Expected DB_DSN to be set for MySQL driver")
+	if cfg.DBPath != "/custom/test/path.db" {
+		t.Error("Expected DB_PATH to be set for SQLite driver")
 	}
 }

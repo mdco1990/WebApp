@@ -1,6 +1,6 @@
 # WebApp
 
-A modern web application with Go backend and React frontend.
+A modern web application with Go backend and React frontend, using SQLite for development and data persistence.
 
 ## Quick Start
 
@@ -128,7 +128,7 @@ make tidy              # Sync Go dependencies
 
 ### Environment Variables
 
-Create a `.env.dev` file for local development:
+Create a `.env` file for local development (copy from `.env.example`):
 
 ```env
 HTTP_ADDRESS=127.0.0.1:8082
@@ -139,15 +139,22 @@ ENV=dev
 LOG_LEVEL=debug
 ```
 
+### Database Configuration
+
+The project uses SQLite for development and data persistence:
+
+- **Database**: SQLite (file-based, no external dependencies)
+- **Location**: `./data/app.db` (created automatically)
+- **Schema**: Embedded in the application
+- **Migrations**: Automatic on startup
+
 ### Docker Configuration
 
 The project uses Docker Compose for development with the following services:
 
 - **api**: Go backend with live reloading
 - **web**: React frontend with Vite
-- **db**: SQLite database
 - **https-proxy**: Nginx reverse proxy with HTTPS
-- **sqlite-admin**: Database administration UI
 
 ## Development Workflow
 
