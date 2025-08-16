@@ -541,6 +541,7 @@ func NewSQLiteStorageFactory() *SQLiteStorageFactory {
 }
 
 // Create creates a new SQLite storage provider
+//nolint:ireturn
 func (f *SQLiteStorageFactory) Create(_ context.Context, options StorageOptions) (StorageProvider, error) {
 	// Extract SQLite-specific options
 	dbPath, ok := options.Metadata["db_path"].(string)

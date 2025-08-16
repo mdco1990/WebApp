@@ -100,6 +100,7 @@ func (as *AuthService) RegisterStrategy(name string, strategy AuthStrategy) {
 }
 
 // GetStrategy returns an authentication strategy by name
+//nolint:ireturn
 func (as *AuthService) GetStrategy(name string) (AuthStrategy, error) {
 	as.mu.RLock()
 	defer as.mu.RUnlock()

@@ -151,6 +151,7 @@ func NewServiceFactory(repo *repository.Repository, storageManager *storage.Stor
 }
 
 // GetUserService returns or creates a UserService instance
+//nolint:ireturn
 func (sf *ServiceFactory) GetUserService() UserService {
 	if service, exists := sf.services["user"]; exists {
 		if userService, ok := service.(UserService); ok {
@@ -166,6 +167,7 @@ func (sf *ServiceFactory) GetUserService() UserService {
 }
 
 // GetFinancialService returns or creates a FinancialService instance
+//nolint:ireturn
 func (sf *ServiceFactory) GetFinancialService() FinancialService {
 	if service, exists := sf.services["financial"]; exists {
 		if financialService, ok := service.(FinancialService); ok {
@@ -181,6 +183,7 @@ func (sf *ServiceFactory) GetFinancialService() FinancialService {
 }
 
 // GetNotificationService returns or creates a NotificationService instance
+//nolint:ireturn
 func (sf *ServiceFactory) GetNotificationService() NotificationService {
 	if service, exists := sf.services["notification"]; exists {
 		if notificationService, ok := service.(NotificationService); ok {
@@ -196,6 +199,7 @@ func (sf *ServiceFactory) GetNotificationService() NotificationService {
 }
 
 // GetAuditService returns or creates an AuditService instance
+//nolint:ireturn
 func (sf *ServiceFactory) GetAuditService() AuditService {
 	if service, exists := sf.services["audit"]; exists {
 		if auditService, ok := service.(AuditService); ok {
@@ -211,6 +215,7 @@ func (sf *ServiceFactory) GetAuditService() AuditService {
 }
 
 // GetCacheService returns or creates a CacheService instance
+//nolint:ireturn
 func (sf *ServiceFactory) GetCacheService() CacheService {
 	if service, exists := sf.services["cache"]; exists {
 		if cacheService, ok := service.(CacheService); ok {
@@ -242,6 +247,7 @@ func (sf *ServiceFactory) GetCacheService() CacheService {
 }
 
 // GetBackgroundTaskService returns or creates a BackgroundTaskService instance
+//nolint:ireturn
 func (sf *ServiceFactory) GetBackgroundTaskService() BackgroundTaskService {
 	if service, exists := sf.services["background_task"]; exists {
 		if backgroundTaskService, ok := service.(BackgroundTaskService); ok {
@@ -393,6 +399,7 @@ func NewServiceHealthCheckerFactory(factory *ServiceFactory) *ServiceHealthCheck
 }
 
 // CreateHealthChecker creates a health checker for a specific service
+//nolint:ireturn
 func (shcf *ServiceHealthCheckerFactory) CreateHealthChecker(serviceName string) (ServiceHealthChecker, error) {
 	switch serviceName {
 	case "user":
