@@ -155,3 +155,122 @@ type UpdateSourceRequest struct {
 	Name        string `json:"name"`
 	AmountCents Money  `json:"amount_cents"`
 }
+
+// ============================================================================
+// NEW DOMAIN TYPES FOR PHASE 5 IMPLEMENTATION
+// ============================================================================
+
+// YearlySummary provides annual financial overview
+type YearlySummary struct {
+	Year            int     `json:"year"`
+	TotalIncome     Money   `json:"total_income_cents"`
+	TotalBudget     Money   `json:"total_budget_cents"`
+	TotalExpenses   Money   `json:"total_expenses_cents"`
+	NetSavings      Money   `json:"net_savings_cents"`
+	MonthlyAverages []Money `json:"monthly_averages_cents"`
+	TopCategories   []struct {
+		Category string `json:"category"`
+		Amount   Money  `json:"amount_cents"`
+	} `json:"top_categories"`
+}
+
+// ExpenseReport represents a detailed expense analysis report
+type ExpenseReport struct {
+	ID          string    `json:"id"`
+	UserID      int64     `json:"user_id"`
+	Type        string    `json:"type"` // monthly, yearly, custom
+	Period      YearMonth `json:"period"`
+	GeneratedAt time.Time `json:"generated_at"`
+	Data        struct {
+		TotalExpenses     Money `json:"total_expenses_cents"`
+		CategoryBreakdown []struct {
+			Category string `json:"category"`
+			Amount   Money  `json:"amount_cents"`
+			Count    int    `json:"count"`
+		} `json:"category_breakdown"`
+		DailyTrends []struct {
+			Date   time.Time `json:"date"`
+			Amount Money     `json:"amount_cents"`
+		} `json:"daily_trends"`
+	} `json:"data"`
+	Status  string `json:"status"` // processing, completed, failed
+	FileURL string `json:"file_url,omitempty"`
+}
+
+// Notification represents a user notification
+type Notification struct {
+	ID        string                 `json:"id"`
+	UserID    int64                  `json:"user_id"`
+	Type      string                 `json:"type"`
+	Title     string                 `json:"title"`
+	Message   string                 `json:"message"`
+	Priority  string                 `json:"priority"` // low, medium, high, urgent
+	Data      map[string]interface{} `json:"data,omitempty"`
+	Read      bool                   `json:"read"`
+	CreatedAt time.Time              `json:"created_at"`
+	ExpiresAt *time.Time             `json:"expires_at,omitempty"`
+}
+
+// NotificationPreferences defines user notification settings
+type NotificationPreferences struct {
+	ID               int64  `json:"id"`
+	UserID           int64  `json:"user_id"`
+	EmailEnabled     bool   `json:"email_enabled"`
+	PushEnabled      bool   `json:"push_enabled"`
+	SMSEnabled       bool   `json:"sms_enabled"`
+	BudgetAlerts     bool   `json:"budget_alerts"`
+	ExpenseReminders bool   `json:"expense_reminders"`
+	SecurityAlerts   bool   `json:"security_alerts"`
+	WeeklyReports    bool   `json:"weekly_reports"`
+	MonthlyReports   bool   `json:"monthly_reports"`
+	QuietHoursStart  int    `json:"quiet_hours_start"` // 24-hour format
+	QuietHoursEnd    int    `json:"quiet_hours_end"`   // 24-hour format
+	TimeZone         string `json:"timezone"`
+}
+
+// SystemNotification represents system-wide notifications
+type SystemNotification struct {
+	ID          string                 `json:"id"`
+	Type        string                 `json:"type"` // maintenance, update, alert
+	Title       string                 `json:"title"`
+	Message     string                 `json:"message"`
+	Priority    string                 `json:"priority"`
+	Data        map[string]interface{} `json:"data,omitempty"`
+	CreatedAt   time.Time              `json:"created_at"`
+	ExpiresAt   *time.Time             `json:"expires_at,omitempty"`
+	TargetUsers []int64                `json:"target_users,omitempty"` // empty for all users
+}
+
+// AuditAction represents an audit log entry
+type AuditAction struct {
+	ID        string                 `json:"id"`
+	UserID    int64                  `json:"user_id"`
+	Action    string                 `json:"action"`
+	Resource  string                 `json:"resource"`
+	Details   string                 `json:"details"`
+	IPAddress string                 `json:"ip_address,omitempty"`
+	UserAgent string                 `json:"user_agent,omitempty"`
+	Timestamp time.Time              `json:"timestamp"`
+	Source    string                 `json:"source"`
+	EventID   string                 `json:"event_id,omitempty"`
+	Status    string                 `json:"status"` // success, failure, pending
+	Metadata  map[string]interface{} `json:"metadata,omitempty"`
+}
+
+// TimeRange represents a time period for queries
+type TimeRange struct {
+	Start time.Time `json:"start"`
+	End   time.Time `json:"end"`
+}
+
+// AuditStats provides audit statistics
+type AuditStats struct {
+	TotalActions        int64                  `json:"total_actions"`
+	ActionsByType       map[string]int64       `json:"actions_by_type"`
+	ActionsByUser       map[int64]int64        `json:"actions_by_user"`
+	ActionsByResource   map[string]int64       `json:"actions_by_resource"`
+	SuccessRate         float64                `json:"success_rate"`
+	AverageResponseTime time.Duration          `json:"average_response_time"`
+	LastActivity        time.Time              `json:"last_activity"`
+	Metadata            map[string]interface{} `json:"metadata,omitempty"`
+}

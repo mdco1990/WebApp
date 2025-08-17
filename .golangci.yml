@@ -50,7 +50,6 @@ formatters:
   - gofmt
   - gofumpt
   - gci
-  - golines
 
 issues:
   max-issues-per-linter: 0
