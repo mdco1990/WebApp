@@ -1,5 +1,4 @@
 import React, { useState, useMemo, useCallback } from 'react';
-import { FetchState } from '../../types/state';
 
 // Generic table column definition
 export type Column<T> = {
@@ -41,7 +40,7 @@ export type TableProps<T> = {
 type SortDirection = 'asc' | 'desc' | null;
 
 // Generic table component with full type safety
-export function GenericTable<T extends Record<string, any>>({
+export function GenericTable<T extends Record<string, unknown>>({
   data,
   columns,
   onRowClick,
@@ -60,27 +59,30 @@ export function GenericTable<T extends Record<string, any>>({
   const [filters, setFilters] = useState<Partial<Record<keyof T, string>>>({});
 
   // Handle sorting
-  const handleSort = useCallback((column: keyof T) => {
-    if (!sortable || !columns.find(col => col.key === column)?.sortable) {
-      return;
-    }
-
-    if (sortColumn === column) {
-      if (sortDirection === 'asc') {
-        setSortDirection('desc');
-      } else if (sortDirection === 'desc') {
-        setSortDirection(null);
-        setSortColumn(null);
+  const handleSort = useCallback(
+    (column: keyof T) => {
+      if (!sortable || !columns.find((col) => col.key === column)?.sortable) {
+        return;
       }
-    } else {
-      setSortColumn(column);
-      setSortDirection('asc');
-    }
-  }, [sortable, sortColumn, sortDirection, columns]);
+
+      if (sortColumn === column) {
+        if (sortDirection === 'asc') {
+          setSortDirection('desc');
+        } else if (sortDirection === 'desc') {
+          setSortDirection(null);
+          setSortColumn(null);
+        }
+      } else {
+        setSortColumn(column);
+        setSortDirection('asc');
+      }
+    },
+    [sortable, sortColumn, sortDirection, columns]
+  );
 
   // Handle filtering
   const handleFilter = useCallback((column: keyof T, value: string) => {
-    setFilters(prev => ({
+    setFilters((prev) => ({
       ...prev,
       [column]: value || undefined,
     }));
@@ -92,7 +94,7 @@ export function GenericTable<T extends Record<string, any>>({
 
     // Apply filters
     if (filterable && Object.keys(filters).length > 0) {
-      result = result.filter(item =>
+      result = result.filter((item) =>
         Object.entries(filters).every(([key, filterValue]) => {
           if (!filterValue) return true;
           const itemValue = String(item[key as keyof T]).toLowerCase();
@@ -117,23 +119,26 @@ export function GenericTable<T extends Record<string, any>>({
   }, [data, filters, sortable, sortColumn, sortDirection, filterable]);
 
   // Handle row selection
-  const handleRowSelect = useCallback((item: T) => {
-    if (!selection?.selectable) return;
+  const handleRowSelect = useCallback(
+    (item: T) => {
+      if (!selection?.selectable) return;
 
-    const isSelected = selection.selectedItems.some(selected => 
-      JSON.stringify(selected) === JSON.stringify(item)
-    );
-
-    if (isSelected) {
-      selection.onSelectionChange(
-        selection.selectedItems.filter(selected => 
-          JSON.stringify(selected) !== JSON.stringify(item)
-        )
+      const isSelected = selection.selectedItems.some(
+        (selected) => JSON.stringify(selected) === JSON.stringify(item)
       );
-    } else {
-      selection.onSelectionChange([...selection.selectedItems, item]);
-    }
-  }, [selection]);
+
+      if (isSelected) {
+        selection.onSelectionChange(
+          selection.selectedItems.filter(
+            (selected) => JSON.stringify(selected) !== JSON.stringify(item)
+          )
+        );
+      } else {
+        selection.onSelectionChange([...selection.selectedItems, item]);
+      }
+    },
+    [selection]
+  );
 
   // Handle select all
   const handleSelectAll = useCallback(() => {
@@ -148,7 +153,7 @@ export function GenericTable<T extends Record<string, any>>({
 
   // Render sort indicator
   const renderSortIndicator = (column: keyof T) => {
-    if (!sortable || !columns.find(col => col.key === column)?.sortable) {
+    if (!sortable || !columns.find((col) => col.key === column)?.sortable) {
       return null;
     }
 
@@ -161,7 +166,7 @@ export function GenericTable<T extends Record<string, any>>({
 
   // Render filter input
   const renderFilterInput = (column: keyof T) => {
-    if (!filterable || !columns.find(col => col.key === column)?.filterable) {
+    if (!filterable || !columns.find((col) => col.key === column)?.filterable) {
       return null;
     }
 
@@ -227,9 +232,9 @@ export function GenericTable<T extends Record<string, any>>({
             {columns.map((column) => (
               <th
                 key={String(column.key)}
-                style={{ 
+                style={{
                   width: column.width,
-                  cursor: sortable && column.sortable ? 'pointer' : 'default'
+                  cursor: sortable && column.sortable ? 'pointer' : 'default',
                 }}
                 onClick={() => handleSort(column.key)}
                 className={sortable && column.sortable ? 'sortable' : ''}
@@ -245,9 +250,11 @@ export function GenericTable<T extends Record<string, any>>({
         </thead>
         <tbody>
           {processedData.map((item, index) => {
-            const isSelected = selection?.selectable && selection.selectedItems.some(selected => 
-              JSON.stringify(selected) === JSON.stringify(item)
-            );
+            const isSelected =
+              selection?.selectable &&
+              selection.selectedItems.some(
+                (selected) => JSON.stringify(selected) === JSON.stringify(item)
+              );
 
             return (
               <tr
@@ -272,10 +279,7 @@ export function GenericTable<T extends Record<string, any>>({
                   </td>
                 )}
                 {columns.map((column) => (
-                  <td
-                    key={String(column.key)}
-                    style={{ textAlign: column.align || 'left' }}
-                  >
+                  <td key={String(column.key)} style={{ textAlign: column.align || 'left' }}>
                     {column.render
                       ? column.render(item[column.key], item)
                       : String(item[column.key] ?? '')}
@@ -300,22 +304,21 @@ export function GenericTable<T extends Record<string, any>>({
                 Previous
               </button>
             </li>
-            
+
             {Array.from({ length: pagination.totalPages }, (_, i) => i + 1).map((page) => (
               <li
                 key={page}
                 className={`page-item ${page === pagination.currentPage ? 'active' : ''}`}
               >
-                <button
-                  className="page-link"
-                  onClick={() => pagination.onPageChange(page)}
-                >
+                <button className="page-link" onClick={() => pagination.onPageChange(page)}>
                   {page}
                 </button>
               </li>
             ))}
-            
-            <li className={`page-item ${pagination.currentPage === pagination.totalPages ? 'disabled' : ''}`}>
+
+            <li
+              className={`page-item ${pagination.currentPage === pagination.totalPages ? 'disabled' : ''}`}
+            >
               <button
                 className="page-link"
                 onClick={() => pagination.onPageChange(pagination.currentPage + 1)}

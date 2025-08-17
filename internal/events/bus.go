@@ -109,7 +109,7 @@ type EventBus struct {
 	subscriptions map[string][]*EventSubscription
 	handlers      map[string][]EventHandler
 	middleware    []EventMiddleware
-	storage       storage.StorageProvider
+	storage       storage.Provider
 	mu            sync.RWMutex
 	ctx           context.Context //nolint:containedctx
 	cancel        context.CancelFunc
@@ -129,7 +129,7 @@ type EventBusStats struct {
 }
 
 // NewEventBus creates a new event bus
-func NewEventBus(storage storage.StorageProvider) *EventBus {
+func NewEventBus(storage storage.Provider) *EventBus {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	return &EventBus{

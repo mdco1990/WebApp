@@ -11,10 +11,10 @@ import (
 	"sync"
 	"time"
 
-	_ "github.com/glebarez/go-sqlite"
+	_ "github.com/glebarez/go-sqlite" // SQLite driver registration
 )
 
-// Sentinel errors
+// ErrNoTTL is returned when no TTL is set for a key
 var ErrNoTTL = errors.New("no TTL set")
 
 // SQLiteStorage implements Provider using SQLite
@@ -47,7 +47,7 @@ func NewSQLiteStorage(dbPath string, options Options) (*SQLiteStorage, error) {
 	storage := &SQLiteStorage{
 		db:            db,
 		options:       options,
-		eventHandlers: make([]StorageEventHandler, 0),
+		eventHandlers: make([]EventHandler, 0),
 		done:          make(chan bool),
 	}
 
@@ -129,40 +129,40 @@ func (s *SQLiteStorage) Save(ctx context.Context, key string, value interface{},
 		expiresAt = &exp
 	}
 
-		// Check key count limits
-		if s.options.MaxKeys > 0 {
-			var count int64
-			err := s.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM storage_entries").Scan(&count)
-			if err != nil {
-				return &Error{
-					Op:      "Save",
-					Key:     key,
-					Message: fmt.Sprintf("failed to count keys: %v", err),
-					Code:    "COUNT_ERROR",
-				}
-			}
-
-			// Check if this is an update or new key
-			var exists bool
-			err = s.db.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM storage_entries WHERE key = ?)", key).Scan(&exists)
-			if err != nil {
-				return &Error{
-					Op:      "Save",
-					Key:     key,
-					Message: fmt.Sprintf("failed to check key existence: %v", err),
-					Code:    "EXISTS_CHECK_ERROR",
-				}
-			}
-
-			if !exists && count >= s.options.MaxKeys {
-				return &Error{
-					Op:      "Save",
-					Key:     key,
-					Message: fmt.Sprintf("maximum number of keys %d reached", s.options.MaxKeys),
-					Code:    "KEY_LIMIT_EXCEEDED",
-				}
+	// Check key count limits
+	if s.options.MaxKeys > 0 {
+		var count int64
+		err := s.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM storage_entries").Scan(&count)
+		if err != nil {
+			return &Error{
+				Op:      "Save",
+				Key:     key,
+				Message: fmt.Sprintf("failed to count keys: %v", err),
+				Code:    "COUNT_ERROR",
 			}
 		}
+
+		// Check if this is an update or new key
+		var exists bool
+		err = s.db.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM storage_entries WHERE key = ?)", key).Scan(&exists)
+		if err != nil {
+			return &Error{
+				Op:      "Save",
+				Key:     key,
+				Message: fmt.Sprintf("failed to check key existence: %v", err),
+				Code:    "EXISTS_CHECK_ERROR",
+			}
+		}
+
+		if !exists && count >= s.options.MaxKeys {
+			return &Error{
+				Op:      "Save",
+				Key:     key,
+				Message: fmt.Sprintf("maximum number of keys %d reached", s.options.MaxKeys),
+				Code:    "KEY_LIMIT_EXCEEDED",
+			}
+		}
+	}
 
 	// Insert or update
 	query := `
@@ -230,7 +230,7 @@ func (s *SQLiteStorage) Load(ctx context.Context, key string) (interface{}, erro
 			_ = s.Delete(ctx, key)
 		}()
 
-		return nil, &StorageError{
+		return nil, &Error{
 			Op:      "Load",
 			Key:     key,
 			Message: "key expired",
@@ -241,7 +241,7 @@ func (s *SQLiteStorage) Load(ctx context.Context, key string) (interface{}, erro
 	// Deserialize value
 	var value interface{}
 	if err := json.Unmarshal(valueBytes, &value); err != nil {
-		return nil, &StorageError{
+		return nil, &Error{
 			Op:      "Load",
 			Key:     key,
 			Message: fmt.Sprintf("failed to unmarshal value: %v", err),
@@ -260,7 +260,7 @@ func (s *SQLiteStorage) Delete(ctx context.Context, key string) error {
 	query := "DELETE FROM storage_entries WHERE key = ?"
 	result, err := s.db.ExecContext(ctx, query, key)
 	if err != nil {
-		return &StorageError{
+		return &Error{
 			Op:      "Delete",
 			Key:     key,
 			Message: fmt.Sprintf("database error: %v", err),
@@ -270,7 +270,7 @@ func (s *SQLiteStorage) Delete(ctx context.Context, key string) error {
 
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
-		return &StorageError{
+		return &Error{
 			Op:      "Delete",
 			Key:     key,
 			Message: fmt.Sprintf("failed to get rows affected: %v", err),
@@ -279,7 +279,7 @@ func (s *SQLiteStorage) Delete(ctx context.Context, key string) error {
 	}
 
 	if rowsAffected == 0 {
-		return &StorageError{
+		return &Error{
 			Op:      "Delete",
 			Key:     key,
 			Message: "key not found",
@@ -288,8 +288,8 @@ func (s *SQLiteStorage) Delete(ctx context.Context, key string) error {
 	}
 
 	// Emit event
-	s.emitEvent(StorageEvent{
-		Type:      StorageEventDeleted,
+	s.emitEvent(Event{
+		Type:      EventDeleted,
 		Key:       key,
 		Timestamp: time.Now(),
 	})
@@ -306,7 +306,7 @@ func (s *SQLiteStorage) Exists(ctx context.Context, key string) (bool, error) {
 	var exists bool
 	err := s.db.QueryRowContext(ctx, query, key).Scan(&exists)
 	if err != nil {
-		return false, &StorageError{
+		return false, &Error{
 			Op:      "Exists",
 			Key:     key,
 			Message: fmt.Sprintf("database error: %v", err),
@@ -327,14 +327,14 @@ func (s *SQLiteStorage) GetTTL(ctx context.Context, key string) (*time.Duration,
 	err := s.db.QueryRowContext(ctx, query, key).Scan(&expiresAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, &StorageError{
+			return nil, &Error{
 				Op:      "GetTTL",
 				Key:     key,
 				Message: "key not found",
 				Code:    "KEY_NOT_FOUND",
 			}
 		}
-		return nil, &StorageError{
+		return nil, &Error{
 			Op:      "GetTTL",
 			Key:     key,
 			Message: fmt.Sprintf("database error: %v", err),
@@ -363,7 +363,7 @@ func (s *SQLiteStorage) SetTTL(ctx context.Context, key string, ttl time.Duratio
 	query := "UPDATE storage_entries SET expires_at = ?, expires_at_idx = ? WHERE key = ?"
 	result, err := s.db.ExecContext(ctx, query, expiresAt, expiresAt, key)
 	if err != nil {
-		return &StorageError{
+		return &Error{
 			Op:      "SetTTL",
 			Key:     key,
 			Message: fmt.Sprintf("database error: %v", err),
@@ -373,7 +373,7 @@ func (s *SQLiteStorage) SetTTL(ctx context.Context, key string, ttl time.Duratio
 
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
-		return &StorageError{
+		return &Error{
 			Op:      "SetTTL",
 			Key:     key,
 			Message: fmt.Sprintf("failed to get rows affected: %v", err),
@@ -382,7 +382,7 @@ func (s *SQLiteStorage) SetTTL(ctx context.Context, key string, ttl time.Duratio
 	}
 
 	if rowsAffected == 0 {
-		return &StorageError{
+		return &Error{
 			Op:      "SetTTL",
 			Key:     key,
 			Message: "key not found",
@@ -401,7 +401,7 @@ func (s *SQLiteStorage) Clear(ctx context.Context) error {
 	query := "DELETE FROM storage_entries"
 	_, err := s.db.ExecContext(ctx, query)
 	if err != nil {
-		return &StorageError{
+		return &Error{
 			Op:      "Clear",
 			Key:     "",
 			Message: fmt.Sprintf("database error: %v", err),
@@ -410,8 +410,8 @@ func (s *SQLiteStorage) Clear(ctx context.Context) error {
 	}
 
 	// Emit event
-	s.emitEvent(StorageEvent{
-		Type:      StorageEventCleared,
+	s.emitEvent(Event{
+		Type:      EventCleared,
 		Key:       "",
 		Timestamp: time.Now(),
 	})
@@ -420,11 +420,11 @@ func (s *SQLiteStorage) Clear(ctx context.Context) error {
 }
 
 // GetStats returns storage statistics
-func (s *SQLiteStorage) GetStats(ctx context.Context) (*StorageStats, error) {
+func (s *SQLiteStorage) GetStats(ctx context.Context) (*Stats, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	stats := &StorageStats{
+	stats := &Stats{
 		ProviderType: "sqlite",
 		LastCleanup:  time.Now(),
 	}
@@ -466,21 +466,21 @@ func (s *SQLiteStorage) Close(_ context.Context) error {
 }
 
 // AddEventHandler adds an event handler
-func (s *SQLiteStorage) AddEventHandler(handler StorageEventHandler) {
+func (s *SQLiteStorage) AddEventHandler(handler EventHandler) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.eventHandlers = append(s.eventHandlers, handler)
 }
 
 // emitEvent emits a storage event to all handlers
-func (s *SQLiteStorage) emitEvent(event StorageEvent) {
+func (s *SQLiteStorage) emitEvent(event Event) {
 	s.mu.RLock()
-	handlers := make([]StorageEventHandler, len(s.eventHandlers))
+	handlers := make([]EventHandler, len(s.eventHandlers))
 	copy(handlers, s.eventHandlers)
 	s.mu.RUnlock()
 
 	for _, handler := range handlers {
-		go func(h StorageEventHandler, e StorageEvent) {
+		go func(h EventHandler, e Event) {
 			defer func() {
 				if r := recover(); r != nil {
 					// Log panic but don't crash
@@ -543,7 +543,7 @@ func NewSQLiteStorageFactory() *SQLiteStorageFactory {
 // Create creates a new SQLite storage provider
 //
 //nolint:ireturn
-func (f *SQLiteStorageFactory) Create(_ context.Context, options StorageOptions) (StorageProvider, error) {
+func (f *SQLiteStorageFactory) Create(_ context.Context, options Options) (Provider, error) {
 	// Extract SQLite-specific options
 	dbPath, ok := options.Metadata["db_path"].(string)
 	if !ok {

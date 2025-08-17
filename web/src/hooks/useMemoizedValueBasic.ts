@@ -1,11 +1,4 @@
-// Type-safe memoization hooks for performance optimization
-// This file provides comprehensive memoization patterns with proper typing
-
 import { useMemo, useCallback, useRef, useEffect, useReducer } from 'react';
-
-// ============================================================================
-// BASIC MEMOIZATION HOOKS
-// ============================================================================
 
 // Hook return type for basic memoization
 export type UseMemoizedValueReturn<T> = {
@@ -160,24 +153,4 @@ export function useMemoizedValue<T>(
     refresh,
     clear,
   };
-}
-
-// ============================================================================
-// UTILITY HOOKS
-// ============================================================================
-
-// Hook for maintaining stable references
-export function useStableReference<T>(value: T): T {
-  const ref = useRef<T>(value);
-  if (!Object.is(ref.current, value)) {
-    ref.current = value;
-  }
-  return ref.current;
-}
-
-// Hook for maintaining stable callbacks
-export function useStableCallback<T extends (...args: Array<unknown>) => unknown>(callback: T): T {
-  const ref = useRef<T>(callback);
-  ref.current = callback;
-  return useCallback((...args: Parameters<T>) => ref.current(...args), []) as T;
 }
