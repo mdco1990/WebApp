@@ -1,11 +1,12 @@
 import { renderHook, act, waitFor } from '@testing-library/react';
+import { vi } from 'vitest';
 import { useManualBudget } from '../useManualBudget';
 import * as api from '../../services/api';
 
 // Mock the API
-jest.mock('../../services/api', () => ({
-  getManualBudget: jest.fn(),
-  saveManualBudget: jest.fn(),
+vi.mock('../../services/api', () => ({
+  getManualBudget: vi.fn(),
+  saveManualBudget: vi.fn(),
 }));
 
 // Mock localStorage
@@ -29,8 +30,8 @@ Object.defineProperty(window, 'localStorage', {
   value: localStorageMock,
 });
 
-const mockGetManualBudget = api.getManualBudget as jest.MockedFunction<typeof api.getManualBudget>;
-const mockSaveManualBudget = api.saveManualBudget as jest.MockedFunction<
+const mockGetManualBudget = api.getManualBudget as vi.MockedFunction<typeof api.getManualBudget>;
+const mockSaveManualBudget = api.saveManualBudget as vi.MockedFunction<
   typeof api.saveManualBudget
 >;
 
@@ -39,13 +40,13 @@ describe('useManualBudget', () => {
     localStorageMock.clear();
     // Set up a mock session to enable server calls
     localStorageMock.setItem('session_id', 'test-session-id');
-    jest.clearAllMocks();
-    jest.clearAllTimers();
-    jest.useFakeTimers();
+    vi.clearAllMocks();
+    vi.clearAllTimers();
+    vi.useFakeTimers();
   });
 
   afterEach(() => {
-    jest.useRealTimers();
+    vi.useRealTimers();
   });
 
   const testDate = new Date(2024, 0, 15); // January 2024
@@ -183,7 +184,7 @@ describe('useManualBudget', () => {
 
     // Advance timers to see if save is called during load
     act(() => {
-      jest.advanceTimersByTime(1000);
+      vi.advanceTimersByTime(1000);
     });
 
     await waitFor(() => {

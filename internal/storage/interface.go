@@ -81,10 +81,10 @@ func (e Error) Error() string {
 
 // Event represents storage lifecycle events
 type Event struct {
-	Type      EventType `json:"type"`
-	Key       string           `json:"key"`
-	Timestamp time.Time        `json:"timestamp"`
-	Data      interface{}      `json:"data,omitempty"`
+	Type      EventType   `json:"type"`
+	Key       string      `json:"key"`
+	Timestamp time.Time   `json:"timestamp"`
+	Data      interface{} `json:"data,omitempty"`
 }
 
 // EventType defines the type of storage event

@@ -1,62 +1,50 @@
-// Type-safe memoization hooks for performance optimization
-// This file provides comprehensive memoization patterns with proper typing
-
 import { useMemo, useCallback, useRef, useEffect, useReducer } from 'react';
+import { MemoizationOptions, defaultComparison } from './useMemoizedValueBasic';
 
 // ============================================================================
-// BASIC MEMOIZATION HOOKS
+// CALCULATION MEMOIZATION HOOKS
 // ============================================================================
 
-// Hook return type for basic memoization
-export type UseMemoizedValueReturn<T> = {
+// Calculation options extending basic memoization
+export type CalculationOptions = MemoizationOptions & {
+  enableCache?: boolean;
+  cacheSize?: number;
+  enableProfiling?: boolean;
+};
+
+// Hook return type for calculation memoization
+export type UseMemoizedCalculationReturn<T> = {
   value: T;
   dependencies: Array<unknown>;
   isStale: boolean;
   refresh: () => void;
   clear: () => void;
+  executionTime: number;
+  cacheHits: number;
+  cacheMisses: number;
 };
 
-// Memoization options
-export type MemoizationOptions = {
-  maxAge?: number;
-  comparisonFn?: (a: unknown, b: unknown) => boolean;
-};
-
-// Default comparison function
-export const defaultComparison = (a: unknown, b: unknown): boolean => {
-  if (a === b) return true;
-  if (a == null || b == null) return false;
-  if (typeof a !== typeof b) return false;
-  if (typeof a === 'object') {
-    if (Array.isArray(a) !== Array.isArray(b)) return false;
-    if (Array.isArray(a)) {
-      if (a.length !== (b as Array<unknown>).length) return false;
-      return a.every((item, index) => defaultComparison(item, (b as Array<unknown>)[index]));
-    }
-    const keysA = Object.keys(a as Record<string, unknown>);
-    const keysB = Object.keys(b as Record<string, unknown>);
-    if (keysA.length !== keysB.length) return false;
-    return keysA.every((key) => defaultComparison((a as Record<string, unknown>)[key], (b as Record<string, unknown>)[key]));
-  }
-  return false;
-};
-
-// Memoization state
-type MemoizationState<T> = {
+// Calculation state
+type CalculationState<T> = {
   value: T;
   dependencies: Array<unknown>;
   lastUpdate: number;
   isStale: boolean;
+  executionTime: number;
+  cacheHits: number;
+  cacheMisses: number;
 };
 
-// Memoization actions
-type MemoizationAction<T> =
-  | { type: 'UPDATE_VALUE'; payload: { value: T; dependencies: Array<unknown>; lastUpdate: number } }
+// Calculation actions
+type CalculationAction<T> =
+  | { type: 'UPDATE_VALUE'; payload: { value: T; dependencies: Array<unknown>; lastUpdate: number; executionTime: number } }
   | { type: 'SET_STALE'; payload: boolean }
-  | { type: 'CLEAR' };
+  | { type: 'CLEAR' }
+  | { type: 'INCREMENT_CACHE_HITS' }
+  | { type: 'INCREMENT_CACHE_MISSES' };
 
-// Memoization reducer
-function memoizationReducer<T>(state: MemoizationState<T>, action: MemoizationAction<T>): MemoizationState<T> {
+// Calculation reducer
+function calculationReducer<T>(state: CalculationState<T>, action: CalculationAction<T>): CalculationState<T> {
   switch (action.type) {
     case 'UPDATE_VALUE':
       return {
@@ -64,6 +52,7 @@ function memoizationReducer<T>(state: MemoizationState<T>, action: MemoizationAc
         value: action.payload.value,
         dependencies: action.payload.dependencies,
         lastUpdate: action.payload.lastUpdate,
+        executionTime: action.payload.executionTime,
         isStale: false,
       };
     case 'SET_STALE':
@@ -75,28 +64,39 @@ function memoizationReducer<T>(state: MemoizationState<T>, action: MemoizationAc
         dependencies: [],
         lastUpdate: 0,
         isStale: false,
+        executionTime: 0,
+        cacheHits: 0,
+        cacheMisses: 0,
       };
+    case 'INCREMENT_CACHE_HITS':
+      return { ...state, cacheHits: state.cacheHits + 1 };
+    case 'INCREMENT_CACHE_MISSES':
+      return { ...state, cacheMisses: state.cacheMisses + 1 };
     default:
       return state;
   }
 }
 
-// Basic memoization hook with dependency tracking
-export function useMemoizedValue<T>(
+// Calculation memoization hook with performance tracking
+export function useMemoizedCalculation<T>(
   factory: () => T,
   dependencies: Array<unknown>,
-  options: MemoizationOptions = {}
-): UseMemoizedValueReturn<T> {
+  options: CalculationOptions = {}
+): UseMemoizedCalculationReturn<T> {
   const {
     maxAge = 5 * 60 * 1000, // 5 minutes default
     comparisonFn = defaultComparison,
+    enableProfiling = false,
   } = options;
 
-  const [state, dispatch] = useReducer(memoizationReducer<T>, {
+  const [state, dispatch] = useReducer(calculationReducer<T>, {
     value: factory(),
     dependencies: dependencies,
     lastUpdate: Date.now(),
     isStale: false,
+    executionTime: 0,
+    cacheHits: 0,
+    cacheMisses: 0,
   });
 
   const factoryRef = useRef(factory);
@@ -122,15 +122,27 @@ export function useMemoizedValue<T>(
   // Memoize value with dependencies
   const memoizedValue = useMemo(() => {
     if (dependenciesChanged) {
+      const startTime = enableProfiling ? performance.now() : 0;
       const newValue = factoryRef.current();
+      const executionTime = enableProfiling ? performance.now() - startTime : 0;
+      
       dispatch({
         type: 'UPDATE_VALUE',
-        payload: { value: newValue, dependencies, lastUpdate: Date.now() },
+        payload: { value: newValue, dependencies, lastUpdate: Date.now(), executionTime },
       });
+      
+      if (enableProfiling) {
+        dispatch({ type: 'INCREMENT_CACHE_MISSES' });
+      }
+      
       return newValue;
+    } else {
+      if (enableProfiling) {
+        dispatch({ type: 'INCREMENT_CACHE_HITS' });
+      }
     }
     return state.value;
-  }, [dependencies, dependenciesChanged, state.value]);
+  }, [dependencies, dependenciesChanged, state.value, enableProfiling]);
 
   // Update stale status
   useEffect(() => {
@@ -141,12 +153,15 @@ export function useMemoizedValue<T>(
 
   // Refresh function
   const refresh = useCallback(() => {
+    const startTime = enableProfiling ? performance.now() : 0;
     const newValue = factoryRef.current();
+    const executionTime = enableProfiling ? performance.now() - startTime : 0;
+    
     dispatch({
       type: 'UPDATE_VALUE',
-      payload: { value: newValue, dependencies, lastUpdate: Date.now() },
+      payload: { value: newValue, dependencies, lastUpdate: Date.now(), executionTime },
     });
-  }, [dependencies]);
+  }, [dependencies, enableProfiling]);
 
   // Clear function
   const clear = useCallback(() => {
@@ -159,25 +174,8 @@ export function useMemoizedValue<T>(
     isStale,
     refresh,
     clear,
+    executionTime: state.executionTime,
+    cacheHits: state.cacheHits,
+    cacheMisses: state.cacheMisses,
   };
-}
-
-// ============================================================================
-// UTILITY HOOKS
-// ============================================================================
-
-// Hook for maintaining stable references
-export function useStableReference<T>(value: T): T {
-  const ref = useRef<T>(value);
-  if (!Object.is(ref.current, value)) {
-    ref.current = value;
-  }
-  return ref.current;
-}
-
-// Hook for maintaining stable callbacks
-export function useStableCallback<T extends (...args: Array<unknown>) => unknown>(callback: T): T {
-  const ref = useRef<T>(callback);
-  ref.current = callback;
-  return useCallback((...args: Parameters<T>) => ref.current(...args), []) as T;
 }

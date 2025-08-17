@@ -1,7 +1,7 @@
 // Advanced TypeScript utility types and conditional types
 // This file provides comprehensive utility types for complex type scenarios
 
-import { User, Expense, IncomeSource, BudgetSource } from './budget';
+// Types imported from budget module for reference
 
 // ============================================================================
 // CONDITIONAL TYPES
@@ -17,22 +17,22 @@ export type FormFieldValidation<T, K extends keyof T> = T[K] extends string
       custom?: (value: string) => boolean | string;
     }
   : T[K] extends number
-  ? {
-      required?: boolean;
-      min?: number;
-      max?: number;
-      step?: number;
-      custom?: (value: number) => boolean | string;
-    }
-  : T[K] extends boolean
-  ? {
-      required?: boolean;
-      custom?: (value: boolean) => boolean | string;
-    }
-  : {
-      required?: boolean;
-      custom?: (value: T[K]) => boolean | string;
-    };
+    ? {
+        required?: boolean;
+        min?: number;
+        max?: number;
+        step?: number;
+        custom?: (value: number) => boolean | string;
+      }
+    : T[K] extends boolean
+      ? {
+          required?: boolean;
+          custom?: (value: boolean) => boolean | string;
+        }
+      : {
+          required?: boolean;
+          custom?: (value: T[K]) => boolean | string;
+        };
 
 // Conditional type for API response based on success status
 export type ApiResponseConditional<T, S extends boolean> = S extends true
@@ -53,21 +53,21 @@ export type ApiResponseConditional<T, S extends boolean> = S extends true
 export type ComponentPropsConditional<T, V extends string> = V extends 'loading'
   ? { loading: true; data?: never }
   : V extends 'error'
-  ? { loading?: false; error: string; data?: never }
-  : V extends 'success'
-  ? { loading?: false; error?: never; data: T }
-  : { loading?: boolean; error?: string; data?: T };
+    ? { loading?: false; error: string; data?: never }
+    : V extends 'success'
+      ? { loading?: false; error?: never; data: T }
+      : { loading?: boolean; error?: string; data?: T };
 
 // Conditional type for form field rendering based on field type
 export type FormFieldRenderer<T, K extends keyof T> = T[K] extends string
   ? 'input' | 'textarea' | 'select'
   : T[K] extends number
-  ? 'input' | 'slider' | 'spinner'
-  : T[K] extends boolean
-  ? 'checkbox' | 'toggle' | 'radio'
-  : T[K] extends Date
-  ? 'date' | 'datetime' | 'time'
-  : 'input';
+    ? 'input' | 'slider' | 'spinner'
+    : T[K] extends boolean
+      ? 'checkbox' | 'toggle' | 'radio'
+      : T[K] extends Date
+        ? 'date' | 'datetime' | 'time'
+        : 'input';
 
 // ============================================================================
 // UTILITY TYPES
@@ -83,10 +83,10 @@ export type RequiredFields<T, K extends keyof T> = Omit<T, K> & Required<Pick<T,
 export type ReadonlyFields<T, K extends keyof T> = Omit<T, K> & Readonly<Pick<T, K>>;
 
 // Extract function return type
-export type ReturnType<T> = T extends (...args: any[]) => infer R ? R : never;
+export type ReturnType<T> = T extends (...args: unknown[]) => infer R ? R : never;
 
 // Extract function parameters
-export type Parameters<T> = T extends (...args: infer P) => any ? P : never;
+export type Parameters<T> = T extends (...args: infer P) => unknown ? P : never;
 
 // Extract promise type
 export type PromiseType<T> = T extends Promise<infer U> ? U : never;
@@ -98,7 +98,7 @@ export type ArrayElement<T> = T extends Array<infer U> ? U : never;
 export type ObjectValues<T> = T extends Record<string, infer V> ? V : never;
 
 // Extract object key types
-export type ObjectKeys<T> = T extends Record<infer K, any> ? K : never;
+export type ObjectKeys<T> = T extends Record<infer K, unknown> ? K : never;
 
 // Deep partial type (makes all nested properties optional)
 export type DeepPartial<T> = {
@@ -152,40 +152,40 @@ export type TransformSpecificValues<T, K extends keyof T, U> = {
 export type CSSPropertyValue<T extends string> = T extends `${infer Value}px`
   ? `${Value}px`
   : T extends `${infer Value}%`
-  ? `${Value}%`
-  : T extends `${infer Value}em`
-  ? `${Value}em`
-  : T extends `${infer Value}rem`
-  ? `${Value}rem`
-  : T extends `${infer Value}vw`
-  ? `${Value}vw`
-  : T extends `${infer Value}vh`
-  ? `${Value}vh`
-  : T extends `${infer Value}deg`
-  ? `${Value}deg`
-  : T extends `${infer Value}ms`
-  ? `${Value}ms`
-  : T extends `${infer Value}s`
-  ? `${Value}s`
-  : T;
+    ? `${Value}%`
+    : T extends `${infer Value}em`
+      ? `${Value}em`
+      : T extends `${infer Value}rem`
+        ? `${Value}rem`
+        : T extends `${infer Value}vw`
+          ? `${Value}vw`
+          : T extends `${infer Value}vh`
+            ? `${Value}vh`
+            : T extends `${infer Value}deg`
+              ? `${Value}deg`
+              : T extends `${infer Value}ms`
+                ? `${Value}ms`
+                : T extends `${infer Value}s`
+                  ? `${Value}s`
+                  : T;
 
 // API endpoint patterns
 export type APIEndpoint<T extends string> = T extends `/api/${infer Resource}/${infer Action}`
   ? `/api/${Resource}/${Action}`
   : T extends `/api/${infer Resource}`
-  ? `/api/${Resource}`
-  : T extends `/api`
-  ? `/api`
-  : never;
+    ? `/api/${Resource}`
+    : T extends `/api`
+      ? `/api`
+      : never;
 
 // Route patterns
 export type RoutePattern<T extends string> = T extends `/${infer Segment}/${infer Rest}`
   ? `/${Segment}/${RoutePattern<Rest>}`
   : T extends `/${infer Segment}`
-  ? `/${Segment}`
-  : T extends ``
-  ? ``
-  : never;
+    ? `/${Segment}`
+    : T extends ``
+      ? ``
+      : never;
 
 // ============================================================================
 // ADVANCED UTILITY TYPES
@@ -197,31 +197,25 @@ export type NestedProperty<T, P extends string> = P extends `${infer First}.${in
     ? NestedProperty<T[First], Rest>
     : never
   : P extends keyof T
-  ? T[P]
-  : never;
+    ? T[P]
+    : never;
 
 // Set nested property type
 export type SetNestedProperty<T, P extends string, V> = P extends `${infer First}.${infer Rest}`
   ? First extends keyof T
     ? {
-        [K in keyof T]: K extends First
-          ? SetNestedProperty<T[K], Rest, V>
-          : T[K];
+        [K in keyof T]: K extends First ? SetNestedProperty<T[K], Rest, V> : T[K];
       }
     : T
   : P extends keyof T
-  ? {
-      [K in keyof T]: K extends P ? V : T[K];
-    }
-  : T;
+    ? {
+        [K in keyof T]: K extends P ? V : T[K];
+      }
+    : T;
 
-// Path to property type
+// Path to property type (simplified to avoid excessive depth)
 export type PathToProperty<T, V> = {
-  [K in keyof T]: T[K] extends V
-    ? K
-    : T[K] extends object
-    ? `${K & string}.${PathToProperty<T[K], V> & string}`
-    : never;
+  [K in keyof T]: T[K] extends V ? K : never;
 }[keyof T];
 
 // ============================================================================
@@ -263,7 +257,7 @@ export type FormFieldConfig<T, K extends keyof T> = {
   validation?: FormFieldValidation<T, K>;
   options?: Array<{ value: T[K]; label: string }>;
   dependsOn?: keyof T;
-  dependsOnValue?: any;
+  dependsOnValue?: unknown;
   disabled?: boolean;
   hidden?: boolean;
   defaultValue?: T[K];
@@ -276,7 +270,7 @@ export type FormFieldConfig<T, K extends keyof T> = {
 // ============================================================================
 
 // API request configuration
-export type APIRequestConfig<T = any> = {
+export type APIRequestConfig<T = unknown> = {
   url: string;
   method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
   body?: T;
@@ -304,7 +298,7 @@ export type APIErrorResponse = {
   error: string;
   code: string;
   message: string;
-  details?: Record<string, any>;
+  details?: Record<string, unknown>;
   timestamp: string;
   statusCode: number;
 };
@@ -314,7 +308,7 @@ export type APIErrorResponse = {
 // ============================================================================
 
 // Component props with common patterns
-export type ComponentProps<T = any> = {
+export type ComponentProps<T = unknown> = {
   className?: string;
   style?: React.CSSProperties;
   children?: React.ReactNode;
@@ -339,7 +333,7 @@ export type ErrorBoundaryProps = ComponentProps<{
 }>;
 
 // Component with theme support
-export type ThemedComponentProps<T = {}> = ComponentProps<T> & {
+export type ThemedComponentProps<T = Record<string, unknown>> = ComponentProps<T> & {
   theme?: 'light' | 'dark' | 'auto';
   variant?: 'primary' | 'secondary' | 'success' | 'danger' | 'warning' | 'info';
   size?: 'sm' | 'md' | 'lg' | 'xl';
@@ -374,7 +368,7 @@ export type PaginatedHookReturnType<T> = HookReturnType<T[]> & {
 // Hook with infinite loading
 export type InfiniteHookReturnType<T> = HookReturnType<T[]> & {
   pages: T[][];
-  pageParams: any[];
+  pageParams: unknown[];
   hasNextPage: boolean;
   hasPreviousPage: boolean;
   fetchNextPage: () => Promise<void>;
@@ -405,11 +399,20 @@ export type KeyboardEventHandler<T = HTMLElement> = EventHandler<React.KeyboardE
 // ============================================================================
 
 // Validation rule types
-export type ValidationRule<T = any> = {
-  type: 'required' | 'minLength' | 'maxLength' | 'min' | 'max' | 'pattern' | 'custom' | 'email' | 'url';
-  value?: any;
+export type ValidationRule<T = unknown> = {
+  type:
+    | 'required'
+    | 'minLength'
+    | 'maxLength'
+    | 'min'
+    | 'max'
+    | 'pattern'
+    | 'custom'
+    | 'email'
+    | 'url';
+  value?: unknown;
   message: string;
-  validator?: (value: T, formData?: any) => boolean | string;
+  validator?: (value: T, formData?: unknown) => boolean | string;
 };
 
 // Validation result
@@ -431,21 +434,23 @@ export type FieldValidationResult = {
 // ============================================================================
 
 // Local storage key types
-export type LocalStorageKey<T> = `app_${string}_${T}`;
+export type LocalStorageKey<T extends string | number | bigint | boolean | null | undefined> =
+  `app_${string}_${T}`;
 
 // Session storage key types
-export type SessionStorageKey<T> = `session_${string}_${T}`;
+export type SessionStorageKey<T extends string | number | bigint | boolean | null | undefined> =
+  `session_${string}_${T}`;
 
 // Storage value types
 export type StorageValue<T> = T extends string
   ? string
   : T extends number
-  ? number
-  : T extends boolean
-  ? boolean
-  : T extends object
-  ? string // JSON stringified
-  : never;
+    ? number
+    : T extends boolean
+      ? boolean
+      : T extends object
+        ? string // JSON stringified
+        : never;
 
 // Storage entry with metadata
 export type StorageEntry<T> = {
@@ -456,85 +461,4 @@ export type StorageEntry<T> = {
   checksum: string;
 };
 
-// ============================================================================
-// EXPORT ALL UTILITY TYPES
-// ============================================================================
-
-export type {
-  // Conditional types
-  FormFieldValidation,
-  ApiResponseConditional,
-  ComponentPropsConditional,
-  FormFieldRenderer,
-  
-  // Utility types
-  OptionalFields,
-  RequiredFields,
-  ReadonlyFields,
-  ReturnType,
-  Parameters,
-  PromiseType,
-  ArrayElement,
-  ObjectValues,
-  ObjectKeys,
-  DeepPartial,
-  DeepRequired,
-  DeepReadonly,
-  DeepMutable,
-  
-  // Type transformations
-  TransformKeys,
-  TransformValues,
-  TransformSpecificKeys,
-  TransformSpecificValues,
-  
-  // Template literal types
-  CSSPropertyValue,
-  APIEndpoint,
-  RoutePattern,
-  
-  // Advanced utility types
-  NestedProperty,
-  SetNestedProperty,
-  PathToProperty,
-  
-  // Form-specific types
-  FormFieldState,
-  FormStateWithFields,
-  FormValidationSchema,
-  FormFieldConfig,
-  
-  // API-specific types
-  APIRequestConfig,
-  APIResponseWrapper,
-  APIErrorResponse,
-  
-  // Component-specific types
-  ComponentProps,
-  LoadingComponentProps,
-  ErrorBoundaryProps,
-  ThemedComponentProps,
-  
-  // Hook-specific types
-  HookReturnType,
-  PaginatedHookReturnType,
-  InfiniteHookReturnType,
-  
-  // Event-specific types
-  EventHandler,
-  FormEventHandler,
-  InputEventHandler,
-  ClickEventHandler,
-  KeyboardEventHandler,
-  
-  // Validation types
-  ValidationRule,
-  ValidationResult,
-  FieldValidationResult,
-  
-  // Storage types
-  LocalStorageKey,
-  SessionStorageKey,
-  StorageValue,
-  StorageEntry,
-};
+// All utility types are exported individually above

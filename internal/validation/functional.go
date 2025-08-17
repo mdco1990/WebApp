@@ -15,23 +15,23 @@ import (
 // Validator is a function type that validates a value and returns an error if validation fails.
 type Validator func(interface{}) error
 
-// ValidationError represents a single validation error.
-type ValidationError struct {
+// Error represents a single validation error.
+type Error struct {
 	Field   string      `json:"field"`
 	Message string      `json:"message"`
 	Value   interface{} `json:"value"`
 }
 
 // Error implements the error interface.
-func (e ValidationError) Error() string {
+func (e Error) Error() string {
 	return fmt.Sprintf("%s: %s (value: %v)", e.Field, e.Message, e.Value)
 }
 
-// ValidationErrors represents multiple validation errors.
-type ValidationErrors []ValidationError
+// Errors represents multiple validation errors.
+type Errors []Error
 
 // Error implements the error interface.
-func (e ValidationErrors) Error() string {
+func (e Errors) Error() string {
 	if len(e) == 0 {
 		return ""
 	}
@@ -44,13 +44,13 @@ func (e ValidationErrors) Error() string {
 }
 
 // HasErrors returns true if there are validation errors.
-func (e ValidationErrors) HasErrors() bool {
+func (e Errors) HasErrors() bool {
 	return len(e) > 0
 }
 
-// Add adds a validation error to the collection.
-func (e *ValidationErrors) Add(field, message string, value interface{}) {
-	*e = append(*e, ValidationError{
+// Add adds a validation error to the collection and returns the updated slice.
+func (e Errors) Add(field, message string, value interface{}) Errors {
+	return append(e, Error{
 		Field:   field,
 		Message: message,
 		Value:   value,
@@ -61,17 +61,17 @@ func (e *ValidationErrors) Add(field, message string, value interface{}) {
 // All validators are executed, and all errors are collected.
 func Chain(validators ...Validator) Validator {
 	return func(value interface{}) error {
-		var validationErrors ValidationErrors
+		var validationErrors Errors
 
 		for _, validator := range validators {
 			if err := validator(value); err != nil {
-				// Try to extract ValidationErrors
-				var nestedErrors ValidationErrors
+				// Try to extract Errors
+				var nestedErrors Errors
 				if errors.As(err, &nestedErrors) {
 					validationErrors = append(validationErrors, nestedErrors...)
 				} else {
 					// Create a generic validation error
-					validationErrors.Add("", err.Error(), value)
+					validationErrors = validationErrors.Add("", err.Error(), value)
 				}
 			}
 		}
@@ -87,11 +87,11 @@ func Chain(validators ...Validator) Validator {
 // ChainField combines multiple validators for a specific field.
 func ChainField(field string, validators ...Validator) Validator {
 	return func(value interface{}) error {
-		var validationErrors ValidationErrors
+		var validationErrors Errors
 
 		for _, validator := range validators {
 			if err := validator(value); err != nil {
-				var nestedErrors ValidationErrors
+				var nestedErrors Errors
 				if errors.As(err, &nestedErrors) {
 					// Update field names to include the parent field
 					for _, validationError := range nestedErrors {
@@ -100,11 +100,14 @@ func ChainField(field string, validators ...Validator) Validator {
 						} else {
 							validationError.Field = field + "." + validationError.Field
 						}
-						validationErrors.Add(validationError.Field, validationError.Message,
-							validationError.Value)
+						validationErrors = append(validationErrors, validationError)
 					}
 				} else {
-					validationErrors.Add(field, err.Error(), value)
+					validationErrors = append(validationErrors, Error{
+						Field:   field,
+						Message: err.Error(),
+						Value:   value,
+					})
 				}
 			}
 		}
@@ -121,7 +124,7 @@ func ChainField(field string, validators ...Validator) Validator {
 func Required(field string) Validator {
 	return func(value interface{}) error {
 		if value == nil {
-			return ValidationErrors{{
+			return Errors{{
 				Field:   field,
 				Message: "field is required",
 				Value:   value,
@@ -131,7 +134,7 @@ func Required(field string) Validator {
 		switch v := value.(type) {
 		case string:
 			if strings.TrimSpace(v) == "" {
-				return ValidationErrors{{
+				return Errors{{
 					Field:   field,
 					Message: "field is required",
 					Value:   value,
@@ -139,7 +142,7 @@ func Required(field string) Validator {
 			}
 		case []interface{}:
 			if len(v) == 0 {
-				return ValidationErrors{{
+				return Errors{{
 					Field:   field,
 					Message: "field is required",
 					Value:   value,
@@ -147,7 +150,7 @@ func Required(field string) Validator {
 			}
 		case []string:
 			if len(v) == 0 {
-				return ValidationErrors{{
+				return Errors{{
 					Field:   field,
 					Message: "field is required",
 					Value:   value,
@@ -160,13 +163,13 @@ func Required(field string) Validator {
 }
 
 // MinLength validates that a string has a minimum length.
-func MinLength(field string, min int) Validator {
+func MinLength(field string, minVal int) Validator {
 	return func(value interface{}) error {
 		if str, ok := value.(string); ok {
-			if len(strings.TrimSpace(str)) < min {
-				return ValidationErrors{{
+			if len(strings.TrimSpace(str)) < minVal {
+				return Errors{{
 					Field:   field,
-					Message: fmt.Sprintf("minimum length is %d characters", min),
+					Message: fmt.Sprintf("minimum length is %d characters", minVal),
 					Value:   value,
 				}}
 			}
@@ -176,13 +179,13 @@ func MinLength(field string, min int) Validator {
 }
 
 // MaxLength validates that a string has a maximum length.
-func MaxLength(field string, max int) Validator {
+func MaxLength(field string, maxVal int) Validator {
 	return func(value interface{}) error {
 		if str, ok := value.(string); ok {
-			if len(str) > max {
-				return ValidationErrors{{
+			if len(str) > maxVal {
+				return Errors{{
 					Field:   field,
-					Message: fmt.Sprintf("maximum length is %d characters", max),
+					Message: fmt.Sprintf("maximum length is %d characters", maxVal),
 					Value:   value,
 				}}
 			}
@@ -191,39 +194,39 @@ func MaxLength(field string, max int) Validator {
 	}
 }
 
-// Min validates that a numeric value is greater than or equal to a minimum.
-func Min(field string, min float64) Validator {
+// MinValue validates that a numeric value is greater than or equal to a minimum.
+func MinValue(field string, minVal float64) Validator {
 	return func(value interface{}) error {
 		switch v := value.(type) {
 		case int:
-			if float64(v) < min {
-				return ValidationErrors{{
+			if float64(v) < minVal {
+				return Errors{{
 					Field:   field,
-					Message: fmt.Sprintf("value must be at least %v", min),
+					Message: fmt.Sprintf("value must be at least %v", minVal),
 					Value:   value,
 				}}
 			}
 		case int64:
-			if float64(v) < min {
-				return ValidationErrors{{
+			if float64(v) < minVal {
+				return Errors{{
 					Field:   field,
-					Message: fmt.Sprintf("value must be at least %v", min),
+					Message: fmt.Sprintf("value must be at least %v", minVal),
 					Value:   value,
 				}}
 			}
 		case float64:
-			if v < min {
-				return ValidationErrors{{
+			if v < minVal {
+				return Errors{{
 					Field:   field,
-					Message: fmt.Sprintf("value must be at least %v", min),
+					Message: fmt.Sprintf("value must be at least %v", minVal),
 					Value:   value,
 				}}
 			}
 		case string:
-			if f, err := strconv.ParseFloat(v, 64); err == nil && f < min {
-				return ValidationErrors{{
+			if f, err := strconv.ParseFloat(v, 64); err == nil && f < minVal {
+				return Errors{{
 					Field:   field,
-					Message: fmt.Sprintf("value must be at least %v", min),
+					Message: fmt.Sprintf("value must be at least %v", minVal),
 					Value:   value,
 				}}
 			}
@@ -232,39 +235,39 @@ func Min(field string, min float64) Validator {
 	}
 }
 
-// Max validates that a numeric value is less than or equal to a maximum.
-func Max(field string, max float64) Validator {
+// MaxValue validates that a numeric value is less than or equal to a maximum.
+func MaxValue(field string, maxVal float64) Validator {
 	return func(value interface{}) error {
 		switch v := value.(type) {
 		case int:
-			if float64(v) > max {
-				return ValidationErrors{{
+			if float64(v) > maxVal {
+				return Errors{{
 					Field:   field,
-					Message: fmt.Sprintf("value must be at most %v", max),
+					Message: fmt.Sprintf("value must be at most %v", maxVal),
 					Value:   value,
 				}}
 			}
 		case int64:
-			if float64(v) > max {
-				return ValidationErrors{{
+			if float64(v) > maxVal {
+				return Errors{{
 					Field:   field,
-					Message: fmt.Sprintf("value must be at most %v", max),
+					Message: fmt.Sprintf("value must be at most %v", maxVal),
 					Value:   value,
 				}}
 			}
 		case float64:
-			if v > max {
-				return ValidationErrors{{
+			if v > maxVal {
+				return Errors{{
 					Field:   field,
-					Message: fmt.Sprintf("value must be at most %v", max),
+					Message: fmt.Sprintf("value must be at most %v", maxVal),
 					Value:   value,
 				}}
 			}
 		case string:
-			if f, err := strconv.ParseFloat(v, 64); err == nil && f > max {
-				return ValidationErrors{{
+			if f, err := strconv.ParseFloat(v, 64); err == nil && f > maxVal {
+				return Errors{{
 					Field:   field,
-					Message: fmt.Sprintf("value must be at most %v", max),
+					Message: fmt.Sprintf("value must be at most %v", maxVal),
 					Value:   value,
 				}}
 			}
@@ -279,14 +282,14 @@ func Pattern(field, pattern string) Validator {
 		if str, ok := value.(string); ok {
 			matched, err := regexp.MatchString(pattern, str)
 			if err != nil {
-				return ValidationErrors{{
+				return Errors{{
 					Field:   field,
 					Message: "invalid pattern",
 					Value:   value,
 				}}
 			}
 			if !matched {
-				return ValidationErrors{{
+				return Errors{{
 					Field:   field,
 					Message: "value does not match pattern: " + pattern,
 					Value:   value,
@@ -315,7 +318,7 @@ func In(field string, allowedValues ...interface{}) Validator {
 				return nil
 			}
 		}
-		return ValidationErrors{{
+		return Errors{{
 			Field:   field,
 			Message: "value must be one of: " + fmt.Sprint(allowedValues...),
 			Value:   value,
@@ -327,7 +330,7 @@ func In(field string, allowedValues ...interface{}) Validator {
 func Custom(field string, validator func(interface{}) error) Validator {
 	return func(value interface{}) error {
 		if err := validator(value); err != nil {
-			return ValidationErrors{{
+			return Errors{{
 				Field:   field,
 				Message: err.Error(),
 				Value:   value,
@@ -343,7 +346,7 @@ func Custom(field string, validator func(interface{}) error) Validator {
 func ValidateAmount(field string) Validator {
 	return ChainField(field,
 		Required(field),
-		Min(field, 0.01),
+		MinValue(field, 0.01),
 	)
 }
 
@@ -360,14 +363,14 @@ func ValidateDescription(field string) Validator {
 func ValidateYearMonth(field string) Validator {
 	return func(value interface{}) error {
 		if ym, ok := value.(domain.YearMonth); ok {
-			var errors ValidationErrors
+			var errors Errors
 
 			if ym.Year < 1970 || ym.Year > 3000 {
-				errors.Add(field+".year", "year must be between 1970 and 3000", ym.Year)
+				errors = errors.Add(field+".year", "year must be between 1970 and 3000", ym.Year)
 			}
 
 			if ym.Month < 1 || ym.Month > 12 {
-				errors.Add(field+".month", "month must be between 1 and 12", ym.Month)
+				errors = errors.Add(field+".month", "month must be between 1 and 12", ym.Month)
 			}
 
 			if errors.HasErrors() {
@@ -382,11 +385,11 @@ func ValidateYearMonth(field string) Validator {
 func ValidateExpense() Validator {
 	return func(value interface{}) error {
 		if expense, ok := value.(*domain.Expense); ok {
-			var validationErrors ValidationErrors
+			var validationErrors Errors
 
 			// Validate description
 			if err := ValidateDescription("description")(expense.Description); err != nil {
-				var nestedErrors ValidationErrors
+				var nestedErrors Errors
 				if errors.As(err, &nestedErrors) {
 					validationErrors = append(validationErrors, nestedErrors...)
 				}
@@ -394,7 +397,7 @@ func ValidateExpense() Validator {
 
 			// Validate amount
 			if err := ValidateAmount("amount")(expense.AmountCents); err != nil {
-				var nestedErrors ValidationErrors
+				var nestedErrors Errors
 				if errors.As(err, &nestedErrors) {
 					validationErrors = append(validationErrors, nestedErrors...)
 				}
@@ -402,7 +405,7 @@ func ValidateExpense() Validator {
 
 			// Validate year/month
 			if err := ValidateYearMonth("year_month")(domain.YearMonth{Year: expense.Year, Month: expense.Month}); err != nil {
-				var nestedErrors ValidationErrors
+				var nestedErrors Errors
 				if errors.As(err, &nestedErrors) {
 					validationErrors = append(validationErrors, nestedErrors...)
 				}
@@ -420,7 +423,7 @@ func ValidateExpense() Validator {
 func ValidateUser() Validator {
 	return func(value interface{}) error {
 		if user, ok := value.(*domain.User); ok {
-			var validationErrors ValidationErrors
+			var validationErrors Errors
 
 			// Validate username
 			if err := ChainField("username",
@@ -429,7 +432,7 @@ func ValidateUser() Validator {
 				MaxLength("username", 50),
 				Pattern("username", `^[a-zA-Z0-9_]+$`),
 			)(user.Username); err != nil {
-				var nestedErrors ValidationErrors
+				var nestedErrors Errors
 				if errors.As(err, &nestedErrors) {
 					validationErrors = append(validationErrors, nestedErrors...)
 				}
@@ -438,7 +441,7 @@ func ValidateUser() Validator {
 			// Validate email if provided
 			if user.Email != "" {
 				if err := Email("email")(user.Email); err != nil {
-					var nestedErrors ValidationErrors
+					var nestedErrors Errors
 					if errors.As(err, &nestedErrors) {
 						validationErrors = append(validationErrors, nestedErrors...)
 					}
@@ -471,7 +474,7 @@ func ValidateStruct(value interface{}) error {
 		return errors.New("value must be a struct")
 	}
 
-	var validationErrors ValidationErrors
+	var validationErrors Errors
 
 	for i := 0; i < v.NumField(); i++ {
 		field := v.Field(i)
@@ -502,11 +505,11 @@ func ValidateStruct(value interface{}) error {
 				switch ruleName {
 				case "min":
 					if f, err := strconv.ParseFloat(ruleValue, 64); err == nil {
-						validators = append(validators, Min(fieldType.Name, f))
+						validators = append(validators, MinValue(fieldType.Name, f))
 					}
 				case "max":
 					if f, err := strconv.ParseFloat(ruleValue, 64); err == nil {
-						validators = append(validators, Max(fieldType.Name, f))
+						validators = append(validators, MaxValue(fieldType.Name, f))
 					}
 				case "minlen":
 					if i, err := strconv.Atoi(ruleValue); err == nil {
@@ -530,7 +533,7 @@ func ValidateStruct(value interface{}) error {
 		// Apply validators
 		if len(validators) > 0 {
 			if err := Chain(validators...)(field.Interface()); err != nil {
-				var nestedErrors ValidationErrors
+				var nestedErrors Errors
 				if errors.As(err, &nestedErrors) {
 					validationErrors = append(validationErrors, nestedErrors...)
 				}

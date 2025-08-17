@@ -19,7 +19,7 @@ import (
 
 // NotificationHandler handles user notifications for various events
 type NotificationHandler struct {
-	storage storage.StorageProvider
+	storage storage.Provider
 	config  NotificationConfig
 }
 
@@ -36,7 +36,7 @@ type NotificationConfig struct {
 }
 
 // NewNotificationHandler creates a new notification handler
-func NewNotificationHandler(storage storage.StorageProvider, config NotificationConfig) *NotificationHandler {
+func NewNotificationHandler(storage storage.Provider, config NotificationConfig) *NotificationHandler {
 	return &NotificationHandler{
 		storage: storage,
 		config:  config,
@@ -311,7 +311,7 @@ func (nh *NotificationHandler) markNotificationSent(ctx context.Context, notific
 
 // AuditHandler handles audit logging for various events
 type AuditHandler struct {
-	storage storage.StorageProvider
+	storage storage.Provider
 	config  AuditConfig
 }
 
@@ -327,7 +327,7 @@ type AuditConfig struct {
 }
 
 // NewAuditHandler creates a new audit handler
-func NewAuditHandler(storage storage.StorageProvider, config AuditConfig) *AuditHandler {
+func NewAuditHandler(storage storage.Provider, config AuditConfig) *AuditHandler {
 	return &AuditHandler{
 		storage: storage,
 		config:  config,

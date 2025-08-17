@@ -7,9 +7,9 @@ import { useManualBudget } from '../useManualBudget';
 import * as api from '../../services/api';
 
 // Mock the API
-jest.mock('../../services/api');
-const mockGetManualBudget = api.getManualBudget as jest.MockedFunction<typeof api.getManualBudget>;
-const mockSaveManualBudget = api.saveManualBudget as jest.MockedFunction<
+vi.mock('../../services/api');
+const mockGetManualBudget = api.getManualBudget as vi.MockedFunction<typeof api.getManualBudget>;
+const mockSaveManualBudget = api.saveManualBudget as vi.MockedFunction<
   typeof api.saveManualBudget
 >;
 
@@ -24,14 +24,14 @@ type LocalStorageMock = {
 
 const localStorageMock: LocalStorageMock = {
   data: {} as Record<string, string>,
-  getItem: jest.fn((key: string): string | null => localStorageMock.data[key] || null),
-  setItem: jest.fn((key: string, value: string): void => {
+  getItem: vi.fn((key: string): string | null => localStorageMock.data[key] || null),
+  setItem: vi.fn((key: string, value: string): void => {
     localStorageMock.data[key] = value;
   }),
-  removeItem: jest.fn((key: string): void => {
+  removeItem: vi.fn((key: string): void => {
     delete localStorageMock.data[key];
   }),
-  clear: jest.fn((): void => {
+  clear: vi.fn((): void => {
     localStorageMock.data = {};
   }),
 };
@@ -44,15 +44,15 @@ describe('useManualBudget - Integration Tests', () => {
   const testDate = new Date(2024, 0, 15); // January 2024
 
   beforeEach(() => {
-    jest.clearAllMocks();
-    jest.useFakeTimers();
+    vi.clearAllMocks();
+    vi.useFakeTimers();
     localStorageMock.clear();
     // Set up a mock session to enable server calls
     localStorageMock.setItem('session_id', 'test-session-id');
   });
 
   afterEach(() => {
-    jest.useRealTimers();
+    vi.useRealTimers();
   });
 
   it('should handle rapid consecutive updates without data loss', async () => {
@@ -99,7 +99,7 @@ describe('useManualBudget - Integration Tests', () => {
 
     // Only one debounced save should occur
     act(() => {
-      jest.advanceTimersByTime(500);
+      vi.advanceTimersByTime(500);
     });
 
     await waitFor(() => {
@@ -129,7 +129,7 @@ describe('useManualBudget - Integration Tests', () => {
     });
 
     act(() => {
-      jest.advanceTimersByTime(500);
+      vi.advanceTimersByTime(500);
     });
 
     await waitFor(() => {
@@ -237,7 +237,7 @@ describe('useManualBudget - Integration Tests', () => {
     // Step 5: Auto-save triggers
     console.log('\n💾 Step 5: Auto-save triggers after editing stops');
     act(() => {
-      jest.advanceTimersByTime(500);
+      vi.advanceTimersByTime(500);
     });
 
     await waitFor(() => {

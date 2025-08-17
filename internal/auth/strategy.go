@@ -58,7 +58,7 @@ type Result struct {
 type Service struct {
 	strategies      map[string]Strategy
 	defaultStrategy string
-	storage         storage.StorageProvider
+	storage         storage.Provider
 	mu              sync.RWMutex
 	config          Config
 }
@@ -77,7 +77,7 @@ type Config struct {
 }
 
 // NewAuthService creates a new authentication service
-func NewAuthService(storage storage.StorageProvider, config Config) *Service {
+func NewAuthService(storage storage.Provider, config Config) *Service {
 	service := &Service{
 		strategies:      make(map[string]Strategy),
 		defaultStrategy: config.DefaultStrategy,
@@ -100,6 +100,8 @@ func (as *Service) RegisterStrategy(name string, strategy Strategy) {
 }
 
 // GetStrategy returns an authentication strategy by name
+//
+//nolint:ireturn
 func (as *Service) GetStrategy(name string) (Strategy, error) {
 	as.mu.RLock()
 	defer as.mu.RUnlock()
@@ -188,6 +190,7 @@ func (as *Service) checkLoginAttempts(ctx context.Context, username string) erro
 		return nil // Invalid data type, treat as no attempts
 	}
 	if err := json.Unmarshal(attemptsBytes, &attempts); err != nil {
+		//nolint:nilerr
 		return nil // Invalid data, treat as no attempts
 	}
 
@@ -273,12 +276,12 @@ func (la *LoginAttempts) IsLockedOut(maxAttempts int, lockoutDuration time.Durat
 
 // SessionStrategy implements session-based authentication
 type SessionStrategy struct {
-	storage storage.StorageProvider
+	storage storage.Provider
 	config  Config
 }
 
 // NewSessionStrategy creates a new session authentication strategy
-func NewSessionStrategy(storage storage.StorageProvider, config Config) *SessionStrategy {
+func NewSessionStrategy(storage storage.Provider, config Config) *SessionStrategy {
 	return &SessionStrategy{
 		storage: storage,
 		config:  config,
@@ -456,13 +459,13 @@ type SessionData struct {
 
 // TokenStrategy implements JWT-based authentication
 type TokenStrategy struct {
-	storage storage.StorageProvider
+	storage storage.Provider
 	config  Config
 	secret  []byte
 }
 
 // NewTokenStrategy creates a new token authentication strategy
-func NewTokenStrategy(storage storage.StorageProvider, config Config) *TokenStrategy {
+func NewTokenStrategy(storage storage.Provider, config Config) *TokenStrategy {
 	return &TokenStrategy{
 		storage: storage,
 		config:  config,

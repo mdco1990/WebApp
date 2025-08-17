@@ -10,14 +10,14 @@ export type ApiResponse<T> = {
 };
 
 // Discriminated union for API states
-export type FetchState<T> = 
+export type FetchState<T> =
   | { status: 'idle' }
   | { status: 'loading' }
   | { status: 'success'; data: T }
   | { status: 'error'; error: string; retry?: () => void };
 
 // Discriminated union for form states
-export type FormState<T> = 
+export type FormState<T> =
   | { status: 'idle'; data: T }
   | { status: 'editing'; data: T; originalData: T }
   | { status: 'submitting'; data: T }
@@ -25,28 +25,28 @@ export type FormState<T> =
   | { status: 'error'; data: T; error: string; fieldErrors?: Partial<Record<keyof T, string>> };
 
 // Discriminated union for authentication states
-export type AuthState = 
+export type AuthState =
   | { status: 'unauthenticated' }
   | { status: 'authenticating' }
   | { status: 'authenticated'; user: User; sessionId: string }
   | { status: 'error'; error: string; retry?: () => void };
 
 // Discriminated union for data synchronization states
-export type SyncState<T> = 
+export type SyncState<T> =
   | { status: 'synced'; data: T; lastSync: Date }
   | { status: 'syncing'; data: T; lastSync: Date }
   | { status: 'outOfSync'; data: T; lastSync: Date; pendingChanges: number }
   | { status: 'error'; data: T; error: string; lastSync: Date; retry?: () => void };
 
 // Discriminated union for pagination states
-export type PaginationState<T> = 
+export type PaginationState<T> =
   | { status: 'idle' }
   | { status: 'loading'; page: number }
   | { status: 'success'; data: T[]; page: number; totalPages: number; totalItems: number }
   | { status: 'error'; error: string; page: number; retry?: () => void };
 
 // Discriminated union for search states
-export type SearchState<T> = 
+export type SearchState<T> =
   | { status: 'idle' }
   | { status: 'searching'; query: string }
   | { status: 'success'; data: T[]; query: string; totalResults: number }
@@ -54,25 +54,32 @@ export type SearchState<T> =
   | { status: 'error'; error: string; query: string; retry?: () => void };
 
 // Discriminated union for optimistic update states
-export type OptimisticState<T> = 
+export type OptimisticState<T> =
   | { status: 'stable'; data: T }
   | { status: 'optimistic'; data: T; pendingOperation: string; rollback?: () => void }
   | { status: 'committing'; data: T; pendingOperation: string }
   | { status: 'rolledBack'; data: T; reason: string };
 
 // Type-safe action creators for state transitions
-export type StateAction<T> = 
+export type StateAction<T> =
   | { type: 'SET_LOADING' }
   | { type: 'SET_SUCCESS'; payload: T }
   | { type: 'SET_ERROR'; payload: string }
   | { type: 'RESET' }
   | { type: 'RETRY' };
 
+// Extended action types for form state
+export type FormStateAction<T> =
+  | { type: 'SET_LOADING' }
+  | { type: 'SET_EDITING'; payload: T }
+  | { type: 'SET_SUBMITTING'; payload: T }
+  | { type: 'SET_SUCCESS'; payload: string }
+  | { type: 'SET_ERROR'; payload: string }
+  | { type: 'SET_FIELD_ERRORS'; payload: Partial<Record<keyof T, string>> }
+  | { type: 'RESET'; payload: T };
+
 // Type-safe reducer for managing fetch states
-export function fetchStateReducer<T>(
-  state: FetchState<T>, 
-  action: StateAction<T>
-): FetchState<T> {
+export function fetchStateReducer<T>(state: FetchState<T>, action: StateAction<T>): FetchState<T> {
   switch (action.type) {
     case 'SET_LOADING':
       return { status: 'loading' };
@@ -90,36 +97,44 @@ export function fetchStateReducer<T>(
 }
 
 // Type-safe reducer for managing form states
-export function formStateReducer<T>(
-  state: FormState<T>, 
-  action: StateAction<T> & { 
-    type: 'SET_EDITING' | 'SET_SUBMITTING' | 'SET_SUCCESS' | 'SET_ERROR' | 'SET_FIELD_ERRORS';
-    payload?: T | string | Partial<Record<keyof T, string>>;
-  }
-): FormState<T> {
+export function formStateReducer<T>(state: FormState<T>, action: FormStateAction<T>): FormState<T> {
   switch (action.type) {
     case 'SET_LOADING':
       return { ...state, status: 'submitting' };
+    case 'SET_EDITING':
+      return {
+        ...state,
+        status: 'editing',
+        data: action.payload,
+        originalData: action.payload,
+      };
+    case 'SET_SUBMITTING':
+      return {
+        ...state,
+        status: 'submitting',
+        data: action.payload,
+      };
     case 'SET_SUCCESS':
-      return { 
-        ...state, 
-        status: 'success', 
-        message: action.payload as string 
+      return {
+        ...state,
+        status: 'success',
+        message: action.payload,
       };
     case 'SET_ERROR':
-      return { 
-        ...state, 
-        status: 'error', 
-        error: action.payload as string 
+      return {
+        ...state,
+        status: 'error',
+        error: action.payload,
       };
     case 'SET_FIELD_ERRORS':
-      return { 
-        ...state, 
-        status: 'error', 
-        fieldErrors: action.payload as Partial<Record<keyof T, string>> 
+      return {
+        ...state,
+        status: 'error',
+        error: 'Validation failed',
+        fieldErrors: action.payload,
       };
     case 'RESET':
-      return { status: 'idle', data: (state as any).data };
+      return { status: 'idle', data: action.payload };
     default:
       return state;
   }
@@ -128,34 +143,38 @@ export function formStateReducer<T>(
 // Utility functions for state management
 export const createInitialFetchState = <T>(): FetchState<T> => ({ status: 'idle' });
 
-export const createInitialFormState = <T>(initialData: T): FormState<T> => ({ 
-  status: 'idle', 
-  data: initialData 
+export const createInitialFormState = <T>(initialData: T): FormState<T> => ({
+  status: 'idle',
+  data: initialData,
 });
 
 export const createInitialAuthState = (): AuthState => ({ status: 'unauthenticated' });
 
-export const createInitialSyncState = <T>(initialData: T): SyncState<T> => ({ 
-  status: 'synced', 
-  data: initialData, 
-  lastSync: new Date() 
+export const createInitialSyncState = <T>(initialData: T): SyncState<T> => ({
+  status: 'synced',
+  data: initialData,
+  lastSync: new Date(),
 });
 
 // Type guards for runtime type checking
-export const isFetchStateLoading = <T>(state: FetchState<T>): state is { status: 'loading' } => 
+export const isFetchStateLoading = <T>(state: FetchState<T>): state is { status: 'loading' } =>
   state.status === 'loading';
 
-export const isFetchStateSuccess = <T>(state: FetchState<T>): state is { status: 'success'; data: T } => 
-  state.status === 'success';
+export const isFetchStateSuccess = <T>(
+  state: FetchState<T>
+): state is { status: 'success'; data: T } => state.status === 'success';
 
-export const isFetchStateError = <T>(state: FetchState<T>): state is { status: 'error'; error: string } => 
-  state.status === 'error';
+export const isFetchStateError = <T>(
+  state: FetchState<T>
+): state is { status: 'error'; error: string } => state.status === 'error';
 
-export const isFormStateEditing = <T>(state: FormState<T>): state is { status: 'editing'; data: T; originalData: T } => 
-  state.status === 'editing';
+export const isFormStateEditing = <T>(
+  state: FormState<T>
+): state is { status: 'editing'; data: T; originalData: T } => state.status === 'editing';
 
-export const isFormStateSubmitting = <T>(state: FormState<T>): state is { status: 'submitting'; data: T } => 
-  state.status === 'submitting';
+export const isFormStateSubmitting = <T>(
+  state: FormState<T>
+): state is { status: 'submitting'; data: T } => state.status === 'submitting';
 
 // Hook for managing fetch state with type safety
 export const useFetchState = <T>() => {
@@ -182,28 +201,44 @@ export const useFetchState = <T>() => {
 export const useFormState = <T>(initialData: T) => {
   const [state, setState] = useState<FormState<T>>(createInitialFormState(initialData));
 
-  const setEditing = useCallback(() => setState(prev => ({ 
-    status: 'editing', 
-    data: prev.data, 
-    originalData: prev.data 
-  })), []);
+  const setEditing = useCallback(
+    () =>
+      setState((prev) => ({
+        status: 'editing',
+        data: prev.data,
+        originalData: prev.data,
+      })),
+    []
+  );
 
-  const setSubmitting = useCallback(() => setState(prev => ({ 
-    status: 'submitting', 
-    data: prev.data 
-  })), []);
+  const setSubmitting = useCallback(
+    () =>
+      setState((prev) => ({
+        status: 'submitting',
+        data: prev.data,
+      })),
+    []
+  );
 
-  const setSuccess = useCallback((message: string) => setState(prev => ({ 
-    status: 'success', 
-    data: prev.data, 
-    message 
-  })), []);
+  const setSuccess = useCallback(
+    (message: string) =>
+      setState((prev) => ({
+        status: 'success',
+        data: prev.data,
+        message,
+      })),
+    []
+  );
 
-  const setError = useCallback((error: string) => setState(prev => ({ 
-    status: 'error', 
-    data: prev.data, 
-    error 
-  })), []);
+  const setError = useCallback(
+    (error: string) =>
+      setState((prev) => ({
+        status: 'error',
+        data: prev.data,
+        error,
+      })),
+    []
+  );
 
   const reset = useCallback(() => setState(createInitialFormState(initialData)), [initialData]);
 

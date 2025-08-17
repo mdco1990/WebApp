@@ -118,7 +118,7 @@ type CacheService interface {
 
 	// Cache management
 	Clear(ctx context.Context) error
-	GetStats(ctx context.Context) (*storage.StorageStats, error)
+	GetStats(ctx context.Context) (*storage.Stats, error)
 	GetKeys(ctx context.Context, pattern string) ([]string, error)
 }
 
@@ -138,12 +138,12 @@ type BackgroundTaskService interface {
 // Factory creates and manages service instances
 type Factory struct {
 	repo           *repository.Repository
-	storageManager *storage.StorageManager
+	storageManager *storage.Manager
 	services       map[string]interface{}
 }
 
 // NewFactory creates a new service factory
-func NewFactory(repo *repository.Repository, storageManager *storage.StorageManager) *Factory {
+func NewFactory(repo *repository.Repository, storageManager *storage.Manager) *Factory {
 	return &Factory{
 		repo:           repo,
 		storageManager: storageManager,
