@@ -132,7 +132,9 @@ describe('IncomeSources', () => {
     const sources = [{ id: 123, client_id: '1', name: 'Saved', amount_cents: 100000 }];
     const onDeletePersisted = vi.fn().mockResolvedValue(undefined);
 
-    render(<IncomeSources {...defaultProps} sources={sources} onDeletePersisted={onDeletePersisted} />);
+    render(
+      <IncomeSources {...defaultProps} sources={sources} onDeletePersisted={onDeletePersisted} />
+    );
 
     const deleteButton = screen.getByTitle(/delete/i);
     fireEvent.click(deleteButton);
@@ -155,25 +157,14 @@ describe('IncomeSources', () => {
   });
 
   it('should display custom title and help text', () => {
-    render(
-      <IncomeSources
-        {...defaultProps}
-        title="Custom Title"
-        helpText="This is help text"
-      />
-    );
+    render(<IncomeSources {...defaultProps} title="Custom Title" helpText="This is help text" />);
 
     expect(screen.getByText('Custom Title')).toBeInTheDocument();
     expect(screen.getByText('This is help text')).toBeInTheDocument();
   });
 
   it('should use custom button text', () => {
-    render(
-      <IncomeSources
-        {...defaultProps}
-        addButtonText="Custom Add Button"
-      />
-    );
+    render(<IncomeSources {...defaultProps} addButtonText="Custom Add Button" />);
 
     expect(screen.getByRole('button', { name: 'Custom Add Button' })).toBeInTheDocument();
   });
@@ -198,11 +189,7 @@ describe('IncomeSources', () => {
 
     expect(() => {
       render(
-        <IncomeSources
-          {...defaultProps}
-          sources={sources}
-          parseLocaleAmount={parseLocaleAmount}
-        />
+        <IncomeSources {...defaultProps} sources={sources} parseLocaleAmount={parseLocaleAmount} />
       );
     }).not.toThrow();
   });

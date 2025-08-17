@@ -32,12 +32,12 @@ import { useToast } from './shared/toast';
 
 // Import extracted components and utilities to reduce file size
 import { PageHeader, SectionTabs } from './components/AppSubComponents';
-import { 
-  formatCurrency, 
-  getCurrencySymbol, 
-  formatMonth, 
-  getPageTitle, 
-  parseLocaleAmount
+import {
+  formatCurrency,
+  getCurrencySymbol,
+  formatMonth,
+  getPageTitle,
+  parseLocaleAmount,
 } from './components/AppUtils';
 
 ChartJS.register(

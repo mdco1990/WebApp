@@ -37,14 +37,25 @@ type CalculationState<T> = {
 
 // Calculation actions
 type CalculationAction<T> =
-  | { type: 'UPDATE_VALUE'; payload: { value: T; dependencies: Array<unknown>; lastUpdate: number; executionTime: number } }
+  | {
+      type: 'UPDATE_VALUE';
+      payload: {
+        value: T;
+        dependencies: Array<unknown>;
+        lastUpdate: number;
+        executionTime: number;
+      };
+    }
   | { type: 'SET_STALE'; payload: boolean }
   | { type: 'CLEAR' }
   | { type: 'INCREMENT_CACHE_HITS' }
   | { type: 'INCREMENT_CACHE_MISSES' };
 
 // Calculation reducer
-function calculationReducer<T>(state: CalculationState<T>, action: CalculationAction<T>): CalculationState<T> {
+function calculationReducer<T>(
+  state: CalculationState<T>,
+  action: CalculationAction<T>
+): CalculationState<T> {
   switch (action.type) {
     case 'UPDATE_VALUE':
       return {
@@ -125,16 +136,16 @@ export function useMemoizedCalculation<T>(
       const startTime = enableProfiling ? performance.now() : 0;
       const newValue = factoryRef.current();
       const executionTime = enableProfiling ? performance.now() - startTime : 0;
-      
+
       dispatch({
         type: 'UPDATE_VALUE',
         payload: { value: newValue, dependencies, lastUpdate: Date.now(), executionTime },
       });
-      
+
       if (enableProfiling) {
         dispatch({ type: 'INCREMENT_CACHE_MISSES' });
       }
-      
+
       return newValue;
     } else {
       if (enableProfiling) {
@@ -156,7 +167,7 @@ export function useMemoizedCalculation<T>(
     const startTime = enableProfiling ? performance.now() : 0;
     const newValue = factoryRef.current();
     const executionTime = enableProfiling ? performance.now() - startTime : 0;
-    
+
     dispatch({
       type: 'UPDATE_VALUE',
       payload: { value: newValue, dependencies, lastUpdate: Date.now(), executionTime },

@@ -36,8 +36,8 @@ export const QuickActionCard: React.FC<{
   action: () => void;
   disabled?: boolean;
 }> = ({ title, description, icon, color, action, disabled = false }) => (
-  <div 
-    className={`card border-0 shadow-sm h-100 ${disabled ? 'opacity-50' : ''} card-hover`} 
+  <div
+    className={`card border-0 shadow-sm h-100 ${disabled ? 'opacity-50' : ''} card-hover`}
     onClick={action}
     style={{ cursor: disabled ? 'default' : 'pointer' }}
   >

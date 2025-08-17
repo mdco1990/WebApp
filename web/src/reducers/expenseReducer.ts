@@ -20,8 +20,8 @@ const handleExpenseCreate = (state: ExpensesState, action: ExpenseAction): Expen
     case 'EXPENSE_CREATE_REQUEST':
       return createLoadingState(state);
     case 'EXPENSE_CREATE_SUCCESS':
-      return createSuccessState(state, { 
-        items: action.payload ? [...state.items, action.payload] : state.items 
+      return createSuccessState(state, {
+        items: action.payload ? [...state.items, action.payload] : state.items,
       });
     case 'EXPENSE_CREATE_FAILURE':
       return createFailureState(state, action.payload || null);
@@ -36,7 +36,7 @@ const handleExpenseUpdate = (state: ExpensesState, action: ExpenseAction): Expen
       return createLoadingState(state);
     case 'EXPENSE_UPDATE_SUCCESS': {
       if (!action.payload) return state;
-      const updatedItems = state.items.map((expense) => 
+      const updatedItems = state.items.map((expense) =>
         expense.id === action.payload!.id ? action.payload! : expense
       );
       return createSuccessState(state, { items: updatedItems });
@@ -54,12 +54,11 @@ const handleExpenseDelete = (state: ExpensesState, action: ExpenseAction): Expen
       return createLoadingState(state);
     case 'EXPENSE_DELETE_SUCCESS': {
       const updatedItems = state.items.filter((expense) => expense.id !== action.payload);
-      const updatedSelectedExpense = state.selectedExpense?.id === action.payload 
-        ? null 
-        : state.selectedExpense;
-      return createSuccessState(state, { 
-        items: updatedItems, 
-        selectedExpense: updatedSelectedExpense 
+      const updatedSelectedExpense =
+        state.selectedExpense?.id === action.payload ? null : state.selectedExpense;
+      return createSuccessState(state, {
+        items: updatedItems,
+        selectedExpense: updatedSelectedExpense,
       });
     }
     case 'EXPENSE_DELETE_FAILURE':
@@ -73,16 +72,16 @@ export function expenseReducer(state: ExpensesState, action: ExpenseAction): Exp
   // Try each handler in sequence
   const fetchResult = handleExpenseFetch(state, action);
   if (fetchResult !== state) return fetchResult;
-  
+
   const createResult = handleExpenseCreate(state, action);
   if (createResult !== state) return createResult;
-  
+
   const updateResult = handleExpenseUpdate(state, action);
   if (updateResult !== state) return updateResult;
-  
+
   const deleteResult = handleExpenseDelete(state, action);
   if (deleteResult !== state) return deleteResult;
-  
+
   // Handle simple state updates
   switch (action.type) {
     case 'EXPENSE_SELECT':

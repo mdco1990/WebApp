@@ -1,7 +1,10 @@
 import { NotificationsState, NotificationAction } from './appReducer';
 
 // Notification reducer
-export function notificationReducer(state: NotificationsState, action: NotificationAction): NotificationsState {
+export function notificationReducer(
+  state: NotificationsState,
+  action: NotificationAction
+): NotificationsState {
   switch (action.type) {
     case 'NOTIFICATION_FETCH_REQUEST':
       return { ...state, loading: true, error: null };

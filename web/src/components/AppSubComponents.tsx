@@ -1,7 +1,11 @@
 import React from 'react';
 
 // Lightweight sub components to reduce App complexity
-export type PageHeaderProps = { title: string; loading: boolean; HeaderControlsComp: React.ReactNode };
+export type PageHeaderProps = {
+  title: string;
+  loading: boolean;
+  HeaderControlsComp: React.ReactNode;
+};
 
 export const PageHeader: React.FC<PageHeaderProps> = ({ title, loading, HeaderControlsComp }) => (
   <div className="page-header d-print-none">

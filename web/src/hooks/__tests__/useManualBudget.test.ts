@@ -31,9 +31,7 @@ Object.defineProperty(window, 'localStorage', {
 });
 
 const mockGetManualBudget = api.getManualBudget as vi.MockedFunction<typeof api.getManualBudget>;
-const mockSaveManualBudget = api.saveManualBudget as vi.MockedFunction<
-  typeof api.saveManualBudget
->;
+const mockSaveManualBudget = api.saveManualBudget as vi.MockedFunction<typeof api.saveManualBudget>;
 
 describe('useManualBudget', () => {
   beforeEach(() => {
@@ -130,7 +128,7 @@ describe('useManualBudget', () => {
 
     // Advance timers to trigger debounced save
     act(() => {
-      jest.advanceTimersByTime(500);
+      vi.advanceTimersByTime(500);
     });
 
     await waitFor(() => {

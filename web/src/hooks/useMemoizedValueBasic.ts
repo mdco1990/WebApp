@@ -29,7 +29,9 @@ export const defaultComparison = (a: unknown, b: unknown): boolean => {
     const keysA = Object.keys(a as Record<string, unknown>);
     const keysB = Object.keys(b as Record<string, unknown>);
     if (keysA.length !== keysB.length) return false;
-    return keysA.every((key) => defaultComparison((a as Record<string, unknown>)[key], (b as Record<string, unknown>)[key]));
+    return keysA.every((key) =>
+      defaultComparison((a as Record<string, unknown>)[key], (b as Record<string, unknown>)[key])
+    );
   }
   return false;
 };
@@ -44,12 +46,18 @@ type MemoizationState<T> = {
 
 // Memoization actions
 type MemoizationAction<T> =
-  | { type: 'UPDATE_VALUE'; payload: { value: T; dependencies: Array<unknown>; lastUpdate: number } }
+  | {
+      type: 'UPDATE_VALUE';
+      payload: { value: T; dependencies: Array<unknown>; lastUpdate: number };
+    }
   | { type: 'SET_STALE'; payload: boolean }
   | { type: 'CLEAR' };
 
 // Memoization reducer
-function memoizationReducer<T>(state: MemoizationState<T>, action: MemoizationAction<T>): MemoizationState<T> {
+function memoizationReducer<T>(
+  state: MemoizationState<T>,
+  action: MemoizationAction<T>
+): MemoizationState<T> {
   switch (action.type) {
     case 'UPDATE_VALUE':
       return {

@@ -9,9 +9,7 @@ import * as api from '../../services/api';
 // Mock the API
 vi.mock('../../services/api');
 const mockGetManualBudget = api.getManualBudget as vi.MockedFunction<typeof api.getManualBudget>;
-const mockSaveManualBudget = api.saveManualBudget as vi.MockedFunction<
-  typeof api.saveManualBudget
->;
+const mockSaveManualBudget = api.saveManualBudget as vi.MockedFunction<typeof api.saveManualBudget>;
 
 // Mock localStorage
 const localStorageMock = {
@@ -274,7 +272,7 @@ describe('ManualBudget - Component Integration Tests', () => {
       { id: 5, name: 'Item 3', amount_cents: -2000 },
     ];
 
-    newItems.forEach(item => mockData.items.push(item));
+    newItems.forEach((item) => mockData.items.push(item));
 
     // Verify all items are added
     expect(mockData.items).toHaveLength(5); // 2 initial + 3 added

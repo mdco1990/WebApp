@@ -9,9 +9,7 @@ import * as api from '../../services/api';
 // Mock the API
 vi.mock('../../services/api');
 const mockGetManualBudget = api.getManualBudget as vi.MockedFunction<typeof api.getManualBudget>;
-const mockSaveManualBudget = api.saveManualBudget as vi.MockedFunction<
-  typeof api.saveManualBudget
->;
+const mockSaveManualBudget = api.saveManualBudget as vi.MockedFunction<typeof api.saveManualBudget>;
 
 // Mock localStorage
 type LocalStorageMock = {
