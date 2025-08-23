@@ -1,4 +1,5 @@
 import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
+import { randomBase36 } from '../utils/secureRandom';
 
 type Toast = { id: string; message: string; type?: 'info' | 'success' | 'error' };
 
@@ -17,7 +18,7 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const push = useCallback(
     (message: string, type: Toast['type'] = 'info') => {
-      const id = Math.random().toString(36).slice(2);
+      const id = randomBase36(8);
       setToasts((t) => [...t, { id, message, type }]);
       setTimeout(() => remove(id), 3500);
     },
