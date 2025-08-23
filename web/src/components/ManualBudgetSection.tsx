@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { randomBase36 } from '../utils/secureRandom';
 
 export interface ManualBudgetItem {
   id: string;
@@ -203,7 +204,7 @@ const ManualBudgetSection: React.FC<Props> = ({
                       items: [
                         ...manualBudget.items,
                         {
-                          id: Date.now().toString() + '-' + Math.random().toString(36).slice(2),
+                          id: Date.now().toString() + '-' + randomBase36(8),
                           name: '',
                           amount: 0,
                         },

@@ -1,8 +1,11 @@
 import React from 'react';
 import { render, fireEvent } from '@testing-library/react';
+import '@testing-library/jest-dom';
+import { vi } from 'vitest';
 import ManualBudgetSection from '../ManualBudgetSection';
 
-describe('ManualBudgetSection (unit)', () => {
+describe('ManualBudgetSection Unit Tests', () => {
+  const mockSetManualBudget = vi.fn();
   const parse = (v: string) => {
     const n = v.replace(/,/g, '.');
     return parseFloat(n) || 0;
@@ -10,7 +13,6 @@ describe('ManualBudgetSection (unit)', () => {
   const format = (c: number) => `$${(c / 100).toFixed(2)}`;
 
   it('parses comma decimal values', () => {
-    const mockSetManualBudget = jest.fn();
     const initialState = { bankAmount: 0, items: [] };
     const { getByLabelText } = render(
       <ManualBudgetSection
