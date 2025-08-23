@@ -79,7 +79,8 @@ function memoizationReducer<T>(
     case 'CLEAR':
       return {
         ...state,
-        value: undefined as T,
+        // Intentionally set to undefined to indicate cleared state; caller tests expect undefined
+        value: undefined as unknown as T,
         dependencies: [],
         lastUpdate: 0,
         isStale: false,
@@ -88,6 +89,9 @@ function memoizationReducer<T>(
       return state;
   }
 }
+
+// Test-only export to enable direct unit testing of reducer branches (e.g., default case)
+export { memoizationReducer as __memoizationReducerForTest };
 
 // Basic memoization hook with dependency tracking
 export function useMemoizedValue<T>(
@@ -101,11 +105,11 @@ export function useMemoizedValue<T>(
   } = options;
 
   const [state, dispatch] = useReducer(memoizationReducer<T>, {
-    value: factory(),
+    value: factory() as T,
     dependencies: dependencies,
     lastUpdate: Date.now(),
     isStale: false,
-  });
+  } as MemoizationState<T>);
 
   const factoryRef = useRef(factory);
   const optionsRef = useRef(options);
@@ -122,15 +126,14 @@ export function useMemoizedValue<T>(
     return dependencies.some((dep, index) => !comparisonFn(dep, state.dependencies[index]));
   }, [dependencies, state.dependencies, comparisonFn]);
 
-  // Check if value is stale
-  const isStale = useMemo(() => {
-    return Date.now() - state.lastUpdate > maxAge;
-  }, [state.lastUpdate, maxAge]);
+  // Check if value is stale (compute directly so changes in system time are observed on re-render)
+  const isStale = Date.now() - state.lastUpdate > maxAge;
 
   // Memoize value with dependencies
   const memoizedValue = useMemo(() => {
     if (dependenciesChanged) {
-      const newValue = factoryRef.current();
+      // Use the factory directly so we pick up the latest function from props during render
+      const newValue = factory();
       dispatch({
         type: 'UPDATE_VALUE',
         payload: { value: newValue, dependencies, lastUpdate: Date.now() },
@@ -138,7 +141,7 @@ export function useMemoizedValue<T>(
       return newValue;
     }
     return state.value;
-  }, [dependencies, dependenciesChanged, state.value]);
+  }, [dependencies, dependenciesChanged, state.value, factory]);
 
   // Update stale status
   useEffect(() => {
@@ -149,12 +152,12 @@ export function useMemoizedValue<T>(
 
   // Refresh function
   const refresh = useCallback(() => {
-    const newValue = factoryRef.current();
+    const newValue = factory();
     dispatch({
       type: 'UPDATE_VALUE',
       payload: { value: newValue, dependencies, lastUpdate: Date.now() },
     });
-  }, [dependencies]);
+  }, [dependencies, factory]);
 
   // Clear function
   const clear = useCallback(() => {

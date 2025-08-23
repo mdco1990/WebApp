@@ -165,4 +165,59 @@ describe('useBudgetState', () => {
 
     expect(result.current.savingsTracker.currentAmount).toBe(3000); // 2500 + 500
   });
+
+  it('should compute prev totals inside setPredictedBudget with zero amounts (branch at line ~70)', () => {
+    const { result } = renderHook(() => useBudgetState());
+
+    // Seed prev with zero (falsy) income and positive outcome so the reducer hits both paths
+    act(() => {
+      result.current.setPredictedBudget({
+        incomeSources: [{ client_id: 'i1', name: 'Zero Income', amount_cents: 0 }],
+        outcomeSources: [{ client_id: 'o1', name: 'Expense', amount_cents: 1000 }],
+        totalIncome: 0,
+        totalOutcome: 0,
+        difference: 0,
+      });
+    });
+
+    let seenCurrent: any;
+    act(() => {
+      result.current.setPredictedBudget((current) => {
+        // capture what setPredictedBudget computed from prev for branch coverage
+        seenCurrent = current;
+        return current; // no change
+      });
+    });
+
+    expect(seenCurrent.totalIncome).toBe(0);
+    expect(seenCurrent.totalOutcome).toBe(1000);
+    expect(seenCurrent.difference).toBe(-1000);
+  });
+
+  it('should compute prev totals with zero outcome amount (cover line ~71 branch)', () => {
+    const { result } = renderHook(() => useBudgetState());
+
+    // Seed prev with positive income and zero (falsy) outcome
+    act(() => {
+      result.current.setPredictedBudget({
+        incomeSources: [{ client_id: 'i1', name: 'Income', amount_cents: 1000 }],
+        outcomeSources: [{ client_id: 'o1', name: 'Zero Expense', amount_cents: 0 }],
+        totalIncome: 0,
+        totalOutcome: 0,
+        difference: 0,
+      });
+    });
+
+    let seenCurrent: any;
+    act(() => {
+      result.current.setPredictedBudget((current) => {
+        seenCurrent = current;
+        return current;
+      });
+    });
+
+    expect(seenCurrent.totalIncome).toBe(1000);
+    expect(seenCurrent.totalOutcome).toBe(0);
+    expect(seenCurrent.difference).toBe(1000);
+  });
 });
