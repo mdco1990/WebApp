@@ -39,7 +39,6 @@ export const useManualBudget = (currentDate: Date) => {
 
     try {
       localStorage.setItem(key, JSON.stringify(manualBudget));
-      // console.log('✅ localStorage saved successfully');
     } catch {
       console.error('❌ localStorage save failed');
       // ignore storage quota or availability issues
@@ -62,8 +61,6 @@ export const useManualBudget = (currentDate: Date) => {
     // debounce to reduce network chatter
     if (manualBudgetSaveTimer.current) window.clearTimeout(manualBudgetSaveTimer.current);
     manualBudgetSaveTimer.current = window.setTimeout(async () => {
-      // console.log('📡 Attempting server save:', payload);
-
       // Check if user is authenticated before trying server save
       const sessionId = localStorage.getItem('session_id');
       if (!sessionId) {
@@ -73,7 +70,6 @@ export const useManualBudget = (currentDate: Date) => {
 
       try {
         await saveManualBudget(payload);
-        // console.log('✅ Server save successful');
       } catch (error) {
         console.error('❌ Server save failed:', error);
         // ignore - backend may not implement this yet; localStorage remains the fallback
@@ -117,7 +113,7 @@ export const useManualBudget = (currentDate: Date) => {
             const fromServer: ManualBudgetState = {
               bankAmount: (data.bank_amount_cents || 0) / 100,
               items: (data.items as ServerItem[]).map((it) => ({
-                id: String(it.id ?? it.client_id ?? Math.random().toString(36).slice(2)),
+                id: String(it.id ?? it.client_id ?? /* fallback */ Date.now().toString(36)),
                 name: String(it.name ?? ''),
                 amount: (it.amount_cents ?? 0) / 100,
               })),

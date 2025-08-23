@@ -1,15 +1,16 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
+import { vi, test, expect, describe } from 'vitest';
 import AdminControls from '../AdminControls';
 import { I18nextProvider } from 'react-i18next';
 import { createTestI18n } from '../../i18n/test-i18n';
 
 describe('AdminControls', () => {
   const setup = (overrides: Partial<React.ComponentProps<typeof AdminControls>> = {}) => {
-    const onApproveUser = jest.fn();
-    const onRejectUser = jest.fn();
-    const onDeleteUser = jest.fn();
+    const onApproveUser = vi.fn();
+    const onRejectUser = vi.fn();
+    const onDeleteUser = vi.fn();
     const i18n = createTestI18n('en');
     const utils = render(
       <I18nextProvider i18n={i18n}>
@@ -174,10 +175,24 @@ describe('AdminControls', () => {
   });
 
   test('clear cache confirmation triggers reload when confirmed', () => {
-    // Monitor cache clear side-effects instead of reload override (readonly)
-    const lsClear = jest.spyOn(window.localStorage.__proto__, 'clear');
-    const ssClear = jest.spyOn(window.sessionStorage.__proto__, 'clear');
-    const confirmSpy = jest.spyOn(window, 'confirm').mockReturnValue(true);
+    // Mock the Storage.prototype.clear method
+    const originalLocalStorageClear = Storage.prototype.clear;
+    const _originalSessionStorageClear = Storage.prototype.clear;
+
+    let localStorageCleared = false;
+    let sessionStorageCleared = false;
+
+    Storage.prototype.clear = function () {
+      if (this === window.localStorage) {
+        localStorageCleared = true;
+      } else if (this === window.sessionStorage) {
+        sessionStorageCleared = true;
+      }
+      return originalLocalStorageClear.call(this);
+    };
+
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+
     render(
       <I18nextProvider i18n={createTestI18n('en')}>
         <AdminControls
@@ -188,14 +203,17 @@ describe('AdminControls', () => {
         />
       </I18nextProvider>
     );
+
     fireEvent.click(screen.getByRole('button', { name: /Admin Panel/ }));
     fireEvent.click(screen.getByRole('button', { name: /Clear Cache/ }));
+
     expect(confirmSpy).toHaveBeenCalled();
-    expect(lsClear).toHaveBeenCalled();
-    expect(ssClear).toHaveBeenCalled();
+    expect(localStorageCleared).toBe(true);
+    expect(sessionStorageCleared).toBe(true);
+
+    // Restore original methods
+    Storage.prototype.clear = originalLocalStorageClear;
     confirmSpy.mockRestore();
-    lsClear.mockRestore();
-    ssClear.mockRestore();
   });
 
   test('French localization displays French labels', () => {
