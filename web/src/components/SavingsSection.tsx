@@ -1,4 +1,5 @@
 import React from 'react';
+import { randomColor } from '../utils/secureRandom';
 import { useTranslation } from 'react-i18next';
 import { Spinner } from 'react-bootstrap';
 // Charts removed here to avoid duplication (moved to Analytics section)
@@ -58,7 +59,7 @@ const SavingsSection = React.memo<SavingsSectionProps>(
         id: Date.now().toString(),
         name: '',
         amount: 0,
-        color: `#${Math.floor(Math.random() * 16777215).toString(16)}`,
+        color: randomColor(),
       };
       setSavingsTracker((prev) => ({
         ...prev,

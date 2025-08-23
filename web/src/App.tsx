@@ -29,6 +29,7 @@ import PlanningSection from './components/PlanningSection';
 import UserManagement from './components/UserManagement';
 import DBAdmin from './components/DBAdmin';
 import { useToast } from './shared/toast';
+import { randomBase36 } from './utils/secureRandom';
 
 // Import extracted components and utilities to reduce file size
 import { PageHeader, SectionTabs } from './components/AppSubComponents';
@@ -305,167 +306,174 @@ const App: React.FC = () => {
       />
       <SectionTabs active={navigation.activeSection} t={t} />
 
-      {/* Conditional rendering based on current view */}
-      {showUserManagement ? (
-        <UserManagement onBackToMain={() => setShowUserManagement(false)} />
-      ) : showDBAdmin ? (
-        <DBAdmin onBackToMain={() => setShowDBAdmin(false)} />
-      ) : (
-        <>
-          {/* Predicted Budget */}
-          <div id="planning" className="section-anchor"></div>
-          <div
-            className="container-fluid py-4"
-            style={{ padding: '1rem', margin: '0 auto', maxWidth: '100%' }}
-          >
-            <PlanningSection
+      {/* Conditional rendering based on current view (extracted from nested ternary) */}
+      {(() => {
+        // Sonar S3358: avoid nested ternary by using explicit if/else
+        if (showUserManagement) {
+          return <UserManagement onBackToMain={() => setShowUserManagement(false)} />;
+        }
+        if (showDBAdmin) {
+          return <DBAdmin onBackToMain={() => setShowDBAdmin(false)} />;
+        }
+
+        // Default main application UI
+        return (
+          <>
+            {/* Predicted Budget */}
+            <div id="planning" className="section-anchor"></div>
+            <div
+              className="container-fluid py-4"
+              style={{ padding: '1rem', margin: '0 auto', maxWidth: '100%' }}
+            >
+              <PlanningSection
+                isDarkMode={theme.isDarkMode}
+                monthLabel={`${formatMonthWrapper(navigation.currentDate, 'long')} ${navigation.currentDate.getFullYear()}`}
+                incomeSources={budgetState.predictedBudget.incomeSources}
+                outcomeSources={budgetState.predictedBudget.outcomeSources}
+                parseLocaleAmount={parseLocaleAmount}
+                formatCurrency={formatCurrencyWrapper}
+                onIncomeUpdate={(index: number, next: IncomeSource) => {
+                  const updated = [...budgetState.predictedBudget.incomeSources];
+                  updated[index] = next;
+                  budgetState.setPredictedBudget((prev) => ({ ...prev, incomeSources: updated }));
+                }}
+                onIncomeBlurSave={(index: number) =>
+                  autoSaveIncomeSource({ ...budgetState.predictedBudget.incomeSources[index] })
+                }
+                onIncomeRemoveUnsaved={(index: number) => {
+                  const updated = budgetState.predictedBudget.incomeSources.filter(
+                    (_, i) => i !== index
+                  );
+                  budgetState.setPredictedBudget((prev) => ({ ...prev, incomeSources: updated }));
+                }}
+                onIncomeDeletePersisted={async (id: number) => {
+                  await deleteIncome(id);
+                }}
+                onIncomeAddEmpty={() =>
+                  budgetState.setPredictedBudget((prev) => ({
+                    ...prev,
+                    incomeSources: [
+                      ...prev.incomeSources,
+                      {
+                        id: 0,
+                        client_id: `tmp_inc_${Date.now()}_${randomBase36(8)}`,
+                        name: '',
+                        amount_cents: 0,
+                      },
+                    ],
+                  }))
+                }
+                onOutcomeUpdate={(index: number, next: OutcomeSource) => {
+                  const updated = [...budgetState.predictedBudget.outcomeSources];
+                  updated[index] = next;
+                  budgetState.setPredictedBudget((prev) => ({ ...prev, outcomeSources: updated }));
+                }}
+                onOutcomeBlurSave={(index: number) =>
+                  autoSaveOutcomeSource({ ...budgetState.predictedBudget.outcomeSources[index] })
+                }
+                onOutcomeRemoveUnsaved={(index: number) => {
+                  const updated = budgetState.predictedBudget.outcomeSources.filter(
+                    (_, i) => i !== index
+                  );
+                  budgetState.setPredictedBudget((prev) => ({ ...prev, outcomeSources: updated }));
+                }}
+                onOutcomeDeletePersisted={async (id: number) => {
+                  await deleteOutcome(id);
+                }}
+                onOutcomeAddEmpty={() =>
+                  budgetState.setPredictedBudget((prev) => ({
+                    ...prev,
+                    outcomeSources: [
+                      ...prev.outcomeSources,
+                      {
+                        id: 0,
+                        client_id: `tmp_out_${Date.now()}_${randomBase36(8)}`,
+                        name: '',
+                        amount_cents: 0,
+                      },
+                    ],
+                  }))
+                }
+                totalIncome={budgetState.predictedBudget.totalIncome}
+                totalOutcome={budgetState.predictedBudget.totalOutcome}
+                difference={budgetState.predictedBudget.difference}
+                totalIncomeLabel={t('label.totalIncomes')}
+                totalOutcomeLabel={t('label.totalOutcomes')}
+                differenceLabel={t('label.difference')}
+                incomeHelp={t('section.predictedIncome.desc')}
+                outcomeHelp={t('section.predictedOutcome.desc')}
+              />
+            </div>
+
+            {/* Manual Current Month Budget (Bank and planned deductions) */}
+            <div id="tracking" className="section-anchor"></div>
+            <ManualBudgetSection
               isDarkMode={theme.isDarkMode}
+              title={t('section.manualBudget', {
+                defaultValue: 'Manual Budget (Bank and Planned Deductions)',
+              })}
               monthLabel={`${formatMonthWrapper(navigation.currentDate, 'long')} ${navigation.currentDate.getFullYear()}`}
-              incomeSources={budgetState.predictedBudget.incomeSources}
-              outcomeSources={budgetState.predictedBudget.outcomeSources}
+              currencySymbol={currencySymbol}
+              manualBudget={manualBudget.manualBudget}
+              setManualBudget={manualBudget.setManualBudget}
               parseLocaleAmount={parseLocaleAmount}
               formatCurrency={formatCurrencyWrapper}
-              onIncomeUpdate={(index: number, next: IncomeSource) => {
-                const updated = [...budgetState.predictedBudget.incomeSources];
-                updated[index] = next;
-                budgetState.setPredictedBudget((prev) => ({ ...prev, incomeSources: updated }));
-              }}
-              onIncomeBlurSave={(index: number) =>
-                autoSaveIncomeSource({ ...budgetState.predictedBudget.incomeSources[index] })
+              resetLabel={t('btn.reset', { defaultValue: 'Reset' })}
+              bankLabel={t('label.bankAmount')}
+              plannedLabel={t('label.plannedExpenses')}
+              formulaHint={t('label.formula')}
+              toggleTitle={t('btn.toggleSign') ?? 'Toggle sign'}
+              deleteLabel={t('btn.delete')}
+              addItemLabel={t('btn.addItem')}
+              remainingLabel={t('label.remaining')}
+              positiveNegativeHint={
+                t('label.positiveNegativeHint') ??
+                'Tip: positive values add to remaining; negative values subtract.'
               }
-              onIncomeRemoveUnsaved={(index: number) => {
-                const updated = budgetState.predictedBudget.incomeSources.filter(
-                  (_, i) => i !== index
-                );
-                budgetState.setPredictedBudget((prev) => ({ ...prev, incomeSources: updated }));
-              }}
-              onIncomeDeletePersisted={async (id: number) => {
-                await deleteIncome(id);
-              }}
-              onIncomeAddEmpty={() =>
-                budgetState.setPredictedBudget((prev) => ({
-                  ...prev,
-                  incomeSources: [
-                    ...prev.incomeSources,
-                    {
-                      id: 0,
-                      client_id: `tmp_inc_${Date.now()}_${Math.random().toString(36).slice(2)}`,
-                      name: '',
-                      amount_cents: 0,
-                    },
-                  ],
-                }))
-              }
-              onOutcomeUpdate={(index: number, next: OutcomeSource) => {
-                const updated = [...budgetState.predictedBudget.outcomeSources];
-                updated[index] = next;
-                budgetState.setPredictedBudget((prev) => ({ ...prev, outcomeSources: updated }));
-              }}
-              onOutcomeBlurSave={(index: number) =>
-                autoSaveOutcomeSource({ ...budgetState.predictedBudget.outcomeSources[index] })
-              }
-              onOutcomeRemoveUnsaved={(index: number) => {
-                const updated = budgetState.predictedBudget.outcomeSources.filter(
-                  (_, i) => i !== index
-                );
-                budgetState.setPredictedBudget((prev) => ({ ...prev, outcomeSources: updated }));
-              }}
-              onOutcomeDeletePersisted={async (id: number) => {
-                await deleteOutcome(id);
-              }}
-              onOutcomeAddEmpty={() =>
-                budgetState.setPredictedBudget((prev) => ({
-                  ...prev,
-                  outcomeSources: [
-                    ...prev.outcomeSources,
-                    {
-                      id: 0,
-                      client_id: `tmp_out_${Date.now()}_${Math.random().toString(36).slice(2)}`,
-                      name: '',
-                      amount_cents: 0,
-                    },
-                  ],
-                }))
-              }
-              totalIncome={budgetState.predictedBudget.totalIncome}
-              totalOutcome={budgetState.predictedBudget.totalOutcome}
-              difference={budgetState.predictedBudget.difference}
-              totalIncomeLabel={t('label.totalIncomes')}
-              totalOutcomeLabel={t('label.totalOutcomes')}
-              differenceLabel={t('label.difference')}
-              incomeHelp={t('section.predictedIncome.desc')}
-              outcomeHelp={t('section.predictedOutcome.desc')}
             />
-          </div>
 
-          {/* Manual Current Month Budget (Bank and planned deductions) */}
-          <div id="tracking" className="section-anchor"></div>
-          <ManualBudgetSection
-            isDarkMode={theme.isDarkMode}
-            title={t('section.manualBudget', {
-              defaultValue: 'Manual Budget (Bank and Planned Deductions)',
-            })}
-            monthLabel={`${formatMonthWrapper(navigation.currentDate, 'long')} ${navigation.currentDate.getFullYear()}`}
-            currencySymbol={currencySymbol}
-            manualBudget={manualBudget.manualBudget}
-            setManualBudget={manualBudget.setManualBudget}
-            parseLocaleAmount={parseLocaleAmount}
-            formatCurrency={formatCurrencyWrapper}
-            resetLabel={t('btn.reset', { defaultValue: 'Reset' })}
-            bankLabel={t('label.bankAmount')}
-            plannedLabel={t('label.plannedExpenses')}
-            formulaHint={t('label.formula')}
-            toggleTitle={t('btn.toggleSign') ?? 'Toggle sign'}
-            deleteLabel={t('btn.delete')}
-            addItemLabel={t('btn.addItem')}
-            remainingLabel={t('label.remaining')}
-            positiveNegativeHint={
-              t('label.positiveNegativeHint') ??
-              'Tip: positive values add to remaining; negative values subtract.'
-            }
-          />
+            {/* Savings Section */}
+            <div id="savings" className="section-anchor"></div>
+            <SavingsSection
+              isDarkMode={theme.isDarkMode}
+              dataLoaded={dataLoaded}
+              savingsTracker={budgetState.savingsTracker}
+              setSavingsTracker={budgetState.setSavingsTracker}
+              formatCurrency={formatCurrencyWrapper}
+            />
 
-          {/* Savings Section */}
-          <div id="savings" className="section-anchor"></div>
-          <SavingsSection
-            isDarkMode={theme.isDarkMode}
-            dataLoaded={dataLoaded}
-            savingsTracker={budgetState.savingsTracker}
-            setSavingsTracker={budgetState.setSavingsTracker}
-            formatCurrency={formatCurrencyWrapper}
-          />
+            {/* Additional Charts Row */}
+            <div id="analytics" className="section-anchor"></div>
+            <AnalyticsChartsSection
+              isDarkMode={theme.isDarkMode}
+              dataLoaded={dataLoaded}
+              predictedBudget={budgetState.predictedBudget}
+              savingsTracker={budgetState.savingsTracker}
+              currentDate={navigation.currentDate}
+              manualBudget={manualBudget.manualBudget}
+              formatCurrency={formatCurrencyWrapper}
+            />
 
-          {/* Additional Charts Row */}
-          <div id="analytics" className="section-anchor"></div>
-          <AnalyticsChartsSection
-            isDarkMode={theme.isDarkMode}
-            dataLoaded={dataLoaded}
-            predictedBudget={budgetState.predictedBudget}
-            savingsTracker={budgetState.savingsTracker}
-            currentDate={navigation.currentDate}
-            manualBudget={manualBudget.manualBudget}
-            formatCurrency={formatCurrencyWrapper}
-          />
-
-          {/* Back to top */}
-          {navigation.showBackToTop && (
-            <button
-              type="button"
-              className="btn btn-primary position-fixed"
-              style={{
-                right: '1rem',
-                bottom: '1.25rem',
-                borderRadius: '999px',
-                boxShadow: '0 0.5rem 1rem rgba(0,0,0,0.15)',
-              }}
-              onClick={navigation.scrollToTop}
-              aria-label="Back to top"
-            >
-              ↑
-            </button>
-          )}
-        </>
-      )}
+            {/* Back to top */}
+            {navigation.showBackToTop && (
+              <button
+                type="button"
+                className="btn btn-primary position-fixed"
+                style={{
+                  right: '1rem',
+                  bottom: '1.25rem',
+                  borderRadius: '999px',
+                  boxShadow: '0 0.5rem 1rem rgba(0,0,0,0.15)',
+                }}
+                onClick={navigation.scrollToTop}
+                aria-label="Back to top"
+              >
+                ↑
+              </button>
+            )}
+          </>
+        );
+      })()}
     </div>
   );
 };

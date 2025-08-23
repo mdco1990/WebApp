@@ -105,7 +105,7 @@ export function useMemoizedValue<T>(
   } = options;
 
   const [state, dispatch] = useReducer(memoizationReducer<T>, {
-    value: factory() as T,
+    value: factory(),
     dependencies: dependencies,
     lastUpdate: Date.now(),
     isStale: false,

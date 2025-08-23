@@ -25,7 +25,7 @@ const createTestState = (overrides = {}) => ({
   ...overrides,
 });
 
-const createTestComponent = (options = {}) => {
+const createTestComponent = (options: { maxAge?: number; initialDeps?: any[] } = {}) => {
   const { maxAge = 1000, initialDeps = [] } = options;
   let sequence = 0;
 
@@ -73,8 +73,12 @@ describe('useMemoizedValue', () => {
   });
 
   describe('basic functionality', () => {
+    // Extracted to top-level to avoid deep nesting
+    const emptyFactory = () => ({});
+    const useMemoizedEmptyValue = (deps: any[]) => useMemoizedValue(emptyFactory, deps);
+
     it('memoizes value when dependencies are equal', () => {
-      const { result, rerender } = renderHook(({ deps }) => useMemoizedValue(() => ({}), deps), {
+      const { result, rerender } = renderHook(({ deps }) => useMemoizedEmptyValue(deps), {
         initialProps: { deps: [1, 2, 3] },
       });
 
@@ -84,7 +88,7 @@ describe('useMemoizedValue', () => {
     });
 
     it('updates value when dependencies change', () => {
-      const { result, rerender } = renderHook(({ deps }) => useMemoizedValue(() => ({}), deps), {
+      const { result, rerender } = renderHook(({ deps }) => useMemoizedEmptyValue(deps), {
         initialProps: { deps: [1, 2, 3] },
       });
 
@@ -95,11 +99,14 @@ describe('useMemoizedValue', () => {
   });
 
   describe('staleness tracking', () => {
+    // Extracted to avoid deep nesting
+    const emptyObjectFactory = () => ({});
+
     it('marks value as stale after maxAge', async () => {
       // Use fake timers and system time to control time reliably
       const now = Date.now();
       const { result, rerender } = renderHook(
-        ({ maxAge }) => useMemoizedValue(() => ({}), [], { maxAge }),
+        ({ maxAge }) => useMemoizedValue(emptyObjectFactory, [], { maxAge }),
         { initialProps: { maxAge: 1000 } }
       );
 
@@ -117,12 +124,17 @@ describe('useMemoizedValue', () => {
       expect(result.current.isStale).toBe(true);
     });
 
+    // Extracted factory to avoid deep nesting
+    // Use a deterministic sequence instead of Math.random to avoid Sonar S2245 in tests
+    let _randomSeq = 0;
+    const randomValueFactory = () => ({ value: ++_randomSeq });
+
     it('refreshes stale value', async () => {
       const now = Date.now();
       vi.spyOn(Date, 'now').mockImplementation(() => now);
 
       const { result, rerender } = renderHook(
-        ({ maxAge }) => useMemoizedValue(() => ({ value: Math.random() }), [], { maxAge }),
+        ({ maxAge }) => useMemoizedValue(randomValueFactory, [], { maxAge }),
         { initialProps: { maxAge: 1000 } }
       );
 
@@ -186,29 +198,36 @@ describe('useMemoizedValue', () => {
       expect(result.current.value).toEqual(firstValue);
     });
 
+    // Helper functions moved to top-level to avoid deep nesting
+    function stableFnBody(id: string, returnValue: string, callCounts: Map<string, number>) {
+      callCounts.set(id, (callCounts.get(id) || 0) + 1);
+      return { value: `${returnValue}_${callCounts.get(id)}` };
+    }
+
+    function makeStableFn(id: string, returnValue: string, callCounts: Map<string, number>) {
+      callCounts.set(id, 0);
+      return function stableFn() {
+        return stableFnBody(id, returnValue, callCounts);
+      };
+    }
+
+    // Helper for useMemoizedValue with stableFn and dep, to avoid deep nesting
+    function useStableFnMemoizedValue(fn: () => any, dep: any) {
+      const stableFn = useStableReference(fn);
+      const { value } = useMemoizedValue(() => stableFn(), [stableFn, dep]);
+      return { value };
+    }
+
     it('handles function dependencies correctly', async () => {
       // Track function calls using a Map to handle React's strict mode double-invocation
       const callCounts = new Map();
 
-      const createStableFn = (id: string, returnValue: string) => {
-        callCounts.set(id, 0);
-        return () => {
-          callCounts.set(id, (callCounts.get(id) || 0) + 1);
-          return { value: `${returnValue}_${callCounts.get(id)}` };
-        };
-      };
+      const stableFn1 = makeStableFn('fn1', 'test1', callCounts);
+      const stableFn2 = makeStableFn('fn2', 'test2', callCounts);
 
-      const stableFn1 = createStableFn('fn1', 'test1');
-      const stableFn2 = createStableFn('fn2', 'test2');
-
-      const { result, rerender } = renderHook(
-        ({ fn, dep }) => {
-          const stableFn = useStableReference(fn);
-          const { value } = useMemoizedValue(() => stableFn(), [stableFn, dep]);
-          return { value };
-        },
-        { initialProps: { fn: stableFn1, dep: 0 } }
-      );
+      const { result, rerender } = renderHook(({ fn, dep }) => useStableFnMemoizedValue(fn, dep), {
+        initialProps: { fn: stableFn1, dep: 0 },
+      });
 
       // Initial render - check that the function produced a string value
       expect(typeof result.current.value.value).toBe('string');
